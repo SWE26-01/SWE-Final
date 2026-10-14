@@ -758,7 +758,7 @@ function App() {
             <section className="a2a-card panel">
               <div className="panel-heading compact">
                 <div><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> WS CONNECTED</div>
+                <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
               </div>
               <div className="agent-network">
                 {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -838,7 +838,7 @@ function App() {
               <section className="a2a-card panel">
                 <div className="panel-heading compact">
                   <div><h2>A2A Communication</h2></div>
-                  <div className="socket-state"><Wifi size={13} /> WS CONNECTED</div>
+                  <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
                 </div>
                 <div className="agent-network">
                   {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${liveRunId ? 'active' : ''}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -903,13 +903,13 @@ function App() {
           <div className="activity-tab">
             <section className="activity-detail panel">
               <div className="activity-page-heading">
-                <div><span>LIVE EVENT STREAM</span><h1>Agent Activity</h1><p>센서 감지부터 판단과 기기 실행까지 에이전트의 전체 동작을 확인합니다.</p></div>
+                <div><span>LIVE EVENT STREAM</span><h1>Agent Activity</h1></div>
                 <div className="live-state"><i /> LIVE</div>
               </div>
               <div className="activity-stats">
                 <div><span>오늘의 이벤트</span><b>24</b><small>+6 since 18:00</small></div>
                 <div><span>자동 실행</span><b>9</b><small>성공률 100%</small></div>
-                <div><span>평균 응답</span><b>0.8s</b><small>WebSocket 실시간</small></div>
+                <div><span>평균 응답</span><b>0.8s</b><small>실시간 연결</small></div>
               </div>
               <div className="expanded-timeline">
                 {[
@@ -931,7 +931,7 @@ function App() {
             <section className="a2a-detail panel">
               <div className="activity-page-heading compact-heading">
                 <div><span>AGENT TO AGENT</span><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> WS CONNECTED</div>
+                <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
               </div>
               <div className="expanded-network">
                 {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
