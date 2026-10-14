@@ -936,11 +936,11 @@ function App() {
               <div className="expanded-network">
                 {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
               </div>
-              <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span><span>STATUS</span></div>
+              <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span></div>
               <div className="expanded-log-list">
                 {logs.map((log, index) => (
                   <div className="expanded-log" key={`${log.time}-${index}`}>
-                    <time>{log.time}</time><div><b>{log.from}</b><ChevronRight size={12} /><b>{log.to}</b></div><p>{log.text}</p><em>DELIVERED</em>
+                    <time>{log.time}</time><div><b>{log.from}</b><ChevronRight size={12} /><b>{log.to}</b></div><p>{log.text}</p>
                   </div>
                 ))}
               </div>
