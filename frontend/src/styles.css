@@ -94,7 +94,7 @@ button { font: inherit; }
 .test-slider small { display:flex; justify-content:space-between; color:rgba(0,0,0,.34); font-size:7px; }.test-slider small em { font-style:normal; }
 .test-state-note { display:flex; align-items:center; gap:7px; padding:10px 12px; border-radius:10px; color:rgba(0,0,0,.56); background:rgba(225,229,172,.48); font-size:8px; }.test-state-note i { width:6px; height:6px; border-radius:50%; background:#77843c; }
 .test-empty { min-height:250px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#74838b; }.test-empty svg { color:var(--cornflower); }.test-empty h3 { margin:12px 0 4px; color:var(--black); font-size:14px; }.test-empty p { max-width:230px; margin:0; font-size:9px; line-height:1.55; }
-.activity-tab { min-height:0; height:100%; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,.9fr); align-items:start; gap:18px; overflow-x:hidden; overflow-y:auto; padding-right:5px; scrollbar-width:thin; scrollbar-color:var(--cornflower) transparent; }
+.activity-tab { min-height:0; height:100%; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,.9fr); align-items:stretch; gap:18px; overflow:hidden; }
 .activity-detail,.a2a-detail { min-height:0; padding:27px; }
 .activity-page-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
 .activity-page-heading span { color:#4f85ac; font-size:8px; font-weight:700; letter-spacing:.13em; }
@@ -125,7 +125,7 @@ button { font: inherit; }
 .expanded-log time { color:rgba(0,0,0,.46); font-size:7px; }.expanded-log > div { display:flex; align-items:center; gap:4px; min-width:0; }.expanded-log b { font-size:7px; white-space:nowrap; }.expanded-log p { margin:0; color:rgba(0,0,0,.55); font-size:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.expanded-log em { color:#4f85ac; font-size:6px; font-style:normal; font-weight:700; }
 .activity-tab { line-height:1.45; }
 .activity-tab .activity-detail { padding:31px; }
-.activity-tab .activity-detail,.activity-tab .a2a-detail { min-width:0; overflow:visible; }
+.activity-tab .activity-detail,.activity-tab .a2a-detail { min-width:0; height:100%; display:flex; flex-direction:column; overflow:hidden; }
 .activity-tab .a2a-detail { padding:27px 24px; }
 .activity-tab .activity-page-heading span { font-size:10px; letter-spacing:.11em; }
 .activity-tab .activity-page-heading h1 { margin-top:8px; font-size:30px; }
@@ -136,6 +136,9 @@ button { font: inherit; }
 .activity-tab .activity-stats span { font-size:10px; }
 .activity-tab .activity-stats b { margin:7px 0 3px; font-size:23px; }
 .activity-tab .activity-stats small { font-size:9px; }
+.activity-tab .expanded-timeline,.activity-tab .expanded-log-list { min-height:0; flex:1 1 auto; overflow-x:hidden; overflow-y:auto; padding-right:7px; scrollbar-width:thin; scrollbar-color:rgba(106,166,218,.65) transparent; }
+.activity-tab .expanded-timeline::-webkit-scrollbar,.activity-tab .expanded-log-list::-webkit-scrollbar { width:5px; }
+.activity-tab .expanded-timeline::-webkit-scrollbar-thumb,.activity-tab .expanded-log-list::-webkit-scrollbar-thumb { border-radius:999px; background:rgba(106,166,218,.55); }
 .activity-tab .expanded-event { grid-template-columns:64px 18px minmax(0,1fr) 92px; gap:12px; min-height:86px; }
 .activity-tab .expanded-event:not(:last-child)::after { left:76px; top:21px; bottom:-5px; }
 .activity-tab .expanded-event time { font-size:10px; }
@@ -345,7 +348,7 @@ button { font: inherit; }
 
 @media (max-width: 1050px) {
   .app-shell { height:auto; min-height:100vh; overflow:visible; }.dashboard { height:auto; overflow:visible; }.main-grid { height:auto; grid-template-columns:1fr; }.floor-card { display:block; }.side-column { display:grid; grid-template-columns:1fr 1fr; overflow:visible; padding-right:0; }.home-3d { height:510px; }.side-column .timeline { grid-template-columns:1fr; }
-  .model-tab { height:calc(100vh - 120px); min-height:620px; }.activity-tab { grid-template-columns:1fr; overflow-x:hidden; overflow-y:auto; }.a2a-detail { min-height:480px; }
+  .model-tab { height:calc(100vh - 120px); min-height:620px; }.activity-tab { height:auto; grid-template-columns:1fr; overflow:visible; }.activity-tab .activity-detail,.activity-tab .a2a-detail { height:auto; min-height:480px; }.activity-tab .expanded-timeline,.activity-tab .expanded-log-list { flex:none; max-height:430px; }.a2a-detail { min-height:480px; }
   .test-tab { height:auto; grid-template-columns:1fr; }.test-model { height:620px; }.test-control { overflow:visible; }
 }
 @media (max-width: 720px) {
