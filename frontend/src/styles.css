@@ -152,7 +152,7 @@ button { font: inherit; }
 .activity-tab .expanded-agent { min-width:0; min-height:74px; display:flex; flex:none; justify-content:center; gap:6px; padding:10px 6px; border-radius:12px; background:rgba(255,255,255,.72); text-align:center; }
 .activity-tab .expanded-agent b { font-size:11px; }
 .activity-tab .expanded-agent span { font-size:8px; }
-.activity-tab .a2a-log-heading,.activity-tab .expanded-log { grid-template-columns:minmax(120px,16fr) minmax(260px,36fr) minmax(0,48fr); gap:12px; }
+.activity-tab .a2a-log-heading,.activity-tab .expanded-log { grid-template-columns:minmax(90px,.55fr) minmax(180px,.9fr) minmax(180px,1.55fr); gap:10px; }
 .activity-tab .a2a-log-heading { padding:0 14px 11px; font-size:10px; }
 .activity-tab .expanded-log { padding:16px 14px; }
 .activity-tab .expanded-log time { font-size:12px; white-space:nowrap; }
@@ -615,7 +615,7 @@ h1,h2,h3,b,strong { font-weight:600; }
   .brand { font-size:15px; }.main-tabs button { font-size:8px; }.panel-heading-actions > p { font-size:9px; }.simulation-control button { font-size:8px; }
   .activity-tab .a2a-detail { padding:21px 17px; }
   .activity-tab .expanded-network { justify-content:flex-start; gap:11px; margin:20px 0 22px; padding:17px 10px; overflow-x:auto; }
-  .activity-tab .a2a-log-heading,.activity-tab .expanded-log { grid-template-columns:minmax(100px,24fr) minmax(190px,40fr) minmax(0,36fr); gap:10px; }
+  .activity-tab .a2a-log-heading,.activity-tab .expanded-log { grid-template-columns:minmax(88px,.55fr) minmax(170px,.9fr) minmax(150px,1.55fr); gap:9px; }
   .activity-tab .a2a-log-heading { display:grid; padding:0 10px 9px; }
   .activity-tab .expanded-log { padding:14px 10px; }
 }
