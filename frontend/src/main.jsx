@@ -758,7 +758,7 @@ function App() {
             <section className="a2a-card panel">
               <div className="panel-heading compact">
                 <div><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
+                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
               </div>
               <div className="agent-network">
                 {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -838,7 +838,7 @@ function App() {
               <section className="a2a-card panel">
                 <div className="panel-heading compact">
                   <div><h2>A2A Communication</h2></div>
-                  <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
+                  <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
                 </div>
                 <div className="agent-network">
                   {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${liveRunId ? 'active' : ''}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -931,7 +931,7 @@ function App() {
             <section className="a2a-detail panel">
               <div className="activity-page-heading compact-heading">
                 <div><span>AGENT TO AGENT</span><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> 실시간 연결됨</div>
+                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
               </div>
               <div className="expanded-network">
                 {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}

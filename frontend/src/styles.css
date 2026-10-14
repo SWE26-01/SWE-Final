@@ -124,7 +124,8 @@ button { font: inherit; }
 .expanded-log { padding:11px 10px; border-top:1px solid var(--mist); }
 .expanded-log time { color:rgba(0,0,0,.46); font-size:7px; }.expanded-log > div { display:flex; align-items:center; gap:4px; min-width:0; }.expanded-log b { font-size:7px; white-space:nowrap; }.expanded-log p { margin:0; color:rgba(0,0,0,.55); font-size:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.expanded-log em { color:#4f85ac; font-size:6px; font-style:normal; font-weight:700; }
 .activity-tab { line-height:1.45; }
-.activity-tab .activity-detail,.activity-tab .a2a-detail { padding:31px; }
+.activity-tab .activity-detail { padding:31px; }
+.activity-tab .a2a-detail { padding:27px 24px; }
 .activity-tab .activity-page-heading span { font-size:10px; letter-spacing:.11em; }
 .activity-tab .activity-page-heading h1 { margin-top:8px; font-size:30px; }
 .activity-tab .activity-page-heading h2 { margin-top:7px; font-size:22px; }
@@ -141,7 +142,7 @@ button { font: inherit; }
 .activity-tab .expanded-event h3 { margin:5px 0 4px; font-size:14px; line-height:1.35; }
 .activity-tab .expanded-event p { font-size:11px; line-height:1.55; }
 .activity-tab .expanded-event > em { padding:5px 8px; font-size:9px; }
-.activity-tab .expanded-network { margin:29px 0; padding:22px 16px; }
+.activity-tab .expanded-network { margin:24px 0 26px; padding:19px 12px; }
 .activity-tab .expanded-agent { min-width:72px; gap:7px; }
 .activity-tab .expanded-agent b { font-size:11px; }
 .activity-tab .expanded-agent span { font-size:8px; }
@@ -601,4 +602,9 @@ h1,h2,h3,b,strong { font-weight:600; }
 
 @media (max-width:720px) {
   .brand { font-size:15px; }.main-tabs button { font-size:8px; }.panel-heading-actions > p { font-size:9px; }.simulation-control button { font-size:8px; }
+  .activity-tab .a2a-detail { padding:21px 17px; }
+  .activity-tab .expanded-network { justify-content:flex-start; gap:11px; margin:20px 0 22px; padding:17px 10px; overflow-x:auto; }
+  .activity-tab .a2a-log-heading { display:none; }
+  .activity-tab .expanded-log { grid-template-columns:58px minmax(0,1fr); gap:7px 10px; padding:13px 8px; }
+  .activity-tab .expanded-log p,.activity-tab .expanded-log em { grid-column:2; white-space:normal; }
 }
