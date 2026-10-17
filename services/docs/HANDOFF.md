@@ -35,7 +35,7 @@
 
 ## 현재 상태
 
-- 완료: 레포 뼈대, `ambient/` 스키마·검증기·구독 관리·A2A 변환 + 테스트, Gateway `/devices`, 설정·시나리오·contracts 초안, CI, 이슈 생성 스크립트(`scripts/create_issues.sh`, WBS 50개).
-- 다음: 공간·기기 ID와 `contracts/gateway` 확정 → W0-3 설정 로더 → W2-1 Agent 서버 템플릿 → W2-2 인증·Task 소유권 → Desktop → My Room 구독 → 시나리오 A 앞부분이 끝까지 동작.
+- 완료: 레포 뼈대, `ambient/` 스키마·검증기·구독 관리·A2A 변환 + 테스트, Gateway `/devices`, W0-3 설정 로더(`homeconfig`), 설정·시나리오·contracts 초안, CI, 이슈 생성 스크립트(`scripts/create_issues.sh`, WBS 50개).
+- 다음: 공간·기기 ID와 `contracts/gateway` 확정 → W2-1 Agent 서버 템플릿 → W2-2 인증·Task 소유권 → Desktop → My Room 구독 → 시나리오 A 앞부분이 끝까지 동작.
 - GitHub: https://github.com/SWE26-01/a2a-agentic-home (private)
 - 미정: `CODEOWNERS` 담당자, 확장 명세 문서(`docs/ambient-a2a-spec.md`) 작성.

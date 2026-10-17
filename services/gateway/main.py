@@ -3,17 +3,13 @@
 Run: uvicorn gateway.main:app --port 8100
 """
 
-from pathlib import Path
-
-import yaml
 from fastapi import FastAPI
 
-CONFIG = Path(__file__).resolve().parent.parent / "config"
+from homeconfig import load_config
 
+config = load_config()
 app = FastAPI(title="Virtual Device Gateway")
-devices: dict[str, dict] = {
-    d["id"]: d for d in yaml.safe_load((CONFIG / "devices.yaml").read_text())["devices"]
-}
+devices: dict[str, dict] = {d.id: d.model_dump() for d in config.devices.values()}
 
 
 @app.get("/health")
