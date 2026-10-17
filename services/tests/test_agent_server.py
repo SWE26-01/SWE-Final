@@ -32,6 +32,7 @@ def room_router() -> Router:
             request_id=msg.request_id,
             accepted=accepted,
             reason_code=msg.reason_code if accepted else ReasonCode.OCCUPIED,
+            message=f"from {ctx.caller_id}",
         )
 
     return router
@@ -45,13 +46,17 @@ def apps():
     }
 
 
-@pytest.fixture
-async def home_client(apps):
+def client_as(apps, agent_id: str) -> AgentClient:
     def http_for(agent):
         transport = httpx.ASGITransport(app=apps[agent.id])
         return httpx.AsyncClient(transport=transport, base_url=agent.url)
 
-    async with AgentClient(CONFIG, "home-agent", http_client_factory=http_for) as client:
+    return AgentClient(CONFIG, agent_id, http_client_factory=http_for)
+
+
+@pytest.fixture
+async def home_client(apps):
+    async with client_as(apps, "home-agent") as client:
         yield client
 
 
@@ -81,7 +86,10 @@ async def test_accepted_request_completes_with_reply(home_client):
     res = await home_client.send("my-room-user1", control("SET_MODE"))
     assert res.state == "TASK_STATE_COMPLETED"
     assert res.reply == ControlResult(
-        request_id="req-SET_MODE", accepted=True, reason_code=ReasonCode.ENERGY_SAVING
+        request_id="req-SET_MODE",
+        accepted=True,
+        reason_code=ReasonCode.ENERGY_SAVING,
+        message="from home-agent",  # caller identity comes from the bearer token
     )
 
 
@@ -116,3 +124,39 @@ async def test_agent_without_implementation_still_serves_card(apps):
         card = (await http.get("/.well-known/agent-card.json")).json()
     assert card["name"] == "home-agent"
     assert card.get("skills", []) == []
+
+
+# --- W2-2: authentication and Task ownership ---------------------------------
+
+
+def raw_http(app) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://agent")
+
+
+async def test_card_is_public_but_rpc_needs_token(apps):
+    async with raw_http(apps["my-room-user1"]) as http:
+        assert (await http.get("/.well-known/agent-card.json")).status_code == 200
+        rpc = {"jsonrpc": "2.0", "id": "1", "method": "GetTask", "params": {"id": "x"}}
+        assert (await http.post("/", json=rpc)).status_code == 401
+        bad = {"Authorization": "Bearer nope"}
+        assert (await http.post("/", json=rpc, headers=bad)).status_code == 401
+        operator = {"Authorization": "Bearer dev-dashboard"}
+        assert (await http.post("/", json=rpc, headers=operator)).status_code == 403
+
+
+async def test_card_advertises_bearer_auth(apps):
+    async with raw_http(apps["my-room-user1"]) as http:
+        card = (await http.get("/.well-known/agent-card.json")).json()
+    assert card["securitySchemes"]["bearer"]["httpAuthSecurityScheme"]["scheme"] == "Bearer"
+
+
+async def test_only_the_creator_can_read_or_cancel_its_task(apps, home_client):
+    res = await home_client.send("my-room-user1", control("SET_MODE"))
+    own = await home_client.get_task("my-room-user1", res.task_id)
+    assert own.id == res.task_id
+
+    async with client_as(apps, "desktop-user1") as other:
+        with pytest.raises(Exception, match="(?i)not found"):
+            await other.get_task("my-room-user1", res.task_id)
+        with pytest.raises(Exception, match="(?i)not found"):
+            await other.cancel_task("my-room-user1", res.task_id)

@@ -13,7 +13,7 @@ from ambient.schemas import AmbientMessage, ControlResult
 @dataclass(frozen=True)
 class HandlerContext:
     agent_id: str
-    caller_id: str | None  # filled by authentication (W2-2); None until then
+    caller_id: str | None  # authenticated calling agent (BearerAuthMiddleware)
     requested_extensions: frozenset[str] = field(default_factory=frozenset)
 
 
