@@ -13,6 +13,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | 폴더 | 내용 | WBS |
 | --- | --- | --- |
 | `ambient/` | Ambient-A2A 메시지 스키마, 검증, 구독 관리, A2A 변환 | W1 |
+| `homeconfig/` | `config/*.yaml` 로더와 파일 간 일관성 검사 | W0-3 |
 | `agents/common` | Agent 서버 템플릿, 인증, 메시지 라우팅 | W2 |
 | `agents/desktop` | Desktop Agent (호스트에서 실행) | W3 |
 | `agents/mobile` | Mobile Agent + 휴대폰 웹페이지 | W4 |

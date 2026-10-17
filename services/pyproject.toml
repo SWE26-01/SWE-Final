@@ -16,7 +16,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["ambient", "agents", "gateway", "collector"]
+packages = ["ambient", "homeconfig", "agents", "gateway", "collector"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

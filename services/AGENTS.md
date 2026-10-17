@@ -11,6 +11,7 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 - Ambient-A2A payloads go in a DataPart and must be one of the models in `ambient/schemas.py`.
   Use `ambient.a2a_codec.to_message` / `from_parts`. Never invent ad-hoc JSON shapes.
 - IDs and sequence numbers are strings (A2A data passes through protobuf Struct; ints become floats).
+- Read config only through `homeconfig.load_config()` (never parse `config/*.yaml` directly).
 - Device IDs, space IDs and owners come from `config/devices.yaml`. Only the owner agent may command a device;
   other agents send `device.control` to the owner.
 - Never send raw personal data (calendar titles, GPS coordinates) between agents. Only fields listed in
