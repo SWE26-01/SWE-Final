@@ -49,7 +49,8 @@ describe("core", () => {
     const out = p.publish({ meeting_app_active: true, pc_state: "ACTIVE" }, 60);
     expect(out.orchestrator.data).toEqual({ meeting_app_active: true });
     expect(out.room1.data).toEqual({ meeting_app_active: true, pc_state: "ACTIVE" });
-    expect(out.room1.sequence).toBe(1);
+    expect(out.room1.sequence).toBeGreaterThan(Date.now() - 1000);
+    expect(p.publish({ pc_state: "IDLE" }, 60, 0).room1.sequence).toBe(out.room1.sequence + 1); // monotonic even if the clock goes back
     expect(() => p.publish({ meeting_title: "secret" }, 60)).toThrow();
     expect(p.query("orchestrator", ["pc_state"]).values).toEqual({});
   });

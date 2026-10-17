@@ -16,7 +16,7 @@ iso() { "$PY" -c "import datetime as d,sys;print((d.datetime.now(d.timezone.utc)
 update() { # seq expires_offset_hours meeting_bool
   echo "{\"type\":\"context.update\",\"source\":\"desktop\",\"subject\":\"user1\",\"sequence\":$1,\"expires_at\":\"$(iso "$2")\",\"data\":{\"meeting_app_active\":$3}}"
 }
-SEQ=$(date +%s) # monotonically above anything sent by earlier runs
+SEQ=$(( $(date +%s) * 1000 )) # ms, like publishers (clock-seeded sequences)
 
 step "8. interop: a2a-sdk resolves every Agent Card + Ambient-A2A extension"
 probe cards

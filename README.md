@@ -35,19 +35,26 @@ desktop ──"회의 시작"──▶ orchestrator ──(요청자 ACL 확인)
 LLM(OpenClaw)은 사용자 의도를 해석해 `ambient_*` tool을 호출하는 역할만 한다. 정책, 소유권, 만료 판단은 플러그인 코드가 결정적으로 처리한다.
 
 ## 준비
-1. **Node 24.16+**(OpenClaw 요구사항): `nvm install 24 && nvm use 24`. 그다음 `npm i -g openclaw@2026.10.4`.
-2. 플러그인 의존성: `cd agents/ambient-a2a-plugin && pnpm install && pnpm test`
-3. Python probe: `python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`
-4. `cp .env.example .env`. 토큰은 `openssl rand -hex 24`로 생성하고, `ANTHROPIC_API_KEY`도 채운다.
-5. Home Assistant:
-   1. `docker compose -f homeassistant/docker-compose.yml up -d` 실행
-   2. http://127.0.0.1:8123 에서 온보딩
-   3. 프로필 → 보안 → **장기 액세스 토큰**을 발급해 `.env`의 `HA_TOKEN`에 넣는다.
-6. (선택) 폰 입력: smartphone 프로필에 Telegram 채널을 추가한다: `scripts/oc.sh smartphone channels add --channel telegram --token <bot-token>`
+```bash
+scripts/setup.sh    # 최초 1회. 다시 실행해도 안전함
+```
+`setup.sh`가 하는 일:
+- nvm으로 Node 24를 설치하고, OpenClaw `2026.10.4`를 설치한다.
+- 플러그인 의존성과 Python probe용 venv(`.venv`)를 준비한다.
+- `.env`를 만들고 에이전트 토큰을 랜덤 값으로 채운다.
+- Home Assistant 컨테이너를 띄운 뒤 온보딩을 자동으로 마치고, 장기 토큰을 발급해 `.env`에 저장한다. HA 로그인 계정은 `admin` / `.env`의 `HA_ADMIN_PASSWORD`다.
+
+그다음 `.env`에 **`OPENROUTER_API_KEY`** 만 직접 넣으면 된다.
+- 모델은 `AMBIENT_MODEL`로 정한다(기본값 `openrouter/anthropic/claude-sonnet-5-5`).
+- tool calling을 지원하는 모델을 골라야 한다. `openrouter/auto`는 피한다.
+
+(선택) 폰 입력: `scripts/oc.sh smartphone channels add --channel telegram --token <bot-token>`
+
+> OpenClaw의 파일 보안 검사가 한글(NFD) 경로를 거부한다. 그래서 `scripts/oc.sh`가 `agents/`를 `~/.ambient-a2a/app`으로 미러링해서 실행하고, 게이트웨이 state도 `~/.ambient-a2a/state/<agent>`에 둔다. 수정은 항상 레포에서 하면 된다. 다음 실행 때 자동으로 동기화된다.
 
 ## 실행
 ```bash
-scripts/run_all.sh          # 터미널 1: HA + 게이트웨이 5개
+scripts/run_all.sh          # 터미널 1: HA + 게이트웨이 5개 (기동 확인까지 출력)
 scripts/logs.sh             # 터미널 2: A2A 이벤트 로그
 scripts/scenario.sh         # 터미널 3: 결정적 검증 (a2a-sdk)
 scripts/scenario.sh --llm   #   + 자연어 흐름 ("나 회의 시작할게", "집 전체 절전해도 돼?")

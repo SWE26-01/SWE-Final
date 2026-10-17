@@ -69,7 +69,8 @@ export class ContextStore {
 
 // --- Extensions 1+2: publisher side (external agents). Only `provides` fields ever leave the agent.
 export class Publisher {
-  sequence = 0;
+  // Clock-seeded so a restarted publisher keeps sending sequences its subscribers accept.
+  sequence = Date.now();
   state: Record<string, unknown> = {};
   expires_at = new Date(0).toISOString();
   subs = new Map<string, string[]>();
@@ -100,7 +101,7 @@ export class Publisher {
     const unknown = Object.keys(changes).filter((k) => !this.provides.includes(k));
     if (unknown.length) throw new Error(`not a provided field: ${unknown.join(", ")}`);
     Object.assign(this.state, changes);
-    this.sequence += 1;
+    this.sequence = Math.max(this.sequence + 1, now);
     this.expires_at = new Date(now + ttlSec * 1000).toISOString();
     const out: Record<string, ContextUpdate> = {};
     for (const [requester, granted] of this.subs) {

@@ -28,11 +28,8 @@ ENV=$ROOT/.env
 setenv() { # key value — replace KEY=... in .env
   "$ROOT/.venv/bin/python" -c 'import re,sys;p,k,v=sys.argv[1:];s=open(p).read();open(p,"w").write(re.sub(rf"(?m)^{k}=.*$",lambda _:f"{k}={v}",s))' "$ENV" "$1" "$2"
 }
-if [ ! -f "$ENV" ]; then
-  say ".env with generated tokens"
-  cp "$ROOT/.env.example" "$ENV"
-  for k in $(grep -o '^[A-Z_]*=change-me[a-z-]*' "$ENV" | cut -d= -f1); do setenv "$k" "$(openssl rand -hex 24)"; done
-fi
+[ -f "$ENV" ] || cp "$ROOT/.env.example" "$ENV"
+for k in $(grep -oE '^[A-Z0-9_]+=change-me' "$ENV" | cut -d= -f1); do setenv "$k" "$(openssl rand -hex 24)"; done
 set -a; . "$ENV"; set +a
 
 say "Home Assistant"

@@ -11,8 +11,9 @@ docker compose -f "$ROOT/homeassistant/docker-compose.yml" up -d
 mkdir -p "$ROOT/logs"
 pids=()
 trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT INT TERM
+"$ROOT/scripts/oc.sh" desktop --version >/dev/null # mirror agents/ once before parallel starts
 for id in desktop smartphone orchestrator room1 room2; do
-  "$ROOT/scripts/oc.sh" "$id" gateway > "$ROOT/logs/$id.log" 2>&1 &
+  AMBIENT_SKIP_SYNC=1 "$ROOT/scripts/oc.sh" "$id" gateway > "$ROOT/logs/$id.log" 2>&1 &
   pids+=($!)
 done
 

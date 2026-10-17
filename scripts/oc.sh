@@ -15,11 +15,16 @@ esac
 if ! node -v 2>/dev/null | grep -qE '^v(2[4-9]|[3-9][0-9])\.'; then
   . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" && nvm use 24 >/dev/null
 fi
-export AMBIENT_ROOT=$ROOT OPENCLAW_INCLUDE_ROOTS=$ROOT/agents OPENCLAW_ALLOW_MULTI_GATEWAY=1
-state=$ROOT/.state/$id
+# OpenClaw's file guards reject non-ASCII (NFD) paths like this repo's "소웨공", so configs + plugin
+# run from an ASCII mirror. ponytail: rsync on every call; run_all.sh syncs once and sets AMBIENT_SKIP_SYNC.
+export AMBIENT_HOME=${AMBIENT_HOME:-$HOME/.ambient-a2a}
+app=$AMBIENT_HOME/app
+[ -n "${AMBIENT_SKIP_SYNC:-}" ] || { mkdir -p "$app"; rsync -a --delete "$ROOT/agents" "$app/"; }
+export AMBIENT_ROOT=$ROOT OPENCLAW_INCLUDE_ROOTS=$app/agents OPENCLAW_ALLOW_MULTI_GATEWAY=1
+state=$AMBIENT_HOME/state/$id
 mkdir -p "$state/workspace"
-# OpenClaw rewrites its active config file, so point it at a stub that includes the repo config.
-[ -f "$state/openclaw.json" ] || printf '{ "$include": "%s" }\n' "$ROOT/agents/$dir/openclaw.json5" > "$state/openclaw.json"
+# OpenClaw rewrites its active config file, so point it at a stub that includes the mirrored config.
+printf '{ "$include": "%s" }\n' "$app/agents/$dir/openclaw.json5" > "$state/openclaw.json"
 cp "$ROOT/agents/$dir/AGENTS.md" "$state/workspace/AGENTS.md"
 export OPENCLAW_CONFIG_PATH=$state/openclaw.json OPENCLAW_STATE_DIR=$state
 exec openclaw "$@"

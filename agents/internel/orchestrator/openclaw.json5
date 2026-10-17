@@ -3,12 +3,12 @@
   gateway: { $include: "../../gateway.json5", port: 19040 },
   agents: {
     defaults: {
-      workspace: "${AMBIENT_ROOT}/.state/orchestrator/workspace",
+      workspace: "${AMBIENT_HOME}/state/orchestrator/workspace",
       model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-sonnet-5-5}" },
     },
   },
   plugins: {
-    load: { paths: ["${AMBIENT_ROOT}/agents/ambient-a2a-plugin"] },
+    load: { paths: ["${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"] },
     entries: {
       "ambient-a2a": {
         enabled: true,
