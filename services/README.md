@@ -32,6 +32,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
 uvicorn gateway.main:app --port 8100
+python -m agents.run my-room-user1   # 설정(agents.yaml)만으로 Agent 기동
 ```
 
 ## 규칙

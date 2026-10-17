@@ -53,6 +53,15 @@ class AgentRole(StrEnum):
     OPERATOR = "operator"  # dashboard: reads everything, commands nothing
 
 
+class AgentKind(StrEnum):
+    """Selects the implementation package: agents/<kind>/."""
+
+    DESKTOP = "desktop"
+    MOBILE = "mobile"
+    ROOM = "room"
+    HOME = "home"
+
+
 class SubscribeSpec(_Cfg):
     to: str
     fields: list[str] = Field(min_length=1)
@@ -62,6 +71,7 @@ class Agent(_Cfg):
     id: str
     token: str
     role: AgentRole = AgentRole.AGENT
+    kind: AgentKind | None = None
     enabled: bool = True
     url: str | None = None
     subject: str | None = None  # user this provider reports on (Desktop, Mobile)
@@ -75,9 +85,9 @@ class Agent(_Cfg):
         return [self.space, *self.spaces] if self.space else list(self.spaces)
 
     @model_validator(mode="after")
-    def _agents_need_url(self) -> Agent:
-        if self.role is AgentRole.AGENT and self.url is None:
-            raise ValueError(f"agent {self.id!r} needs a url")
+    def _agents_need_url_and_kind(self) -> Agent:
+        if self.role is AgentRole.AGENT and (self.url is None or self.kind is None):
+            raise ValueError(f"agent {self.id!r} needs a url and a kind")
         return self
 
 

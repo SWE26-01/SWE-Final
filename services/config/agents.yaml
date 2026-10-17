@@ -2,18 +2,21 @@
 # Loaded and checked by homeconfig.load_config().
 agents:
   - id: desktop-user1
+    kind: desktop
     url: http://host.docker.internal:9001
     token: dev-desktop-user1
     subject: user1
     provides: [meeting_app_active, meeting_start_at, pc_state]
 
   - id: mobile-user1
+    kind: mobile
     url: http://mobile:9002
     token: dev-mobile-user1
     subject: user1
     provides: [presence, moving]
 
   - id: my-room-user1
+    kind: room
     url: http://my-room:9101
     token: dev-my-room-user1
     space: my_room
@@ -22,12 +25,14 @@ agents:
       - {to: mobile-user1, fields: [presence]}
 
   - id: baby-room-agent        # P1
+    kind: room
     enabled: false
     url: http://baby-room:9102
     token: dev-baby-room-agent
     space: baby_room
 
   - id: home-agent
+    kind: home
     url: http://home:9100
     token: dev-home-agent
     spaces: [living_room, entrance]
