@@ -59,7 +59,10 @@ def test_health_is_public(client):
     assert client.get("/health").json() == {"ok": True}
 
 
-@pytest.mark.parametrize("headers", [{}, auth("nope"), {"Authorization": "Basic x"}])
+@pytest.mark.parametrize(
+    "headers",
+    [{}, auth("nope"), {"Authorization": "Basic x"}, auth("dev-baby-room-agent")],  # last: disabled
+)
 def test_missing_or_unknown_token_is_401(client, headers):
     assert client.get("/devices", headers=headers).status_code == 401
     assert cmd(client, headers, "my_room_light", "TURN_ON").status_code == 401

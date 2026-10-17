@@ -79,7 +79,7 @@ def create_app(config: HomeConfig) -> FastAPI:
         cred: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     ) -> Agent:
         agent = config.agent_by_token(cred.credentials) if cred else None
-        if agent is None:
+        if agent is None or not agent.enabled:
             raise HTTPException(
                 status.HTTP_401_UNAUTHORIZED,
                 "missing or unknown bearer token",
@@ -163,7 +163,7 @@ def create_app(config: HomeConfig) -> FastAPI:
     async def events(ws: WebSocket) -> None:
         # Browsers cannot set headers on WebSocket, so the token comes in the query string.
         agent = config.agent_by_token(ws.query_params.get("token", ""))
-        if agent is None or agent.role is not AgentRole.OPERATOR:
+        if agent is None or not agent.enabled or agent.role is not AgentRole.OPERATOR:
             await ws.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         await ws.accept()
