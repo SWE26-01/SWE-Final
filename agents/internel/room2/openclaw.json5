@@ -1,0 +1,46 @@
+// OpenClaw profile "room2" — run via scripts/oc.sh room2 ...
+{
+  gateway: { $include: "../../gateway.json5", port: 19280 },
+  agents: {
+    defaults: {
+      workspace: "${AMBIENT_ROOT}/.state/room2/workspace",
+      model: { primary: "${AMBIENT_MODEL:-anthropic/claude-sonnet-5-5}" },
+    },
+  },
+  plugins: {
+    load: { paths: ["${AMBIENT_ROOT}/agents/ambient-a2a-plugin"] },
+    entries: {
+      "ambient-a2a": {
+        enabled: true,
+        config: {
+          $include: "../../shared.json5",
+          agentId: "room2",
+          publicUrl: "http://127.0.0.1:19280/plugins/ambient",
+          role: "room",
+          space: "protected_room",
+          owned: ["input_boolean.room2_light", "input_boolean.room2_ac", "input_boolean.room2_sleep_mode"],
+          requestAcl: { orchestrator: ["*"] },
+          // Safety rules apply to every requester, including Home.
+          policies: [
+            {
+              when: { entity: "input_boolean.room2_sleep_mode", state: "on" },
+              deny: { devices: ["input_boolean.room2_ac"], commands: ["TURN_OFF"] },
+              reason_code: "SAFETY_POLICY",
+              message: "Temperature regulation must remain enabled while sleeping.",
+            },
+            {
+              when: { entity: "input_boolean.room2_sleep_mode", state: "on" },
+              deny: { devices: ["input_boolean.room2_light"], commands: ["TURN_ON"] },
+              reason_code: "SAFETY_POLICY",
+              message: "Lights stay off while sleeping.",
+            },
+          ],
+          energySaving: [
+            { device: "input_boolean.room2_light", command: "TURN_OFF" },
+            { device: "input_boolean.room2_ac", command: "TURN_OFF" },
+          ],
+        },
+      },
+    },
+  },
+}

@@ -1,0 +1,31 @@
+// OpenClaw profile "desktop" — run via scripts/oc.sh desktop ...
+{
+  gateway: { $include: "../../gateway.json5", port: 18800 },
+  agents: {
+    defaults: {
+      workspace: "${AMBIENT_ROOT}/.state/desktop/workspace",
+      model: { primary: "${AMBIENT_MODEL:-anthropic/claude-sonnet-5-5}" },
+    },
+  },
+  plugins: {
+    load: { paths: ["${AMBIENT_ROOT}/agents/ambient-a2a-plugin"] },
+    entries: {
+      "ambient-a2a": {
+        enabled: true,
+        config: {
+          $include: "../../shared.json5",
+          agentId: "desktop",
+          publicUrl: "http://127.0.0.1:18800/plugins/ambient",
+          role: "external",
+          subject: "user1",
+          // Only these derived fields ever leave the desktop (no meeting titles, no screen content).
+          provides: ["meeting_app_active", "pc_state"],
+          fieldAcl: {
+            room1: ["meeting_app_active", "pc_state"],
+            orchestrator: ["meeting_app_active"],
+          },
+        },
+      },
+    },
+  },
+}

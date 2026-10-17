@@ -1,0 +1,31 @@
+// OpenClaw profile "smartphone" — run via scripts/oc.sh smartphone ...
+{
+  gateway: { $include: "../../gateway.json5", port: 18920 },
+  agents: {
+    defaults: {
+      workspace: "${AMBIENT_ROOT}/.state/smartphone/workspace",
+      model: { primary: "${AMBIENT_MODEL:-anthropic/claude-sonnet-5-5}" },
+    },
+  },
+  plugins: {
+    load: { paths: ["${AMBIENT_ROOT}/agents/ambient-a2a-plugin"] },
+    entries: {
+      "ambient-a2a": {
+        enabled: true,
+        config: {
+          $include: "../../shared.json5",
+          agentId: "smartphone",
+          publicUrl: "http://127.0.0.1:18920/plugins/ambient",
+          role: "external",
+          subject: "user1",
+          // HOME/AWAY only — never GPS coordinates or location history.
+          provides: ["presence"],
+          fieldAcl: {
+            room1: ["presence"],
+            orchestrator: ["presence"],
+          },
+        },
+      },
+    },
+  },
+}

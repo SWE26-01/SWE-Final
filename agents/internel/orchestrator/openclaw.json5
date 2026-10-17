@@ -1,0 +1,41 @@
+// OpenClaw profile "orchestrator" — run via scripts/oc.sh orchestrator ...
+{
+  gateway: { $include: "../../gateway.json5", port: 19040 },
+  agents: {
+    defaults: {
+      workspace: "${AMBIENT_ROOT}/.state/orchestrator/workspace",
+      model: { primary: "${AMBIENT_MODEL:-anthropic/claude-sonnet-5-5}" },
+    },
+  },
+  plugins: {
+    load: { paths: ["${AMBIENT_ROOT}/agents/ambient-a2a-plugin"] },
+    entries: {
+      "ambient-a2a": {
+        enabled: true,
+        config: {
+          $include: "../../shared.json5",
+          agentId: "orchestrator",
+          publicUrl: "http://127.0.0.1:19040/plugins/ambient",
+          role: "home",
+          space: "living_room",
+          owned: ["input_boolean.living_light", "input_boolean.living_tv", "input_boolean.living_tv_muted"],
+          // Who may ask Home for what (device id, command, or "*"). Checked before any delegation.
+          requestAcl: {
+            desktop: ["input_boolean.living_tv_muted", "input_select.room1_light_mode"],
+            smartphone: ["ENERGY_SAVING"],
+          },
+          subscribeTo: { desktop: ["meeting_app_active"], smartphone: ["presence"] },
+          rules: [
+            { field: "meeting_app_active", equals: true, actions: [{ device: "input_boolean.living_tv_muted", command: "TURN_ON" }] },
+            { field: "meeting_app_active", equals: false, actions: [{ device: "input_boolean.living_tv_muted", command: "TURN_OFF" }] },
+            { field: "presence", equals: "AWAY", actions: [{ macro: "energy_saving" }] },
+          ],
+          energySaving: [
+            { device: "input_boolean.living_light", command: "TURN_OFF" },
+            { device: "input_boolean.living_tv", command: "TURN_OFF" },
+          ],
+        },
+      },
+    },
+  },
+}

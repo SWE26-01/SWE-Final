@@ -1,0 +1,6 @@
+# HA runtime state
+*
+!.gitignore
+!configuration.yaml
+!dashboards/
+!dashboards/*.yaml

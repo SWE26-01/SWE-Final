@@ -1,0 +1,31 @@
+# Virtual devices only (no real hardware). Each entity has exactly one owning agent — see agents/*/openclaw.json5 `owned`.
+default_config:
+
+input_boolean:
+  # living room — orchestrator (Home)
+  living_light: { name: "거실 조명", icon: mdi:ceiling-light }
+  living_tv: { name: "거실 TV", icon: mdi:television }
+  living_tv_muted: { name: "거실 TV 음소거", icon: mdi:volume-off }
+  # room1 — My Room
+  room1_light: { name: "내 방 조명", icon: mdi:lightbulb }
+  room1_ac: { name: "내 방 에어컨", icon: mdi:air-conditioner }
+  room1_occupied: { name: "내 방 재실", icon: mdi:account }
+  # room2 — protected room (sleep policy)
+  room2_light: { name: "보호 방 조명", icon: mdi:lightbulb-night }
+  room2_ac: { name: "보호 방 에어컨", icon: mdi:air-conditioner }
+  room2_sleep_mode: { name: "보호 방 수면 모드", icon: mdi:sleep }
+
+input_select:
+  room1_light_mode:
+    name: "내 방 조명 모드"
+    options: [normal, meeting, eco]
+    icon: mdi:lightbulb-auto
+
+lovelace:
+  dashboards:
+    ambient-home:
+      mode: yaml
+      title: Ambient Home
+      icon: mdi:home-automation
+      show_in_sidebar: true
+      filename: dashboards/ambient.yaml

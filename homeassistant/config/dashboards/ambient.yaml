@@ -1,0 +1,17 @@
+title: Ambient Home
+views:
+  - title: Home
+    cards:
+      - type: entities
+        title: "거실 (orchestrator)"
+        entities: [input_boolean.living_light, input_boolean.living_tv, input_boolean.living_tv_muted]
+      - type: entities
+        title: "내 방 (room1)"
+        entities: [input_boolean.room1_light, input_select.room1_light_mode, input_boolean.room1_ac, input_boolean.room1_occupied]
+      - type: entities
+        title: "보호 방 (room2)"
+        entities: [input_boolean.room2_sleep_mode, input_boolean.room2_light, input_boolean.room2_ac]
+      - type: logbook
+        title: "최근 변경"
+        hours_to_show: 2
+        entities: [input_boolean.living_tv_muted, input_select.room1_light_mode, input_boolean.room1_light, input_boolean.room1_ac, input_boolean.room2_ac, input_boolean.room2_light]

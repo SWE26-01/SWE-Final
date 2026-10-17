@@ -1,0 +1,6 @@
+// Shared OpenClaw gateway/agent defaults; each profile sets its own port.
+{
+  mode: "local",
+  bind: "loopback",
+  auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+}
