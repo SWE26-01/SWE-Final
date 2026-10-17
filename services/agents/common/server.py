@@ -18,9 +18,14 @@ from a2a.types.a2a_pb2 import (
     AgentExtension,
     AgentInterface,
     AgentSkill,
+    HTTPAuthSecurityScheme,
+    SecurityRequirement,
+    SecurityScheme,
+    StringList,
 )
 from fastapi import FastAPI
 
+from agents.common.auth import BearerAuthMiddleware
 from agents.common.router import HandlerContext, HandlerResult, Router
 from ambient.a2a_codec import AMBIENT_EXT_URI, MEDIA_TYPE, from_parts, to_part
 from homeconfig import HomeConfig
@@ -59,6 +64,14 @@ def build_agent_card(agent: Agent, router: Router) -> AgentCard:
                 )
             ],
         ),
+        security_schemes={
+            "bearer": SecurityScheme(
+                http_auth_security_scheme=HTTPAuthSecurityScheme(
+                    scheme="Bearer", description="Per-agent token from agents.yaml"
+                )
+            )
+        },
+        security_requirements=[SecurityRequirement(schemes={"bearer": StringList()})],
         default_input_modes=[MEDIA_TYPE],
         default_output_modes=[MEDIA_TYPE],
         skills=[
@@ -89,9 +102,10 @@ class AmbientExecutor(AgentExecutor):
             await self._reject(updater, f"{self._agent_id} does not handle {msg.type!r}")
             return
 
+        user = context.call_context.user
         ctx = HandlerContext(
             agent_id=self._agent_id,
-            caller_id=None,
+            caller_id=user.user_name if user.is_authenticated else None,
             requested_extensions=frozenset(context.requested_extensions),
         )
         try:
@@ -122,10 +136,13 @@ def create_agent_app(config: HomeConfig, agent_id: str, router: Router) -> FastA
     card = build_agent_card(agent, router)
     handler = DefaultRequestHandler(
         agent_executor=AmbientExecutor(agent_id, router),
-        task_store=InMemoryTaskStore(),  # TODO(W2-2): DatabaseTaskStore + owner_resolver
+        # Tasks are scoped to request.user (set by BearerAuthMiddleware), so a caller can
+        # only get, cancel or subscribe to Tasks it created.
+        task_store=InMemoryTaskStore(),
         agent_card=card,
     )
     app = FastAPI(title=agent_id)
+    app.add_middleware(BearerAuthMiddleware, config=config)
     add_a2a_routes_to_fastapi(
         app,
         agent_card_routes=create_agent_card_routes(card),

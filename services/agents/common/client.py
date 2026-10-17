@@ -8,7 +8,13 @@ from dataclasses import dataclass
 import httpx
 from a2a.client import Client, ClientCallContext, ClientConfig, create_client
 from a2a.client.service_parameters import ServiceParametersFactory, with_a2a_extensions
-from a2a.types.a2a_pb2 import SendMessageRequest, TaskState
+from a2a.types.a2a_pb2 import (
+    CancelTaskRequest,
+    GetTaskRequest,
+    SendMessageRequest,
+    Task,
+    TaskState,
+)
 from pydantic import BaseModel
 
 from ambient.a2a_codec import AMBIENT_EXT_URI, from_parts, to_message
@@ -48,8 +54,7 @@ class AgentClient:
 
     async def send(self, target_id: str, msg: BaseModel) -> SendResult:
         client = await self._client(target_id)
-        params = ServiceParametersFactory.create([with_a2a_extensions([AMBIENT_EXT_URI])])
-        ctx = ClientCallContext(service_parameters=params, timeout=self._timeout)
+        ctx = self._call_context()
 
         request = SendMessageRequest(message=to_message(msg))
         last = None
@@ -63,6 +68,20 @@ class AgentClient:
         task = last.task
         reply = from_parts(task.artifacts[-1].parts) if task.artifacts else None
         return SendResult(state=TaskState.Name(task.status.state), reply=reply, task_id=task.id)
+
+    def _call_context(self) -> ClientCallContext:
+        params = ServiceParametersFactory.create([with_a2a_extensions([AMBIENT_EXT_URI])])
+        params["Authorization"] = f"Bearer {self._config.agent(self._self_id).token}"
+        return ClientCallContext(service_parameters=params, timeout=self._timeout)
+
+    async def get_task(self, target_id: str, task_id: str) -> Task:
+        """Fetch a Task this agent created on `target_id`."""
+        client = await self._client(target_id)
+        return await client.get_task(GetTaskRequest(id=task_id), context=self._call_context())
+
+    async def cancel_task(self, target_id: str, task_id: str) -> Task:
+        client = await self._client(target_id)
+        return await client.cancel_task(CancelTaskRequest(id=task_id), context=self._call_context())
 
     async def _client(self, target_id: str) -> Client:
         if target_id not in self._clients:
