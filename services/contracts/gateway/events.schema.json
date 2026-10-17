@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "a2a-agentic-home/gateway/events",
   "title": "Device Gateway events",
-  "description": "Gateway -> clients over WebSocket: device.state_changed. Inputs to Gateway over REST POST /inputs (scenario replay): person.moved, sensor.changed. Space/device IDs come from config/devices.yaml.",
+  "description": "Gateway -> clients over WebSocket: device.state_changed, space.state_changed. On connect it first sends {type: snapshot, devices: [same items as GET /devices], spaces: [{id, occupied, temperature, illuminance, sleeping, people}]}. Inputs to Gateway over REST POST /inputs (scenario replay): person.moved, sensor.changed. Space/device IDs come from config/devices.yaml.",
   "oneOf": [
     {
       "title": "device.state_changed",
@@ -14,6 +14,30 @@
         "device": {"type": "string"},
         "state": {"type": "object"},
         "by": {"type": "string", "description": "agent id that issued the command"}
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "space.state_changed",
+      "type": "object",
+      "required": ["type", "at", "space", "state"],
+      "properties": {
+        "type": {"const": "space.state_changed"},
+        "at": {"type": "string", "format": "date-time"},
+        "space": {"type": "string"},
+        "state": {
+          "type": "object",
+          "required": ["occupied", "temperature", "illuminance", "sleeping", "people"],
+          "properties": {
+            "occupied": {"type": "boolean"},
+            "temperature": {"type": "string"},
+            "illuminance": {"type": "string"},
+            "sleeping": {"type": "boolean"},
+            "people": {"type": "array", "items": {"type": "string"}}
+          },
+          "additionalProperties": false
+        },
+        "by": {"type": "string", "description": "agent id that posted the input"}
       },
       "additionalProperties": false
     },
