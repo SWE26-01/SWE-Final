@@ -1,0 +1,146 @@
+{
+  "$defs": {
+    "EventKind": {
+      "enum": [
+        "a2a.sent",
+        "a2a.received",
+        "policy.decision",
+        "automation.fired"
+      ],
+      "title": "EventKind",
+      "type": "string"
+    },
+    "ReasonCode": {
+      "enum": [
+        "ENERGY_SAVING",
+        "MEETING_MODE",
+        "AUTOMATION",
+        "USER_REQUEST",
+        "SAFETY_POLICY",
+        "OCCUPIED",
+        "NOT_OWNER",
+        "NOT_ALLOWED",
+        "EXPIRED_CONTEXT",
+        "APPROVAL_REQUIRED"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One audit-log entry reported by an agent.\n\nOnly IDs, message types and outcomes are recorded. There is deliberately no free-form data\nfield, and `summary` must not contain raw personal data (calendar titles, GPS coordinates).",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "agent": {
+      "description": "reporting agent id; must match the caller's token",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Agent",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/EventKind"
+    },
+    "peer": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "other agent of an A2A exchange",
+      "title": "Peer"
+    },
+    "message_type": {
+      "anyOf": [
+        {
+          "enum": [
+            "context.update",
+            "context.subscribe",
+            "context.unsubscribe",
+            "context.subscribe.result",
+            "device.control",
+            "device.control.result"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message Type"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "task_state": {
+      "anyOf": [
+        {
+          "pattern": "^TASK_STATE_[A-Z_]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Task State"
+    },
+    "accepted": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "summary": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "at",
+    "agent",
+    "kind"
+  ],
+  "title": "AgentEvent",
+  "type": "object"
+}
