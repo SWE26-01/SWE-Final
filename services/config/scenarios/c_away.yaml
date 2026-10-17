@@ -1,0 +1,9 @@
+# Scenario C — going out (plan doc 2.3).
+id: c_away
+initial:
+  people: {user1: my_room}
+steps:
+  - {at: "00:00", mobile-user1: {presence: AWAY}, move: {user1: outside}}
+expect:
+  my_room_light: {power: "off"}
+  my_room_ac: {power: "off"}

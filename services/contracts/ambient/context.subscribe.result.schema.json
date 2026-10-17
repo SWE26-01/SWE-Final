@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "context.subscribe.result",
+      "default": "context.subscribe.result",
+      "title": "Type",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "accepted_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Accepted Fields",
+      "type": "array"
+    },
+    "rejected_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Rejected Fields",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject",
+    "accepted_fields",
+    "rejected_fields",
+    "expires_at"
+  ],
+  "title": "SubscribeResult",
+  "type": "object"
+}

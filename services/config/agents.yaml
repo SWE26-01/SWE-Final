@@ -1,0 +1,28 @@
+# Agent registry (plan doc 3.4, 6.2). Tokens here are local-dev placeholders only.
+agents:
+  - id: desktop-user1
+    url: http://host.docker.internal:9001
+    token: dev-desktop-user1
+    subject: user1
+    provides: [meeting_app_active, meeting_start_at, pc_state]
+  - id: mobile-user1
+    url: http://mobile:9002
+    token: dev-mobile-user1
+    subject: user1
+    provides: [presence, moving]
+  - id: my-room-user1
+    url: http://my-room:9101
+    token: dev-my-room-user1
+    space: my_room
+    subscribe:
+      - {to: desktop-user1, fields: [meeting_app_active, pc_state]}
+      - {to: mobile-user1, fields: [presence]}
+  - id: home-agent
+    url: http://home:9100
+    token: dev-home-agent
+    spaces: [living_room, entrance]
+    subscribe:
+      - {to: mobile-user1, fields: [presence]}
+  - id: dashboard
+    role: operator
+    token: dev-dashboard

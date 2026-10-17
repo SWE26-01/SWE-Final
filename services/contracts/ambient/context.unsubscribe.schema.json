@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "context.unsubscribe",
+      "default": "context.unsubscribe",
+      "title": "Type",
+      "type": "string"
+    },
+    "requester": {
+      "title": "Requester",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    }
+  },
+  "required": [
+    "requester",
+    "subject"
+  ],
+  "title": "ContextUnsubscribe",
+  "type": "object"
+}

@@ -1,0 +1,10 @@
+# Scenario B — whole-house energy saving vs room policy (plan doc 2.3, 5.3).
+id: b_energy_saving
+initial:
+  people: {user1: my_room}
+steps:
+  - {at: "00:00", home-agent: {broadcast: {command: TURN_OFF, kind: ac, reason_code: ENERGY_SAVING}}}
+expect:
+  results:
+    my-room-user1: {accepted: false, reason_code: OCCUPIED}   # P0 stand-in for Baby Room
+    baby-room-agent: {accepted: false, reason_code: SAFETY_POLICY}  # P1

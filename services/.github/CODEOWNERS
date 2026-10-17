@@ -1,0 +1,11 @@
+# Fill in GitHub usernames after role assignment (plan doc WBS).
+# /ambient/          @owner
+# /agents/common/    @owner
+# /agents/desktop/   @owner
+# /agents/mobile/    @owner
+# /agents/room/      @owner
+# /agents/home/      @owner
+# /gateway/          @owner
+# /collector/        @owner
+# /dashboard/        @owner
+# /contracts/        @owner @owner-3d

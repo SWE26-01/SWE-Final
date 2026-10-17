@@ -1,0 +1,19 @@
+# Device ownership (plan doc 3.2). Each device has exactly one owner agent.
+# Space and device IDs are shared with the 3D simulation — change them only via contracts/.
+spaces:
+  - {id: my_room, type: personal}
+  - {id: baby_room, type: baby}        # P1
+  - {id: elderly_room, type: elderly}  # P1
+  - {id: living_room, type: shared}
+  - {id: entrance, type: shared}
+
+devices:
+  - {id: my_room_light, space: my_room, kind: light, owner: my-room-user1, state: {power: "off", mode: normal}}
+  - {id: my_room_ac, space: my_room, kind: ac, owner: my-room-user1, state: {power: "off", target_temp: "24"}}
+  - {id: baby_room_light, space: baby_room, kind: light, owner: baby-room-agent, state: {power: "off", mode: normal}}
+  - {id: baby_room_ac, space: baby_room, kind: ac, owner: baby-room-agent, state: {power: "on", target_temp: "24"}}
+  - {id: living_room_light, space: living_room, kind: light, owner: home-agent, state: {power: "on", mode: normal}}
+  - {id: living_room_tv, space: living_room, kind: tv, owner: home-agent, state: {power: "off"}}
+  - {id: living_room_ac, space: living_room, kind: ac, owner: home-agent, state: {power: "off", target_temp: "24"}}
+  - {id: robot_vacuum, space: living_room, kind: vacuum, owner: home-agent, state: {status: idle}}
+  - {id: entrance_light, space: entrance, kind: light, owner: home-agent, state: {power: "off"}}

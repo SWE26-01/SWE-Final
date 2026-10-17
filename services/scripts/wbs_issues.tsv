@@ -1,0 +1,51 @@
+id	priority	area	title	done_when
+W0-1	P0	infra	저장소·개발 환경 (가상환경, 린트, pytest CI)	PR마다 테스트 자동 실행
+W0-2	P0	infra	AI 코딩 도구 규칙 파일 (A2A v1.0 전용)	CLAUDE.md / AGENTS.md 커밋
+W0-3	P0	infra	agents.yaml·policies.yaml 형식과 로더	모든 Agent가 같은 설정을 읽음
+W1-1	P0	ambient	메시지 스키마 (context.update/subscribe, device.control, 응답)	기획서 4장 예시와 일치
+W1-2	P0	ambient	검증기 (스키마, expires_at, sequence 역전)	만료·역전 데이터 무시
+W1-3	P0	ambient	확장 선언과 A2A-Extensions 헤더 처리	확장 미지원 Agent와도 통신
+W1-4	P0	ambient	구독 관리 (등록·해지·TTL, 변경 시 전송)	기획서 4.2절 처리 과정대로 동작
+W1-5	P1	ambient	승인 요청·토큰 스키마	기획서 4.5절과 일치
+W2-1	P0	agent	Agent 서버 템플릿 (FastAPI + Agent Card + JSON-RPC)	설정만으로 새 Agent 기동
+W2-2	P0	agent	인증 + Task 소유권 분리	토큰 없으면 거부, 남의 Task 접근 차단
+W2-3	P0	agent	항목별 공개 정책	기획서 4.1절 표와 일치
+W2-4	P0	agent	Event Collector 연동	대시보드에 표시됨
+W2-5	P1	infra	docker-compose와 실행 스크립트	명령 한 줄로 전체 실행
+W3-1	P0	agent	Desktop: 캘린더(.ics) 회의 시작 시각	다음 회의 시각 추출
+W3-2	P0	agent	Desktop: PC 상태·회의 앱 감지	pc_state, meeting_app_active 출력
+W3-3	P0	agent	Desktop: 상태 제공·구독 처리	My Room이 변경을 받음
+W3-4	P0	agent	Desktop: 가짜 신호 모드	시나리오 YAML로 구동
+W4-1	P0	agent	Mobile: HOME/AWAY 전환 웹페이지	휴대폰 브라우저에서 동작
+W4-2	P0	agent	Mobile: 상태 제공·구독 처리	My Room·Home이 변경을 받음
+W4-3	P1	agent	Mobile: 승인 화면과 승인 토큰 발급	승인하면 토큰 발급
+W5-1	P0	agent	Room Agent 템플릿 + My Room 설정	My Room 기동
+W5-2	P0	agent	My Room: Desktop·Mobile 상태 구독	변경이 Room 상태에 반영
+W5-3	P0	agent	My Room: 상태 기반 자동화 규칙	기획서 5.1절 표대로 동작
+W5-4	P0	agent	Room: 제어 요청 정책 판단	시나리오 B 수락·거절 동작
+W5-5	P0	agent	My Room: 공용 기기 제어를 Home에 요청	시나리오 A 청소기 요청
+W6-1	P0	agent	Home: 공용 공간 상태 관리	Gateway 상태와 동기화
+W6-2	P0	agent	Home: 공용 기기 제어 요청 처리	권한·재실에 따라 수락·거절
+W6-3	P0	agent	Home: 가족 전원 AWAY 판단 + 절전 요청 분배	모든 Room에 요청 전달
+W6-4	P0	agent	Home: 방별 실행 결과 취합	대시보드에 결과 표시
+W6-5	P1	agent	Home: 집 전체 작업 승인 요청	승인 없으면 미실행
+W7-1	P1	agent	Baby Room Agent	시나리오 B에서 SAFETY_POLICY 거절
+W7-2	P1	agent	Elderly Room Agent	안전 기기 종료 요청 거절
+W8-1	P0	gateway	Device Gateway (명령, 담당 검사, 중복 제거)	담당 아니면 403
+W8-2	P1	gateway	승인 토큰 검증	불일치·만료 토큰 거부
+W8-3	P0	gateway	시나리오 YAML 재생기 (A, B, C)	버튼 하나로 재생
+W8-4	P0	gateway	Event Collector + WebSocket	대시보드 실시간 갱신
+W9-1	P0	dashboard	평면도 (3D 전까지 2D)	상태 변화 즉시 반영
+W9-2	P0	dashboard	A2A 통신 로그	시나리오 A 흐름이 읽힘
+W9-3	P0	dashboard	정책 판단 결과 화면	시나리오 B 결과 표시
+W9-4	P0	dashboard	시나리오 패널	버튼 동작
+W9-5	P1	dashboard	개발자 패널	메시지 클릭 시 원본 표시
+W10-1	P1	agent	동적 Agent 등록·탐색	설정 추가만으로 새 Room 연결
+W10-2	P1	agent	Room Agent 간 직접 협업	Home 중지 상태에서 동작
+W11-1	P0	test	단위 테스트	CI 통과
+W11-2	P0	test	검증 항목 8개 자동화	기획서 8.3절 통과
+W11-3	P0	test	시나리오 통합 테스트	오프라인에서 통과
+W12-1	P0	docs	Ambient-A2A 확장 명세서 (영문)	4장 + 예시 메시지
+W12-2	P0	docs	요구사항·아키텍처 문서 (영문)	2·3장 내용
+W12-3	P1	docs	검증 결과 보고서	항목별 결과
+W12-4	P0	docs	발표 자료·데모 리허설	리허설 2회

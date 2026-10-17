@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "DeviceAction": {
+      "additionalProperties": false,
+      "properties": {
+        "device": {
+          "title": "Device",
+          "type": "string"
+        },
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "device",
+        "command"
+      ],
+      "title": "DeviceAction",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "enum": [
+        "ENERGY_SAVING",
+        "MEETING_MODE",
+        "AUTOMATION",
+        "USER_REQUEST",
+        "SAFETY_POLICY",
+        "OCCUPIED",
+        "NOT_OWNER",
+        "NOT_ALLOWED",
+        "EXPIRED_CONTEXT",
+        "APPROVAL_REQUIRED"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "device.control",
+      "default": "device.control",
+      "title": "Type",
+      "type": "string"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "requester": {
+      "title": "Requester",
+      "type": "string"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    },
+    "action": {
+      "$ref": "#/$defs/DeviceAction"
+    },
+    "reason_code": {
+      "$ref": "#/$defs/ReasonCode"
+    }
+  },
+  "required": [
+    "request_id",
+    "requester",
+    "target",
+    "action",
+    "reason_code"
+  ],
+  "title": "DeviceControl",
+  "type": "object"
+}

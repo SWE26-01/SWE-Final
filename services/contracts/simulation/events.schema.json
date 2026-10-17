@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "a2a-agentic-home/simulation/events",
+  "title": "Gateway <-> 3D simulation events",
+  "description": "Gateway -> 3D over WebSocket: device.state_changed. 3D -> Gateway over REST POST /sim/events: person.moved, sensor.changed. Space/device IDs come from config/devices.yaml.",
+  "oneOf": [
+    {
+      "title": "device.state_changed",
+      "type": "object",
+      "required": ["type", "at", "device", "state"],
+      "properties": {
+        "type": {"const": "device.state_changed"},
+        "at": {"type": "string", "format": "date-time"},
+        "device": {"type": "string"},
+        "state": {"type": "object"},
+        "by": {"type": "string", "description": "agent id that issued the command"}
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "person.moved",
+      "type": "object",
+      "required": ["type", "at", "person", "space"],
+      "properties": {
+        "type": {"const": "person.moved"},
+        "at": {"type": "string", "format": "date-time"},
+        "person": {"type": "string", "examples": ["user1", "baby", "grandma"]},
+        "space": {"type": "string", "description": "space id, or \"outside\""}
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "sensor.changed",
+      "type": "object",
+      "required": ["type", "at", "space", "sensor", "value"],
+      "properties": {
+        "type": {"const": "sensor.changed"},
+        "at": {"type": "string", "format": "date-time"},
+        "space": {"type": "string"},
+        "sensor": {"enum": ["occupied", "temperature", "illuminance"]},
+        "value": {"type": ["string", "boolean"]}
+      },
+      "additionalProperties": false
+    }
+  ]
+}

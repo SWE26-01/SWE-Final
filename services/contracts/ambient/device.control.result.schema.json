@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "ReasonCode": {
+      "enum": [
+        "ENERGY_SAVING",
+        "MEETING_MODE",
+        "AUTOMATION",
+        "USER_REQUEST",
+        "SAFETY_POLICY",
+        "OCCUPIED",
+        "NOT_OWNER",
+        "NOT_ALLOWED",
+        "EXPIRED_CONTEXT",
+        "APPROVAL_REQUIRED"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "device.control.result",
+      "default": "device.control.result",
+      "title": "Type",
+      "type": "string"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "accepted": {
+      "title": "Accepted",
+      "type": "boolean"
+    },
+    "reason_code": {
+      "$ref": "#/$defs/ReasonCode"
+    },
+    "message": {
+      "default": "",
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_id",
+    "accepted",
+    "reason_code"
+  ],
+  "title": "ControlResult",
+  "type": "object"
+}
