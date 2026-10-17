@@ -11,6 +11,10 @@ case $id in
   *) echo "unknown agent: $id" >&2; exit 1 ;;
 esac
 [ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+# OpenClaw needs Node >=24.16; switch via nvm when the shell's node is older.
+if ! node -v 2>/dev/null | grep -qE '^v(2[4-9]|[3-9][0-9])\.'; then
+  . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" && nvm use 24 >/dev/null
+fi
 export AMBIENT_ROOT=$ROOT OPENCLAW_INCLUDE_ROOTS=$ROOT/agents OPENCLAW_ALLOW_MULTI_GATEWAY=1
 state=$ROOT/.state/$id
 mkdir -p "$state/workspace"

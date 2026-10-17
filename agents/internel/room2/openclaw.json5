@@ -4,7 +4,7 @@
   agents: {
     defaults: {
       workspace: "${AMBIENT_ROOT}/.state/room2/workspace",
-      model: { primary: "${AMBIENT_MODEL:-anthropic/claude-sonnet-5-5}" },
+      model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-sonnet-5-5}" },
     },
   },
   plugins: {
