@@ -8,4 +8,4 @@
 # /gateway/          @owner
 # /collector/        @owner
 # /dashboard/        @owner
-# /contracts/        @owner @owner-3d
+# /contracts/        @owner

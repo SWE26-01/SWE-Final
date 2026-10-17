@@ -35,7 +35,7 @@ W8-1	P0	gateway	Device Gateway (명령, 담당 검사, 중복 제거)	담당 아
 W8-2	P1	gateway	승인 토큰 검증	불일치·만료 토큰 거부
 W8-3	P0	gateway	시나리오 YAML 재생기 (A, B, C)	버튼 하나로 재생
 W8-4	P0	gateway	Event Collector + WebSocket	대시보드 실시간 갱신
-W9-1	P0	dashboard	평면도 (3D 전까지 2D)	상태 변화 즉시 반영
+W9-1	P0	dashboard	2D 평면도	상태 변화 즉시 반영
 W9-2	P0	dashboard	A2A 통신 로그	시나리오 A 흐름이 읽힘
 W9-3	P0	dashboard	정책 판단 결과 화면	시나리오 B 결과 표시
 W9-4	P0	dashboard	시나리오 패널	버튼 동작

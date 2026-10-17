@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 run() { if [[ "${1:-}" == "--apply-mode" ]]; then shift; "$@"; else echo "$*"; fi; }
 mode=""; [[ "${1:-}" == "--apply" ]] && mode="--apply-mode"
 
-for label in P0 P1 infra ambient agent gateway dashboard test docs 3d; do
+for label in P0 P1 infra ambient agent gateway dashboard test docs; do
   run $mode gh label create "$label" --force
 done
 

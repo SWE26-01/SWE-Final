@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "a2a-agentic-home/simulation/events",
-  "title": "Gateway <-> 3D simulation events",
-  "description": "Gateway -> 3D over WebSocket: device.state_changed. 3D -> Gateway over REST POST /sim/events: person.moved, sensor.changed. Space/device IDs come from config/devices.yaml.",
+  "$id": "a2a-agentic-home/gateway/events",
+  "title": "Device Gateway events",
+  "description": "Gateway -> clients over WebSocket: device.state_changed. Inputs to Gateway over REST POST /inputs (scenario replay): person.moved, sensor.changed. Space/device IDs come from config/devices.yaml.",
   "oneOf": [
     {
       "title": "device.state_changed",

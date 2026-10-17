@@ -9,7 +9,6 @@
 
 - 세부 기획서: https://claude.ai/code/artifact/149b9ec3-d478-4a2e-8de2-2b0fb944c111
 - 팀 확정 기획안: "A2A based Agentic Home" PDF (기획서와 같은 구조)
-- 3D 집 시뮬레이션은 다른 팀원이 `a2a-agentic-home-3d` 레포에서 작업 중
 
 ## 확정된 결정
 
@@ -19,9 +18,9 @@
 - **Ambient-A2A 확장 5종**: Context Sharing, Context Subscription, Room Ownership & Access Control, Policy-Aware Collaboration (여기까지 P0), Human Approval (P1).
 - **구독은 A2A Task 스트리밍이 아닌 별도 확장 규약**: 제공자가 구독 목록을 관리하고, 상태가 바뀌면 구독자에게 `context.update`를 A2A 메시지로 보낸다.
 - **원본 개인 데이터(일정 제목, GPS 좌표)는 Agent 밖으로 보내지 않는다.** `ambient.schemas.CONTEXT_FIELDS`의 항목만 공유한다.
-- **통신**: Agent↔Agent는 A2A, Agent→Gateway는 REST, Gateway→대시보드·3D는 WebSocket, Agent→Event Collector는 이벤트 API.
+- **통신**: Agent↔Agent는 A2A, Agent→Gateway는 REST, Gateway→대시보드는 WebSocket, Agent→Event Collector는 이벤트 API.
 - **시연 시나리오**: A 회의 시작(조명 회의 모드 + Home에 청소기 정지 요청), B 집 전체 절전 중 Baby Room이 `SAFETY_POLICY`로 거절(P0에서는 My Room이 `OCCUPIED`로 거절), C 외출(Mobile AWAY → 방 절전, 가족 전원 AWAY → 집 전체 절전).
-- 레포 구성: 모노레포 `a2a-agentic-home` + 3D 레포 `a2a-agentic-home-3d`.
+- 레포 구성: 모노레포 `a2a-agentic-home`.
 
 ## 사전 실험(스파이크)에서 확인한 것 — a2a-sdk 1.2.2 / A2A v1.0
 
@@ -37,6 +36,6 @@
 ## 현재 상태
 
 - 완료: 레포 뼈대, `ambient/` 스키마·검증기·구독 관리·A2A 변환 + 테스트, Gateway `/devices`, 설정·시나리오·contracts 초안, CI, 이슈 생성 스크립트(`scripts/create_issues.sh`, WBS 50개).
-- 다음: 3D 담당자와 공간·기기 ID와 `contracts/simulation` 확정 → W0-3 설정 로더 → W2-1 Agent 서버 템플릿 → W2-2 인증·Task 소유권 → Desktop → My Room 구독 → 시나리오 A 앞부분이 끝까지 동작.
+- 다음: 공간·기기 ID와 `contracts/gateway` 확정 → W0-3 설정 로더 → W2-1 Agent 서버 템플릿 → W2-2 인증·Task 소유권 → Desktop → My Room 구독 → 시나리오 A 앞부분이 끝까지 동작.
 - GitHub: https://github.com/SWE26-01/a2a-agentic-home (private)
 - 미정: `CODEOWNERS` 담당자, 확장 명세 문서(`docs/ambient-a2a-spec.md`) 작성.

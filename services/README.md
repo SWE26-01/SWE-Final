@@ -6,7 +6,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 - 방마다 Room Agent가 자기 기기의 제어 권한과 정책을 가지며
 - 다른 Agent의 요청은 공간별 정책에 따라 수락·거절한다.
 
-기획서: (팀 기획 문서 링크) · 3D 시뮬레이션: `a2a-agentic-home-3d`
+기획서: (팀 기획 문서 링크)
 
 ## 구조
 
@@ -21,7 +21,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | `gateway/` | 가상 Device Gateway + 시나리오 재생 | W8 |
 | `collector/` | Event Collector | W8 |
 | `dashboard/` | React 대시보드 | W9 |
-| `contracts/` | Agent 간 메시지와 3D 연동 명세 (JSON Schema) | - |
+| `contracts/` | Agent 간 메시지와 Device Gateway 이벤트 명세 (JSON Schema) | - |
 | `config/` | agents / policies / devices / scenarios | W0 |
 
 ## 시작하기

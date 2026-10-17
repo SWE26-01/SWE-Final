@@ -1,5 +1,5 @@
 # Device ownership (plan doc 3.2). Each device has exactly one owner agent.
-# Space and device IDs are shared with the 3D simulation — change them only via contracts/.
+# Space and device IDs are part of the Gateway contract (contracts/gateway) — change them by PR.
 spaces:
   - {id: my_room, type: personal}
   - {id: baby_room, type: baby}        # P1
