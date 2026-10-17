@@ -21,6 +21,10 @@
 - **통신**: Agent↔Agent는 A2A, Agent→Gateway는 REST, Gateway→대시보드는 WebSocket, Agent→Event Collector는 이벤트 API.
 - **시연 시나리오**: A 회의 시작(조명 회의 모드 + Home에 청소기 정지 요청), B 집 전체 절전 중 Baby Room이 `SAFETY_POLICY`로 거절(P0에서는 My Room이 `OCCUPIED`로 거절), C 외출(Mobile AWAY → 방 절전, 가족 전원 AWAY → 집 전체 절전).
 - 레포 구성: 모노레포 `a2a-agentic-home`.
+- **아기 수면 상태는 방 모드로 관리** (Gateway 센서 입력 아님): Baby Room Agent가 `mode`(normal/sleep)를 자기 상태로 가진다. W7-1(#31)에서 정책 조건 형식과 Gateway의 `sleeping` 필드를 함께 정리한다.
+- **시나리오 초기화는 Gateway API로**: 대시보드만 부를 수 있는 초기화·시작 상태 설정 API를 W8-3(#35)에서 추가한다.
+- **회의 판단**: 실제 모드는 회의 앱 실행 여부(앱이 떠 있기만 해도 true가 되는 한계 있음). 발표 데모는 가짜 신호 모드(W3-4)로 한다.
+- **Event Collector 기록은 Docker 볼륨으로 유지** (W2-5, #13).
 
 ## 사전 실험(스파이크)에서 확인한 것 — a2a-sdk 1.2.2 / A2A v1.0
 
