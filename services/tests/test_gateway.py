@@ -1,5 +1,6 @@
 import json
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -32,6 +33,8 @@ class FakeHA:
         path = request.url.path
         if request.method == "GET" and path == "/api/states":
             return httpx.Response(200, json=[state(MODE, "normal"), state("person.me", "home")])
+        if request.method == "GET" and path.startswith("/api/logbook/"):
+            return httpx.Response(200, json=[])
         if request.method == "GET":
             return httpx.Response(200, json=state(path.rsplit("/", 1)[1], "off"))
         body = json.loads(request.content)
@@ -221,6 +224,37 @@ def test_dashboard_can_control_visible_devices_only(client, ha):
     assert unknown.status_code == 403
     assert client.post(f"/dashboard/devices/{device}/toggle", headers=DASHBOARD).status_code == 400
     assert client.post(f"/dashboard/devices/{device}/turn_on", headers=ROOM1).status_code == 403
+
+
+def test_dashboard_activity_keeps_ha_shape_and_labels_agent_and_user(client, ha):
+    devices = client.app.state.devices
+    device = "input_boolean.kitchen_stove"
+    client.portal.call(devices.reload, [state(device, "off")])
+    assert call(client, HOME, "input_boolean/turn_on", entity_id=device).status_code == 200
+    now = datetime.now(UTC).isoformat()
+    ha.answer = httpx.Response(200, json=[
+        {
+            "state": "on", "entity_id": device, "name": "화구", "icon": "mdi:stove",
+            "when": now, "context_domain": "input_boolean", "context_service": "turn_on",
+            "context_event_type": "call_service",
+        },
+        {
+            "state": "off", "entity_id": device, "name": "화구", "icon": "mdi:stove",
+            "when": now, "context_domain": "input_boolean", "context_service": "turn_off",
+            "context_event_type": "call_service",
+        },
+        {
+            "state": "home", "entity_id": "person.me", "name": "Me", "when": now,
+        },
+    ])
+
+    response = client.get("/dashboard/activity", headers=DASHBOARD)
+    assert response.status_code == 200
+    agent, user = response.json()
+    assert agent["action_type"] == "agent" and agent["actor"] == "Home Agent"
+    assert user["action_type"] == "user" and user["actor"] == "사용자"
+    assert agent["context_event_type"] == "call_service"
+    assert "person.me" not in {item["entity_id"] for item in response.json()}
 
 
 @pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])

@@ -34,6 +34,7 @@ import HomeAssistantIcon from './HomeAssistantIcon';
 import {
   canControlHomeAssistantPower,
   connectHomeAssistant,
+  fetchHomeAssistantActivity,
   mergeHomeAssistantDevices,
   setHomeAssistantPower,
   syncHomeAssistantDevices,
@@ -167,6 +168,18 @@ const initialUserMessages = [
     time: '지금',
   },
 ];
+
+const formatActivityTime = (value, withSeconds = false) => {
+  if (!value) return '--:--';
+  return new Date(value).toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(withSeconds ? { second: '2-digit' } : {}),
+    hour12: false,
+  });
+};
+
+const activityStateLabel = (state) => ({ on: '켜짐', off: '꺼짐' }[state] || state || '상태 변경');
 
 const simulationScenarios = [
   {
@@ -358,6 +371,8 @@ function App() {
   const [selectedChatAgent, setSelectedChatAgent] = useState('Home Agent');
   const [chatInput, setChatInput] = useState('');
   const [userMessages, setUserMessages] = useState(initialUserMessages);
+  const [homeAssistantActivity, setHomeAssistantActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -370,6 +385,26 @@ function App() {
     onSnapshot: (devices) => setRooms((current) => syncHomeAssistantDevices(current, devices)),
     onDevice: (device) => setRooms((current) => mergeHomeAssistantDevices(current, [device])),
   }), []);
+
+  useEffect(() => {
+    let stopped = false;
+    const refresh = async () => {
+      try {
+        const activity = await fetchHomeAssistantActivity({ url: gatewayUrl, token: dashboardToken });
+        if (!stopped) setHomeAssistantActivity(activity.slice().reverse());
+      } catch {
+        if (!stopped) setHomeAssistantActivity([]);
+      } finally {
+        if (!stopped) setActivityLoading(false);
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => () => {
     if (environmentAnimationFrame.current) window.cancelAnimationFrame(environmentAnimationFrame.current);
@@ -819,9 +854,14 @@ function App() {
                 <button className="text-button">전체 보기 <ChevronRight size={14} /></button>
               </div>
               <div className="timeline">
-                <div className="timeline-item"><span className="time">22:31</span><i className="timeline-dot" /><p><b>위치 상태 수신</b><small>Mobile Agent · 침실 재실</small></p><span className="event-tag">CONTEXT</span></div>
-                <div className="timeline-item"><span className="time">22:32</span><i className="timeline-dot purple" /><p><b>활동 맥락 결합</b><small>Desktop Agent · PC 활동 종료</small></p><span className="event-tag purple">CONTEXT</span></div>
-                <div className="timeline-item"><span className="time">22:32</span><i className="timeline-dot green" /><p><b>개인 방 환경 실행</b><small>My Room Agent · 조명·냉방 제어</small></p><span className="event-tag green">ACTION</span></div>
+                {homeAssistantActivity.slice(0, 3).map((event) => (
+                  <div className="timeline-item" key={`${event.when}-${event.entity_id}`}>
+                    <span className="time">{formatActivityTime(event.when)}</span><i className={`timeline-dot ${event.action_type === 'agent' ? 'green' : ''}`} />
+                    <p><b>{event.name} · {activityStateLabel(event.state)}</b><small>{event.description}</small></p>
+                    <span className={`event-tag ${event.action_type === 'agent' ? 'green' : ''}`}>{event.action_type === 'agent' ? 'AGENT' : 'USER'}</span>
+                  </div>
+                ))}
+                {!homeAssistantActivity.length && <div className="live-empty-state compact"><Wifi size={14} /><span>{activityLoading ? 'Home Assistant 로그를 불러오는 중입니다.' : '최근 Home Assistant 로그가 없습니다.'}</span></div>}
               </div>
             </section>
 
@@ -992,24 +1032,24 @@ function App() {
                 <div className="live-state"><i /> LIVE</div>
               </div>
               <div className="activity-stats">
-                <div><span>오늘의 이벤트</span><b>24</b><small>+6 since 18:00</small></div>
-                <div><span>자동 실행</span><b>9</b><small>성공률 100%</small></div>
-                <div><span>평균 응답</span><b>0.8s</b><small>실시간 연결</small></div>
+                <div><span>HA 로그</span><b>{homeAssistantActivity.length}</b><small>최근 24시간</small></div>
+                <div><span>Agent Action</span><b>{homeAssistantActivity.filter((event) => event.action_type === 'agent').length}</b><small>에이전트가 실행</small></div>
+                <div><span>User Action</span><b>{homeAssistantActivity.filter((event) => event.action_type === 'user').length}</b><small>사용자가 실행</small></div>
               </div>
               <div className="expanded-timeline">
-                {[
-                  ['22:32:10', 'ACTION', '개인 방 환경 적용', '침실 조명 30% · 에어컨 24°C 설정 완료', 'My Room Agent'],
-                  ['22:32:09', 'COORDINATE', '수면 환경 작업 조정', '활동·위치 맥락을 결합해 취침 준비 요청', 'Home Agent'],
-                  ['22:32:08', 'CONTEXT', 'PC 활동·일정 전달', 'PC 활동 종료와 다음 일정 없음 확인', 'Desktop Agent'],
-                  ['22:31:42', 'LOCATION', '침실 이동 상태 전달', '사용자 위치와 이동 종료 상태 확인', 'Mobile Agent'],
-                  ['22:18:04', 'ACTION', '거실 환경 자동 정리', '재실 상태와 연결해 조명 자동 소등', 'My Room Agent'],
-                  ['20:15:21', 'COORDINATE', '청소 작업 완료 확인', '전체 상태에 로봇 청소 결과 반영', 'Home Agent'],
-                ].map((event, index) => (
-                  <div className="expanded-event" key={event[0]}>
-                    <time>{event[0]}</time><i className={index < 2 ? 'active' : ''} />
-                    <div><span>{event[1]}</span><h3>{event[2]}</h3><p>{event[3]}</p></div><em>{event[4]}</em>
+                {homeAssistantActivity.map((event) => (
+                  <div className={`expanded-event ha-activity-event ${event.action_type}`} key={`${event.when}-${event.entity_id}`}>
+                    <time>{formatActivityTime(event.when, true)}</time><i className="active" />
+                    <div>
+                      <span>{event.context_event_type || 'state_changed'}</span>
+                      <h3>{event.name} · {activityStateLabel(event.state)}</h3>
+                      <p>{event.entity_id} · {event.context_domain || 'state'}.{event.context_service || 'changed'}</p>
+                      <small>{event.description}</small>
+                    </div>
+                    <em>{event.action_type === 'agent' ? 'Agent Action' : 'User Action'}<small>{event.actor}</small></em>
                   </div>
                 ))}
+                {!homeAssistantActivity.length && <div className="activity-empty"><Wifi size={18} /><p>{activityLoading ? 'Home Assistant Logbook을 불러오는 중입니다.' : '최근 24시간 동안 표시할 기기 로그가 없습니다.'}</p></div>}
               </div>
             </section>
 

@@ -169,6 +169,25 @@ export const setHomeAssistantPower = async ({ url, token, entity, on }) => {
   if (!response.ok) throw new Error(`Home Assistant control failed (${response.status})`);
 };
 
+const gatewayHttpUrl = (url, path) => {
+  const endpoint = new URL(url, window.location.href);
+  endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
+  endpoint.pathname = path;
+  endpoint.search = '';
+  return endpoint;
+};
+
+export const fetchHomeAssistantActivity = async ({ url, token, limit = 50 }) => {
+  if (!url || !token) return [];
+  const endpoint = gatewayHttpUrl(url, '/dashboard/activity');
+  endpoint.searchParams.set('limit', String(limit));
+  const response = await fetch(endpoint, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Home Assistant activity failed (${response.status})`);
+  return response.json();
+};
+
 export const connectHomeAssistant = ({ url, token, onStatus, onSnapshot, onDevice }) => {
   if (!url || !token) {
     onStatus('configuration_required');

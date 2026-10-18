@@ -13,7 +13,7 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -67,6 +67,13 @@ DASHBOARD_POWER_SERVICES = {
     "lock": ("lock", "unlock"),
     "vacuum": ("start", "return_to_base"),
 }
+AGENT_NAMES = {
+    "orchestrator": "Home Agent",
+    "room1": "My Room Agent",
+    "room2": "Room 2 Agent",
+    "desktop": "Desktop Agent",
+    "smartphone": "Mobile Agent",
+}
 
 
 class Blocked(Exception):
@@ -119,11 +126,61 @@ async def _forward(call: Awaitable[httpx.Response]) -> JSONResponse:
     except httpx.HTTPError as e:
         log.warning("Home Assistant request failed: %r", e)
         return _message(status.HTTP_502_BAD_GATEWAY, "Home Assistant is unreachable")
+    return _ha_response(resp)
+
+
+def _ha_response(response: httpx.Response) -> JSONResponse:
     try:
-        content = resp.json()
+        content = response.json()
     except ValueError:
-        content = {"message": resp.text}
-    return JSONResponse(content, status_code=resp.status_code)
+        content = {"message": response.text}
+    return JSONResponse(content, status_code=response.status_code)
+
+
+class AgentActions:
+    """Short-lived service calls used to label matching Home Assistant Logbook rows."""
+
+    def __init__(self) -> None:
+        self._items: list[dict[str, Any]] = []
+
+    def add(self, agent_id: str, entities: list[str], domain: str, service: str) -> None:
+        now = datetime.now(UTC)
+        self._items = [item for item in self._items if now - item["at"] < timedelta(hours=24)]
+        self._items.extend(
+            {
+                "at": now,
+                "agent_id": agent_id,
+                "entity_id": entity,
+                "domain": domain,
+                "service": service,
+            }
+            for entity in entities
+        )
+
+    def agent_for(self, row: dict[str, Any]) -> str | None:
+        try:
+            when = datetime.fromisoformat(row["when"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        matches = (
+            item for item in reversed(self._items)
+            if item["entity_id"] == row.get("entity_id")
+            and item["domain"] == row.get("context_domain")
+            and item["service"] == row.get("context_service")
+            and abs((when - item["at"]).total_seconds()) <= 15
+        )
+        match = next(matches, None)
+        return match["agent_id"] if match else None
+
+
+def describe_logbook(row: dict[str, Any], agent_id: str | None) -> str:
+    name = row.get("name") or row.get("entity_id") or "기기"
+    state = row.get("state")
+    state_text = {"on": "켜짐", "off": "꺼짐"}.get(state, state or "상태 변경")
+    if agent_id:
+        agent_name = AGENT_NAMES.get(agent_id, agent_id)
+        return f"{agent_name}가 {name} 상태를 {state_text}으로 변경했습니다."
+    return f"사용자가 {name} 상태를 {state_text}으로 변경했습니다."
 
 
 class Devices:
@@ -156,6 +213,9 @@ class Devices:
         entities = self._states if self.ha_connected else self._config.devices
         devices = [self.view(e) for e in entities]
         return Snapshot(ha_connected=self.ha_connected, devices=devices).model_dump(mode="json")
+
+    def visible_entities(self) -> set[str]:
+        return set(self._states) | set(self._config.devices)
 
     def power_service(self, entity: str, turn_on: bool) -> tuple[str, str] | None:
         if entity not in self._states:
@@ -212,6 +272,7 @@ def create_app(
         raise ConfigError(["HA_TOKEN is not set: the Gateway needs a Home Assistant token"])
     ha = HomeAssistant(config.ha_url, config.ha_token, transport=ha_transport)
     devices = Devices(config)
+    agent_actions = AgentActions()
     auth = make_auth(config)
 
     async def load_all() -> None:
@@ -255,7 +316,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
-        allow_methods=["POST"],
+        allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.state.devices = devices
@@ -288,6 +349,32 @@ def create_app(
         domain, service_name = service
         return await _forward(ha.call_service(domain, service_name, {"entity_id": entity_id}))
 
+    @app.get("/dashboard/activity")
+    async def dashboard_activity(_: auth.operator, limit: int = 50) -> JSONResponse:
+        limit = max(1, min(limit, 200))
+        end = datetime.now(UTC)
+        try:
+            response = await ha.logbook(end - timedelta(hours=24), end)
+            response.raise_for_status()
+            rows = response.json()
+        except (httpx.HTTPError, ValueError) as e:
+            log.warning("Home Assistant logbook request failed: %r", e)
+            return _message(status.HTTP_502_BAD_GATEWAY, "Home Assistant logbook is unreachable")
+        visible = devices.visible_entities()
+        activity = []
+        for row in rows:
+            if row.get("entity_id") not in visible:
+                continue
+            agent_id = agent_actions.agent_for(row)
+            activity.append({
+                **row,
+                "action_type": "agent" if agent_id else "user",
+                "agent_id": agent_id,
+                "actor": AGENT_NAMES.get(agent_id, agent_id) if agent_id else "사용자",
+                "description": describe_logbook(row, agent_id),
+            })
+        return JSONResponse(activity[-limit:])
+
     @app.post("/api/services/{domain}/{service}")
     async def call_service(domain: str, service: str, request: Request, who: auth.agent):
         try:
@@ -300,7 +387,14 @@ def create_app(
             log.warning("blocked %s -> %s.%s: %s", who.id, domain, service, e.message)
             return _message(e.status_code, e.message)
         forwarded = {**body, "entity_id": entities}
-        return await _forward(ha.call_service(domain, service, forwarded))
+        try:
+            response = await ha.call_service(domain, service, forwarded)
+        except httpx.HTTPError as e:
+            log.warning("Home Assistant request failed: %r", e)
+            return _message(status.HTTP_502_BAD_GATEWAY, "Home Assistant is unreachable")
+        if response.is_success:
+            agent_actions.add(who.id, entities, domain, service)
+        return _ha_response(response)
 
     @app.websocket("/ws")
     async def follow_devices(websocket: WebSocket, token: str | None = None) -> None:

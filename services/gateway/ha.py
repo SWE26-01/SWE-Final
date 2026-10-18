@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -41,6 +42,12 @@ class HomeAssistant:
 
     async def call_service(self, domain: str, service: str, body: dict[str, Any]) -> httpx.Response:
         return await self._http.post(f"/api/services/{domain}/{service}", json=body)
+
+    async def logbook(self, start: datetime, end: datetime) -> httpx.Response:
+        return await self._http.get(
+            f"/api/logbook/{start.isoformat()}",
+            params={"end_time": end.isoformat()},
+        )
 
     async def states(self) -> list[State]:
         resp = await self._http.get("/api/states")
