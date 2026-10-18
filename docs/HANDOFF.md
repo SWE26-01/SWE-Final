@@ -75,5 +75,6 @@
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
   아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
-- frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결은 SWE-Final 브랜치에서 진행 예정(가이드·샘플 준비됨).
+- frontend: LIVE/MOCK 전환. LIVE에서 Home·3D Model·Agent Activity 탭이 Gateway·Collector의 실제 데이터를 보여 준다(`frontend/src/live/`).
+  Live Simulation·Control Mode 탭은 데모용 가짜 데이터. 화면에서 기기 조작은 막혀 있다(대시보드 토큰은 읽기 전용).
 - 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.
