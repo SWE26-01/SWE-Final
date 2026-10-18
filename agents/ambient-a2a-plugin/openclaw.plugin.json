@@ -15,7 +15,9 @@
       "role": { "enum": ["external", "home", "room"] },
       "publicUrl": { "type": "string" },
       "peers": { "type": "object" },
-      "tokens": { "type": "object" }
+      "tokens": { "type": "object" },
+      "gatewayUrl": { "type": "string" },
+      "collectorUrl": { "type": "string" }
     },
     "additionalProperties": true
   }
