@@ -194,3 +194,64 @@ export function toAgentCard(status) {
 export const NODE_AGENT = { Home: 'orchestrator', 'My Room': 'room1', Desktop: 'desktop', Mobile: 'smartphone' };
 
 export const socketLabel = (status) => ({ open: 'CONNECTED', connecting: 'CONNECTING', closed: 'RECONNECTING', off: 'OFF' }[status] || status);
+
+// --- Agent console (Agents tab) -----------------------------------------------------------------
+
+export const AGENT_ORDER = ['desktop', 'smartphone', 'orchestrator', 'room1', 'room2'];
+
+export const AGENT_ROLE = {
+  desktop: 'PC에서 회의 중인지 알려 주고, Home에 집중 환경을 부탁해요',
+  smartphone: '외출·귀가를 알려 주고, Home에 집 전체 절전을 부탁해요',
+  orchestrator: '거실 기기를 맡고, 방 기기 요청은 그 방에 넘겨 결과를 모아요',
+  room1: '내 방 기기를 맡아요. 회의가 시작되면 조명을 회의 모드로 바꿔요',
+  room2: '보호 방 기기를 맡아요. 수면 중에는 에어컨 끄기를 거절해요',
+};
+
+// One click = one message to the agent that would naturally start it.
+export const SCENARIOS = [
+  { id: 'meeting-on', label: '회의 시작', agent: 'desktop', message: '나 회의 시작할게' },
+  { id: 'meeting-off', label: '회의 끝', agent: 'desktop', message: '회의 끝났어' },
+  { id: 'away', label: '외출', agent: 'smartphone', message: '나 나간다' },
+  { id: 'home', label: '귀가', agent: 'smartphone', message: '집 도착' },
+  { id: 'save', label: '집 전체 절전', agent: 'smartphone', message: '집 전체 절전해줘' },
+  { id: 'sleep', label: '보호 방 수면 모드', agent: 'room2', message: '보호 방 수면 모드 켜줘' },
+];
+
+export const SUGGESTIONS = {
+  desktop: ['나 회의 시작할게', '회의 끝났어', '지금 무슨 상태야?'],
+  smartphone: ['나 나간다', '집 도착', '집 전체 절전해줘'],
+  orchestrator: ['집 전체 절전해도 될까?', '거실 조명 켜줘', '지금 거실 상태 알려줘'],
+  room1: ['내 방 에어컨 켜줘', '조명 일반 모드로 바꿔줘', '내 방 상태 알려줘'],
+  room2: ['보호 방 수면 모드 켜줘', '보호 방 에어컨 꺼줘', '보호 방 상태 알려줘'],
+};
+
+/** "거실 조명 꺼짐" style chips for the devices an agent owns. */
+export function ownedDeviceChips(status, devices) {
+  return (status?.owned_devices || []).map((entity) => {
+    const state = devices[entity]?.state;
+    const text = state === 'on' ? '켜짐' : state === 'off' ? '꺼짐' : state ? valueText(state) : '—';
+    return { entity, name: deviceName(entity, devices), text, on: state === 'on' || (state && state !== 'off' && state !== 'normal') };
+  });
+}
+
+/** Short "what it did recently" lines for one agent, newest first. */
+export function recentDoings(agentId, events, devices, limit = 3) {
+  return events
+    .filter((event) => event.agent === agentId && ['exec', 'rule', 'in', 'out'].includes(event.dir) && event.type !== 'context.subscribe')
+    .slice(0, limit)
+    .map((event) => {
+      if (event.dir === 'exec' || event.dir === 'rule') {
+        const item = toActivity(event, devices);
+        const rejected = event.accepted === false;
+        const label = event.dir === 'rule' ? item.title.replace('자동화 규칙 · ', '규칙: ') : `${rejected ? '거절' : '실행'}: ${item.title}`;
+        const reason = rejected ? ` (${resultText(event.accepted, event.reason_code)})` : '';
+        return { key: event.id, time: item.time, text: `${label}${reason}`, ok: !rejected };
+      }
+      if (event.dir === 'out') {
+        const what = event.type === 'device.control' ? actionText(event.action, devices) : (TYPE_TEXT[event.type] || event.type);
+        return { key: event.id, time: timeOf(event.ts), text: `${agentName(event.to)}에게 ${what}`, ok: true };
+      }
+      const row = toLogRow(event, devices);
+      return { key: event.id, time: row.time, text: `${row.from}의 ${row.text}`, ok: event.accepted !== false };
+    });
+}

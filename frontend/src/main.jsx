@@ -33,6 +33,7 @@ import Home3D from './Home3D';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
 import { NODE_AGENT, applyLiveDevices, liveOccupantRoom, toActivity, toAgentCard, toFlowCard, toLogRow } from './live/mapping';
+import AgentConsole from './live/AgentConsole';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
@@ -682,6 +683,7 @@ function App() {
             ['live', 'Live Simulation'],
             ['test', 'Control Mode'],
             ['activity', 'Agent Activity'],
+            ['agents', 'Agents'],
           ].map(([key, label]) => (
             <button className={activeTab === key ? 'active' : ''} key={key} onClick={() => setActiveTab(key)}>{label}</button>
           ))}
@@ -1000,6 +1002,7 @@ function App() {
             </section>
           </div>
         )}
+        {activeTab === 'agents' && <AgentConsole live={live} liveData={liveData} events={liveEvents} />}
       </main>
 
       {selectedGroup && (
