@@ -92,11 +92,12 @@ export default {
     );
 
     if (cfg.role === "external")
+      // Flat params (one per provided field): models tend to call {"meeting_app_active": true} directly; a nested {fields:{...}} shape cost a failed call + retry.
       tool(
         "ambient_publish",
-        `Publish the user's current state to subscribed agents. Allowed fields: ${(cfg.provides ?? []).join(", ")}. Never include raw personal data (titles, locations).`,
-        { fields: Type.Record(Type.String(), Type.Union([Type.String(), Type.Boolean(), Type.Number()])) },
-        ({ fields }) => agent.publish(fields),
+        "Publish the user's current state to subscribed agents. Pass only the fields that changed. Never include raw personal data (titles, locations).",
+        Object.fromEntries((cfg.provides ?? []).map((f) => [f, Type.Optional(Type.Union([Type.String(), Type.Boolean(), Type.Number()]))])),
+        (fields) => agent.publish(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))),
       );
 
     if (cfg.role !== "external") {
