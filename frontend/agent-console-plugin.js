@@ -8,11 +8,19 @@ import path from 'node:path';
 const AGENTS = new Set(['desktop', 'smartphone', 'orchestrator', 'room1', 'room2']);
 const MAX_MESSAGE = 500;
 const TIMEOUT_MS = 180_000;
+// Added to every message from the UI so replies read like a person talking, not a log.
+const STYLE = [
+  '(답변 방식: 집에 사는 사람에게 말하듯 자연스럽고 친근하게, 짧게 답해 줘.',
+  '기기 ID(input_boolean.… 같은 것), 필드 이름(meeting_app_active 같은 것), 사유 코드, 코드 표기는 쓰지 말고',
+  '"거실 TV 음소거", "회의 중"처럼 쉬운 말로 풀어서 말해 줘. 필요하면 굵게나 목록 같은 마크다운을 써도 돼.',
+  '지금 상태를 말할 때는 기억으로 추측하지 말고 ambient_status 같은 도구로 먼저 확인한 내용만 말해 줘.',
+  '묻기만 한 질문에는 답만 하고, 부탁받지 않은 상태 공유·요청·기기 조작은 하지 마.)',
+].join(' ');
 
 function runAgent(root, agent, message) {
   return new Promise((resolve, reject) => {
     const started = Date.now();
-    const child = spawn('bash', [path.join(root, 'scripts/oc.sh'), agent, 'agent', '--agent', 'main', '--message', message, '--json'], {
+    const child = spawn('bash', [path.join(root, 'scripts/oc.sh'), agent, 'agent', '--agent', 'main', '--message', `${message}\n\n${STYLE}`, '--json'], {
       cwd: root,
       // npm run dev leaves npm_config_* in the environment, which nvm (used by oc.sh) refuses.
       env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('npm_'))), AMBIENT_SKIP_SYNC: '1' },

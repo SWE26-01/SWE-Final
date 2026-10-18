@@ -39,7 +39,8 @@
 .console-chat-tabs button.offline { opacity:.5; }
 .console-chat-log { flex:1; min-height:200px; max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:4px 2px; }
 .console-chat-empty { margin:auto; display:flex; gap:8px; align-items:center; color:rgba(0,0,0,.45); font-size:9px; max-width:320px; text-align:left; }
-.console-bubble { max-width:85%; padding:9px 12px; border-radius:14px; font-size:10px; line-height:1.5; white-space:pre-wrap; }
+.console-bubble { max-width:85%; padding:9px 12px; border-radius:14px; font-size:10px; line-height:1.55; }
+.console-bubble.user p, .console-bubble.error p { white-space:pre-wrap; }
 .console-bubble p { margin:0; }
 .console-bubble small { display:block; margin-top:4px; color:rgba(0,0,0,.4); font-size:7px; }
 .console-bubble.user { align-self:flex-end; background:#c4dcef; }
@@ -79,3 +80,18 @@
 
 .spin { animation:console-spin 1s linear infinite; }
 @keyframes console-spin { to { transform:rotate(360deg); } }
+
+.console-markdown > :first-child { margin-top:0; }
+.console-markdown > :last-child { margin-bottom:0; }
+.console-markdown p { margin:0 0 6px; }
+.console-markdown ul, .console-markdown ol { margin:4px 0 6px; padding-left:16px; }
+.console-markdown li { margin:2px 0; }
+.console-markdown strong { font-weight:700; color:var(--black); }
+.console-markdown code { padding:1px 4px; border-radius:4px; background:rgba(0,0,0,.06); font-size:9px; }
+.console-markdown pre { margin:6px 0; padding:8px; border-radius:8px; background:rgba(0,0,0,.06); overflow-x:auto; }
+.console-markdown pre code { padding:0; background:none; }
+.console-markdown table { border-collapse:collapse; margin:6px 0; font-size:9px; }
+.console-markdown th, .console-markdown td { padding:3px 6px; border:1px solid rgba(0,0,0,.12); text-align:left; }
+.console-markdown blockquote { margin:6px 0; padding-left:8px; border-left:3px solid rgba(106,166,218,.5); color:rgba(0,0,0,.6); }
+.console-markdown h1, .console-markdown h2, .console-markdown h3 { margin:6px 0 4px; font-size:11px; }
+.console-markdown a { color:#3d6f94; }

@@ -2,6 +2,8 @@
 // and a status board per agent. Talking to agents goes through the dev server (agent-console-plugin.js).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Loader2, MessageSquare, Play, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { askAgent } from './console';
 import {
   AGENT_ORDER, AGENT_ROLE, SCENARIOS, SUGGESTIONS, agentName, ownedDeviceChips, recentDoings, timeOf, toFlowCard,
@@ -101,7 +103,10 @@ function Chat({ selected, onSelect, chats, pending, onSend, statuses }) {
       <div className="console-chat-log" ref={listRef}>
         {history.length ? history.map((m, index) => (
           <div key={index} className={`console-bubble ${m.role}`}>
-            <p>{m.text}</p>{m.meta && <small>{m.meta}</small>}
+            {m.role === 'agent'
+              ? <div className="console-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown></div>
+              : <p>{m.text}</p>}
+            {m.meta && <small>{m.meta}</small>}
           </div>
         )) : <div className="console-chat-empty"><MessageSquare size={16} /><span>{agentName(selected)}에게 말을 걸어 보세요. {AGENT_ROLE[selected]}.</span></div>}
         {pending[selected] && <div className="console-bubble agent pending"><p><Loader2 size={12} className="spin" /> {agentName(selected)}가 생각하는 중…</p></div>}
