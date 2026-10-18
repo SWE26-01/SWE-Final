@@ -282,3 +282,35 @@ def test_old_database_gets_flows(tmp_path):
     with TestClient(create_app(load_config(env=ENV), str(db))) as c:
         (flow,) = c.get("/flows", headers=DASHBOARD).json()
         assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 5, "desktop")
+
+
+def test_flow_follows_event_time_not_arrival(client):
+    # Agents post concurrently, so lines can arrive out of order: here Home's final answer and
+    # room1's execution arrive before room1's own answer.
+    at = {2: "01:00:02.500", 3: "01:00:03.100", 4: "01:00:03.900"}  # real lines have ms
+    timed = [b | {"ts": f"2026-10-18T{at[i]}Z"} if i in at else b for i, b in enumerate(SCENARIO)]
+    late = [timed[4], timed[0], timed[2], timed[3], timed[1]]
+    for body in late:
+        assert post(client, TOKENS[body["agent"]], body).status_code == 201
+    detail = client.get("/flows/req-1", headers=DASHBOARD).json()
+    order = [(e["agent"], e["dir"]) for e in detail["events"]]
+    assert order == [
+        ("orchestrator", "out"),
+        ("room1", "exec"),
+        ("room1", "in"),
+        ("orchestrator", "out-result"),
+        ("orchestrator", "in"),
+    ]
+    summary = detail["flow"]
+    assert (summary["requester"], summary["entry"]) == ("desktop", "orchestrator")
+    assert (summary["first_id"], summary["last_id"]) == (1, 5)
+    assert summary["started_at"] == "2026-10-18T01:00:01Z"
+
+
+def test_collector_cors_only_for_configured_origins(tmp_path):
+    env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173"}
+    with TestClient(create_app(load_config(env=env), str(tmp_path / "e.sqlite"))) as c:
+        r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://localhost:5173"})
+        assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+        r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://evil.test"})
+        assert "access-control-allow-origin" not in r.headers

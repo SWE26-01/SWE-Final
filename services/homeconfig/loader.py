@@ -6,6 +6,7 @@ The Gateway and the Event Collector read configuration only through `load_config
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,6 +38,7 @@ class HomeConfig:
     spaces: list[str]
     ha_url: str  # the real Home Assistant (env HA_URL)
     ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
+    cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
     _by_token: dict[str, str] = field(repr=False)
 
     def caller_by_token(self, token: str) -> Caller | None:
@@ -110,6 +112,11 @@ def load_config(
             problems.append(f"device {d.entity!r}: owner {d.owner!r} is not an agent")
         devices[d.entity] = d
 
+    cors_origins = [o.strip() for o in env.get("AMBIENT_CORS_ORIGINS", "").split(",") if o.strip()]
+    for origin in cors_origins:
+        if not re.fullmatch(r"https?://[^/\s]+", origin):
+            problems.append(f"AMBIENT_CORS_ORIGINS: {origin!r} is not an origin like http://localhost:5173")
+
     if problems:
         raise ConfigError(problems)
     return HomeConfig(
@@ -118,5 +125,6 @@ def load_config(
         spaces=list(devices_f.spaces),
         ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
         ha_token=env.get("HA_TOKEN") or None,
+        cors_origins=cors_origins,
         _by_token=by_token,
     )

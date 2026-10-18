@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocketDisconnect
 
 from common.auth import make_auth, ws_caller
+from common.cors import allow_dashboards
 from common.hub import Hub, push
 from gateway.ha import HomeAssistant, State, StateStream
 from gateway.stream import DeviceState, Snapshot, StateChanged
@@ -192,6 +193,7 @@ def create_app(
 
     app = FastAPI(title="Device Gateway", lifespan=lifespan)
     app.state.devices = devices
+    allow_dashboards(app, config)
 
     @app.get("/health")
     async def health() -> dict:

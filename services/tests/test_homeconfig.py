@@ -98,3 +98,13 @@ def test_caller_cannot_be_agent_and_operator(cfg_dir):
 def test_unknown_keys_rejected(cfg_dir):
     edit(cfg_dir / "agents.yaml", lambda d: d["agents"]["room1"].update(token="plain"))
     assert "agents.room1.token: Extra inputs are not permitted" in problems(cfg_dir)
+
+
+def test_cors_origins():
+    assert load_config(env=ENV).cors_origins == []
+    env = {**ENV, "AMBIENT_CORS_ORIGINS": " http://localhost:5173, https://dash.example "}
+    assert load_config(env=env).cors_origins == ["http://localhost:5173", "https://dash.example"]
+    with pytest.raises(ConfigError, match="not an origin"):
+        load_config(env={**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173/"})
+    with pytest.raises(ConfigError, match="not an origin"):
+        load_config(env={**ENV, "AMBIENT_CORS_ORIGINS": "*"})

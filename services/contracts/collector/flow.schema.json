@@ -76,19 +76,23 @@
       "type": "string"
     },
     "first_id": {
+      "description": "lowest event id (ids are arrival order)",
       "title": "First Id",
       "type": "integer"
     },
     "last_id": {
+      "description": "highest event id; flows are listed by it, newest first",
       "title": "Last Id",
       "type": "integer"
     },
     "started_at": {
+      "description": "`ts` of the earliest event",
       "format": "date-time",
       "title": "Started At",
       "type": "string"
     },
     "ended_at": {
+      "description": "`ts` of the latest event",
       "format": "date-time",
       "title": "Ended At",
       "type": "string"

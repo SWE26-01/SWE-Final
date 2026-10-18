@@ -19,8 +19,9 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, status
 from starlette.websockets import WebSocketDisconnect
 
 from collector.events import AgentEvent
-from collector.flows import Flow, StoredEvent, flow_of, summarize
+from collector.flows import Flow, StoredEvent, flow_of, in_time_order, summarize
 from common.auth import make_auth, ws_caller
+from common.cors import allow_dashboards
 from common.hub import Hub, push
 from homeconfig import HomeConfig, load_config
 from homeconfig.models import Role
@@ -120,6 +121,7 @@ def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> Fast
             store.close()
 
     app = FastAPI(title="Event Collector", lifespan=lifespan)
+    allow_dashboards(app, config)
 
     @app.get("/health")
     def health() -> dict:
@@ -151,7 +153,7 @@ def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> Fast
 
     @app.get("/flows/{flow}")
     async def get_flow(flow: str, _: auth.operator) -> dict:
-        events = store.flow_events(flow)
+        events = in_time_order(store.flow_events(flow))
         if not events:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"no events for flow {flow!r}")
         return {"flow": summarize(flow, events).model_dump(mode="json"), "events": events}

@@ -12,5 +12,7 @@ consuming team reviewing.
 
 Agents call the Gateway with Home Assistant's own REST API shape (`GET /api/states/<entity>`,
 `POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Stored events come
-back with `id` and, when they carry a `request_id`, `flow` (its part before the first `/`). Agent-to-agent
+back with `id` and, when they carry a `request_id`, `flow` (its part before the first `/`).
+`id` is arrival order; `ts` is when the event happened. Agents post concurrently, so the two can
+differ: `GET /events` and the WebSocket follow `id`, while `/flows` orders each request by `ts`. Agent-to-agent
 messages are `../spec/ambient-a2a.md`. Device and agent ids: `config/devices.yaml`.
