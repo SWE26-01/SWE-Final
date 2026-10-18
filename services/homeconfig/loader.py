@@ -1,7 +1,12 @@
-"""Load and cross-check config/*.yaml. Every agent and service reads config through here."""
+"""Load and cross-check config/*.yaml plus the secrets they name in the environment.
+
+The Gateway and the Event Collector read configuration only through `load_config()`.
+"""
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
@@ -9,21 +14,10 @@ from typing import TypeVar
 import yaml
 from pydantic import BaseModel, ValidationError
 
-from ambient.schemas import CONTEXT_FIELDS
-from homeconfig.models import (
-    SPACE_FIELDS,
-    Agent,
-    AgentPolicy,
-    AgentRole,
-    AgentsFile,
-    Condition,
-    Device,
-    DevicesFile,
-    PoliciesFile,
-    Space,
-)
+from homeconfig.models import AgentsFile, Caller, Device, DevicesFile, Role
 
 DEFAULT_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+DEFAULT_HA_URL = "http://127.0.0.1:8123"
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -38,31 +32,26 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class HomeConfig:
-    spaces: dict[str, Space]
-    devices: dict[str, Device]
-    agents: dict[str, Agent]
-    policies: PoliciesFile
+    callers: dict[str, Caller]
+    devices: dict[str, Device]  # entity id -> device
+    spaces: list[str]
+    ha_url: str  # the real Home Assistant (env HA_URL)
+    ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
     _by_token: dict[str, str] = field(repr=False)
 
-    def agent(self, agent_id: str) -> Agent:
-        return self.agents[agent_id]
+    def caller_by_token(self, token: str) -> Caller | None:
+        caller_id = self._by_token.get(token)
+        return None if caller_id is None else self.callers[caller_id]
 
-    def agent_by_token(self, token: str) -> Agent | None:
-        agent_id = self._by_token.get(token)
-        return None if agent_id is None else self.agents[agent_id]
+    def agents(self) -> list[Caller]:
+        return [c for c in self.callers.values() if c.role is Role.AGENT]
 
-    def owner_of(self, device_id: str) -> str:
-        return self.devices[device_id].owner
+    def owner_of(self, entity: str) -> str | None:
+        device = self.devices.get(entity)
+        return None if device is None else device.owner
 
-    def devices_owned_by(self, agent_id: str) -> list[Device]:
-        return [d for d in self.devices.values() if d.owner == agent_id]
-
-    def allowed_fields(self, provider: str, requester: str) -> list[str]:
-        """Fields `requester` may read from `provider`; empty if not listed."""
-        return self.policies.disclosure.get(provider, {}).get(requester, [])
-
-    def policy(self, agent_id: str) -> AgentPolicy:
-        return self.policies.agents.get(agent_id, AgentPolicy())
+    def owned_by(self, agent_id: str) -> list[str]:
+        return [d.entity for d in self.devices.values() if d.owner == agent_id]
 
 
 def _read(path: Path, model: type[M], problems: list[str]) -> M | None:
@@ -80,159 +69,54 @@ def _read(path: Path, model: type[M], problems: list[str]) -> M | None:
         return None
 
 
-def _dupes(ids: list[str]) -> set[str]:
-    seen: set[str] = set()
-    return {i for i in ids if i in seen or seen.add(i)}
-
-
-def load_config(config_dir: Path | str | None = None) -> HomeConfig:
-    """Read devices.yaml, agents.yaml and policies.yaml from `config_dir` and validate them
-    against each other. Raises ConfigError listing every problem."""
+def load_config(
+    config_dir: Path | str | None = None, env: Mapping[str, str] | None = None
+) -> HomeConfig:
+    """Read agents.yaml and devices.yaml from `config_dir`, resolve tokens from `env`
+    (default: the process environment) and check everything. Raises ConfigError."""
     base = Path(config_dir) if config_dir is not None else DEFAULT_CONFIG_DIR
+    env = os.environ if env is None else env
     problems: list[str] = []
-    devices_f = _read(base / "devices.yaml", DevicesFile, problems)
     agents_f = _read(base / "agents.yaml", AgentsFile, problems)
-    policies_f = _read(base / "policies.yaml", PoliciesFile, problems)
-    if problems or devices_f is None or agents_f is None or policies_f is None:
+    devices_f = _read(base / "devices.yaml", DevicesFile, problems)
+    if agents_f is None or devices_f is None:
         raise ConfigError(problems)
 
-    for name, ids in (
-        ("space", [s.id for s in devices_f.spaces]),
-        ("device", [d.id for d in devices_f.devices]),
-        ("agent", [a.id for a in agents_f.agents]),
-        ("token", [a.token for a in agents_f.agents]),
-    ):
-        for dup in sorted(_dupes(ids)):
-            problems.append(f"duplicate {name}: {dup!r}")
+    callers: dict[str, Caller] = {}
+    by_token: dict[str, str] = {}
+    entries = [(Role.AGENT, i, e) for i, e in agents_f.agents.items()]
+    entries += [(Role.OPERATOR, i, e) for i, e in agents_f.operators.items()]
+    for role, caller_id, entry in entries:
+        if caller_id in callers:
+            problems.append(f"{caller_id!r} is listed as both an agent and an operator")
+            continue
+        token = env.get(entry.token_env, "")
+        if not token:
+            problems.append(f"{caller_id}: environment variable {entry.token_env} is not set")
+            continue
+        if token in by_token:
+            problems.append(f"{caller_id}: same token as {by_token[token]!r}")
+            continue
+        callers[caller_id] = Caller(id=caller_id, role=role, token=token, url=entry.url)
+        by_token[token] = caller_id
 
-    spaces = {s.id: s for s in devices_f.spaces}
-    devices = {d.id: d for d in devices_f.devices}
-    agents = {a.id: a for a in agents_f.agents}
-    _check(spaces, devices, agents, policies_f, problems)
+    devices: dict[str, Device] = {}
+    for d in devices_f.devices:
+        if d.entity in devices:
+            problems.append(f"duplicate device {d.entity!r}")
+        if d.space not in devices_f.spaces:
+            problems.append(f"device {d.entity!r}: unknown space {d.space!r}")
+        if d.owner not in agents_f.agents:
+            problems.append(f"device {d.entity!r}: owner {d.owner!r} is not an agent")
+        devices[d.entity] = d
+
     if problems:
         raise ConfigError(problems)
-
     return HomeConfig(
-        spaces=spaces,
+        callers=callers,
         devices=devices,
-        agents=agents,
-        policies=policies_f,
-        _by_token={a.token: a.id for a in agents_f.agents},
+        spaces=list(devices_f.spaces),
+        ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
+        ha_token=env.get("HA_TOKEN") or None,
+        _by_token=by_token,
     )
-
-
-def _check(
-    spaces: dict[str, Space],
-    devices: dict[str, Device],
-    agents: dict[str, Agent],
-    policies: PoliciesFile,
-    problems: list[str],
-) -> None:
-    for d in devices.values():
-        if d.space not in spaces:
-            problems.append(f"device {d.id!r}: unknown space {d.space!r}")
-        owner = agents.get(d.owner)
-        if owner is None:
-            problems.append(f"device {d.id!r}: owner {d.owner!r} is not in agents.yaml")
-        elif owner.role is AgentRole.OPERATOR:
-            problems.append(f"device {d.id!r}: operator {d.owner!r} cannot own devices")
-
-    for a in agents.values():
-        for s in a.owned_spaces:
-            if s not in spaces:
-                problems.append(f"agent {a.id!r}: unknown space {s!r}")
-        for f in a.provides:
-            if f not in CONTEXT_FIELDS:
-                problems.append(
-                    f"agent {a.id!r}: provides unknown field {f!r} (see CONTEXT_FIELDS)"
-                )
-        for sub in a.subscribe:
-            provider = agents.get(sub.to)
-            if provider is None:
-                problems.append(f"agent {a.id!r}: subscribes to unknown agent {sub.to!r}")
-                continue
-            allowed = set(policies.disclosure.get(sub.to, {}).get(a.id, []))
-            for f in sub.fields:
-                if f not in provider.provides:
-                    problems.append(f"agent {a.id!r}: {sub.to!r} does not provide {f!r}")
-                elif f not in allowed:
-                    problems.append(
-                        f"agent {a.id!r}: subscribes to {sub.to}.{f} "
-                        "but disclosure does not allow it"
-                    )
-
-    for provider_id, readers in policies.disclosure.items():
-        provider = agents.get(provider_id)
-        if provider is None:
-            problems.append(f"disclosure: unknown provider {provider_id!r}")
-            continue
-        for reader_id, fields in readers.items():
-            if reader_id not in agents:
-                problems.append(f"disclosure.{provider_id}: unknown requester {reader_id!r}")
-            for f in fields:
-                if f not in provider.provides:
-                    problems.append(
-                        f"disclosure.{provider_id}: {provider_id!r} does not provide {f!r}"
-                    )
-
-    for agent_id, pol in policies.agents.items():
-        where = f"policies.{agent_id}"
-        if agent_id not in agents:
-            problems.append(f"{where}: unknown agent")
-            continue
-        subscribed = {(sub.to, f) for sub in agents[agent_id].subscribe for f in sub.fields}
-        for i, rule in enumerate(pol.automation):
-            _check_condition(rule.when, f"{where}.automation[{i}]", agents, spaces, problems)
-            for leaf in rule.when.leaves():
-                if leaf.source is not None and (leaf.source, leaf.field) not in subscribed:
-                    problems.append(
-                        f"{where}.automation[{i}]: uses {leaf.source}.{leaf.field} "
-                        "but the agent does not subscribe to it"
-                    )
-            for act in rule.then:
-                dev = devices.get(act.device)
-                if dev is None:
-                    problems.append(f"{where}.automation[{i}]: unknown device {act.device!r}")
-                elif act.request is None and dev.owner != agent_id:
-                    problems.append(
-                        f"{where}.automation[{i}]: {act.device!r} is owned by {dev.owner!r}; "
-                        f"use `request: {dev.owner}`"
-                    )
-                elif act.request is not None and act.request != dev.owner:
-                    problems.append(
-                        f"{where}.automation[{i}]: request goes to {act.request!r} "
-                        f"but {act.device!r} is owned by {dev.owner!r}"
-                    )
-        for i, rule in enumerate(pol.requests):
-            dev = devices.get(rule.device)
-            if dev is None:
-                problems.append(f"{where}.requests[{i}]: unknown device {rule.device!r}")
-            elif dev.owner != agent_id:
-                problems.append(
-                    f"{where}.requests[{i}]: {rule.device!r} is not owned by {agent_id!r}"
-                )
-            if rule.from_ is not None and rule.from_ not in agents:
-                problems.append(f"{where}.requests[{i}]: unknown requester {rule.from_!r}")
-            if rule.deny_if is not None:
-                _check_condition(rule.deny_if, f"{where}.requests[{i}]", agents, spaces, problems)
-
-
-def _check_condition(
-    cond: Condition,
-    where: str,
-    agents: dict[str, Agent],
-    spaces: dict[str, Space],
-    problems: list[str],
-) -> None:
-    for leaf in cond.leaves():
-        if leaf.source is not None:
-            provider = agents.get(leaf.source)
-            if provider is None:
-                problems.append(f"{where}: unknown source {leaf.source!r}")
-            elif leaf.field not in provider.provides:
-                problems.append(f"{where}: {leaf.source!r} does not provide {leaf.field!r}")
-        else:
-            if leaf.space not in spaces:
-                problems.append(f"{where}: unknown space {leaf.space!r}")
-            if leaf.field not in SPACE_FIELDS:
-                problems.append(f"{where}: unknown space field {leaf.field!r} (see SPACE_FIELDS)")

@@ -1,10 +1,12 @@
-"""Event Collector (WBS W8-4): audit log of A2A requests/responses and policy decisions.
+"""Event Collector (WBS W8-4): one audit log of every agent's A2A traffic and decisions.
 
-Agents POST events; the dashboard reads them with GET /events or live over WebSocket /ws.
-Run: uvicorn collector.main:app --port 8200   (database file: env COLLECTOR_DB)
+A2A-agents' agents POST each event-log line here with their own token. Dashboards read the log
+with GET /events or live over WebSocket /ws.
+
+Run: uvicorn collector.main:build --factory --port 8200 --env-file ../A2A-agents/.env
+     (database file: env COLLECTOR_DB, default collector.sqlite)
 """
 
-import asyncio
 import json
 import os
 import sqlite3
@@ -12,19 +14,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import FastAPI, HTTPException, Query, WebSocket, status
+from starlette.websockets import WebSocketDisconnect
 
 from collector.events import AgentEvent
+from common.auth import make_auth, ws_caller
+from common.hub import Hub, push
 from homeconfig import HomeConfig, load_config
-from homeconfig.models import Agent, AgentRole
+from homeconfig.models import Role
 
 SNAPSHOT_SIZE = 200  # events sent when a dashboard connects
 MAX_LIMIT = 500  # page size cap for GET /events
-QUEUE_SIZE = 1000  # unsent events per WebSocket before the client is dropped
 
-StoredEvent = dict[str, Any]  # {"id": int, **AgentEvent fields}
-EventQueue = asyncio.Queue[StoredEvent | None]
+StoredEvent = dict[str, Any]  # {"id": int, **event as the agent logged it}
 
 
 class EventStore:
@@ -47,7 +49,7 @@ class EventStore:
             self._conn = None
 
     def add(self, event: AgentEvent) -> StoredEvent:
-        raw = event.model_dump_json(exclude_none=True)
+        raw = event.stored()
         with self._db:
             cur = self._db.execute("INSERT INTO events (json) VALUES (?)", (raw,))
         return _row(cur.lastrowid, raw)
@@ -74,36 +76,11 @@ def _row(event_id: int | None, raw: str) -> StoredEvent:
     return {"id": event_id, **json.loads(raw)}
 
 
-class Hub:
-    """Fans new events out to connected WebSockets. A queue that fills up is emptied and gets
-    `None`, which tells its socket to close; the dashboard reconnects for a fresh snapshot."""
-
-    def __init__(self) -> None:
-        self._queues: set[EventQueue] = set()
-
-    def subscribe(self) -> EventQueue:
-        queue: EventQueue = asyncio.Queue(maxsize=QUEUE_SIZE)
-        self._queues.add(queue)
-        return queue
-
-    def unsubscribe(self, queue: EventQueue) -> None:
-        self._queues.discard(queue)
-
-    def publish(self, event: StoredEvent) -> None:
-        for queue in list(self._queues):
-            try:
-                queue.put_nowait(event)
-            except asyncio.QueueFull:
-                self._queues.discard(queue)
-                while not queue.empty():
-                    queue.get_nowait()
-                queue.put_nowait(None)
-
-
-def create_app(config: HomeConfig, db_path: str) -> FastAPI:
+def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> FastAPI:
     """Build the collector. The database is opened at startup and closed at shutdown."""
     store = EventStore(db_path)
-    hub = Hub()
+    hub = hub or Hub()
+    auth = make_auth(config)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -114,24 +91,6 @@ def create_app(config: HomeConfig, db_path: str) -> FastAPI:
             store.close()
 
     app = FastAPI(title="Event Collector", lifespan=lifespan)
-    bearer = HTTPBearer(auto_error=False)
-
-    def authenticate(token: str | None) -> Agent | None:
-        agent = config.agent_by_token(token) if token else None
-        return agent if agent is not None and agent.enabled else None
-
-    def caller(cred: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]) -> Agent:
-        agent = authenticate(cred.credentials if cred else None)
-        if agent is None:
-            raise HTTPException(
-                status.HTTP_401_UNAUTHORIZED,
-                "missing or unknown token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return agent
-
-    # Local alias: FastAPI resolves it at runtime, so no `from __future__ import annotations` here.
-    Caller = Annotated[Agent, Depends(caller)]
 
     @app.get("/health")
     def health() -> dict:
@@ -139,32 +98,24 @@ def create_app(config: HomeConfig, db_path: str) -> FastAPI:
 
     # Handlers that touch the store or hub are async, so they all run on the event loop thread.
     @app.post("/events", status_code=status.HTTP_201_CREATED)
-    async def post_event(event: AgentEvent, who: Caller) -> dict:
-        if who.role is not AgentRole.AGENT:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "only agents report events")
+    async def post_event(event: AgentEvent, who: auth.agent) -> dict:
         if event.agent != who.id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, f"token belongs to {who.id!r}")
-        if event.peer is not None and event.peer not in config.agents:
-            raise HTTPException(422, f"unknown peer {event.peer!r}")
         stored = store.add(event)
-        hub.publish(stored)
+        hub.publish({"type": "event", "event": stored})
         return {"id": stored["id"]}
 
     @app.get("/events")
     async def list_events(
-        who: Caller,
+        _: auth.operator,
         after_id: Annotated[int, Query(ge=0)] = 0,
         limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
     ) -> list[StoredEvent]:
-        if who.role is not AgentRole.OPERATOR:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "only operators read events")
         return store.after(after_id, limit)
 
     @app.websocket("/ws")
-    async def stream(websocket: WebSocket, token: str | None = None) -> None:
-        # Browsers cannot set headers on a WebSocket, so the token comes in the query string.
-        who = authenticate(token)
-        if who is None or who.role is not AgentRole.OPERATOR:
+    async def follow_events(websocket: WebSocket, token: str | None = None) -> None:
+        if ws_caller(config, token, Role.OPERATOR) is None:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         await websocket.accept()
@@ -173,7 +124,7 @@ def create_app(config: HomeConfig, db_path: str) -> FastAPI:
             # No await between subscribing and reading the snapshot, so nothing is missed.
             snapshot = store.latest(SNAPSHOT_SIZE)
             await websocket.send_json({"type": "snapshot", "events": snapshot})
-            await _push(websocket, queue)
+            await push(websocket, queue)
         except WebSocketDisconnect:
             pass
         finally:
@@ -182,30 +133,6 @@ def create_app(config: HomeConfig, db_path: str) -> FastAPI:
     return app
 
 
-async def _push(websocket: WebSocket, queue: EventQueue) -> None:
-    """Send queued events until the client disconnects or falls too far behind."""
-    left = asyncio.create_task(_until_disconnect(websocket))
-    get: asyncio.Task[StoredEvent | None] | None = None
-    try:
-        while True:
-            get = asyncio.create_task(queue.get())
-            await asyncio.wait({get, left}, return_when=asyncio.FIRST_COMPLETED)
-            if left.done():
-                return
-            event = get.result()
-            if event is None:
-                await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER)
-                return
-            await websocket.send_json({"type": "event", "event": event})
-    finally:
-        left.cancel()
-        if get is not None:
-            get.cancel()
-
-
-async def _until_disconnect(websocket: WebSocket) -> None:
-    while (await websocket.receive())["type"] != "websocket.disconnect":
-        pass
-
-
-app = create_app(load_config(), os.environ.get("COLLECTOR_DB", "collector.sqlite"))
+def build() -> FastAPI:
+    """App for `uvicorn collector.main:build --factory` (config files + environment)."""
+    return create_app(load_config(), os.environ.get("COLLECTOR_DB", "collector.sqlite"))

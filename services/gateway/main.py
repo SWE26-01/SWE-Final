@@ -1,183 +1,245 @@
-"""Virtual Device Gateway (WBS W8). Source of truth for device and space state.
+"""Device Gateway: checks who may move which device, in front of Home Assistant (plan 5.4).
 
-Agents call it over REST with `Authorization: Bearer <token>` (config/agents.yaml).
-The dashboard (operator) listens on `WebSocket /ws?token=<token>`; events follow
-contracts/gateway/events.schema.json.
+A2A-agents' agents call it exactly like the Home Assistant REST API: their `ha.url` points here
+and they send their own agent token instead of the shared HA token. For every command the Gateway
+checks that the caller owns each target entity (config/devices.yaml), and only then forwards it
+with the one real HA token. Dashboards read device states over WebSocket /ws.
 
-Run: uvicorn gateway.main:app --port 8100
+Run: uvicorn gateway.main:build --factory --port 8100 --env-file ../A2A-agents/.env
 """
 
 import asyncio
 import contextlib
-from collections.abc import Callable
+import logging
+from collections.abc import AsyncIterator, Awaitable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, status
+import httpx
+from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict, Field
 from starlette.websockets import WebSocketDisconnect
 
-from gateway.state import GatewayError, GatewayState, InputEvent
-from homeconfig import HomeConfig, load_config
-from homeconfig.models import Agent, AgentRole
+from common.auth import make_auth, ws_caller
+from common.hub import Hub, push
+from gateway.ha import HomeAssistant, State, StateStream
+from gateway.stream import DeviceState, Snapshot, StateChanged
+from homeconfig import ConfigError, HomeConfig, load_config
+from homeconfig.models import Role
 
-HOME_AGENT = "home-agent"  # coordinates the whole home, so it may read every space
+log = logging.getLogger(__name__)
 
-
-class CommandRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    request_id: str = Field(min_length=1)
-    command: str
-    params: dict[str, Any] = Field(default_factory=dict)
-
-
-class Broadcaster:
-    """Operator WebSocket connections. One lock keeps the snapshot and later events in order."""
-
-    def __init__(self) -> None:
-        self._sockets: set[WebSocket] = set()
-        self._lock = asyncio.Lock()
-
-    async def join(self, ws: WebSocket, snapshot: Callable[[], dict[str, Any]]) -> None:
-        async with self._lock:
-            await ws.send_json(snapshot())
-            self._sockets.add(ws)
-
-    def leave(self, ws: WebSocket) -> None:
-        self._sockets.discard(ws)
-
-    async def send(self, event: dict[str, Any]) -> None:
-        async with self._lock:
-            for ws in list(self._sockets):
-                try:
-                    await ws.send_json(event)
-                except Exception:  # client went away; drop it
-                    self._sockets.discard(ws)
+# Services an agent may call, per entity domain, with the data keys each one takes.
+SERVICES: dict[str, dict[str, frozenset[str]]] = {
+    "input_boolean": {"turn_on": frozenset(), "turn_off": frozenset(), "toggle": frozenset()},
+    "input_select": {"select_option": frozenset({"option"})},
+    "input_number": {"set_value": frozenset({"value"})},
+}
 
 
-def _now() -> str:
-    return datetime.now(UTC).isoformat(timespec="milliseconds")
+class Blocked(Exception):
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.message = message
 
 
-def create_app(config: HomeConfig) -> FastAPI:
-    """Build a Gateway with fresh state from `config`."""
-    state = GatewayState(config)
-    clients = Broadcaster()
-    bearer = HTTPBearer(auto_error=False)
+def targets(config: HomeConfig, agent_id: str, domain: str, service: str, body: Any) -> list[str]:
+    """Entities a service call would touch, after checking that `agent_id` owns every one.
+    Raises Blocked for anything that is not a plain command on the caller's own devices."""
+    data_keys = SERVICES.get(domain, {}).get(service)
+    if data_keys is None:
+        raise Blocked(403, f"{domain}.{service} is not a device command the Gateway forwards")
+    if not isinstance(body, dict):
+        raise Blocked(400, "body must be a JSON object")
+    keys = set(body) - {"entity_id"}
+    if keys != data_keys:
+        raise Blocked(400, f"{domain}.{service} takes entity_id and {sorted(data_keys)}")
+    raw = body.get("entity_id")
+    if isinstance(raw, str):
+        entities = raw.split(",")  # Home Assistant also accepts "a, b"
+    elif isinstance(raw, list) and all(isinstance(e, str) for e in raw):
+        entities = raw
+    else:
+        raise Blocked(400, "entity_id must be an entity id or a list of them")
+    entities = [e.strip() for e in entities]
+    if not entities or not all(entities):
+        raise Blocked(400, "entity_id is empty")
+    for entity in entities:
+        owner = config.owner_of(entity)
+        if owner is None:
+            raise Blocked(403, f"{entity} is not a home device")
+        if owner != agent_id:
+            raise Blocked(403, f"{entity} is owned by {owner}; send device.control to {owner}")
+        if not entity.startswith(f"{domain}."):
+            raise Blocked(400, f"{entity} is not an {domain} entity")
+    return entities
 
-    app = FastAPI(title="Virtual Device Gateway")
-    app.state.gateway = state
 
-    @app.exception_handler(GatewayError)
-    async def gateway_error(_: Request, exc: GatewayError) -> JSONResponse:
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+def _message(status_code: int, text: str) -> JSONResponse:
+    # Home Assistant answers errors as {"message": ...}; keep that shape.
+    return JSONResponse({"message": text}, status_code=status_code)
 
-    def caller(
-        cred: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-    ) -> Agent:
-        agent = config.agent_by_token(cred.credentials) if cred else None
-        if agent is None or not agent.enabled:
-            raise HTTPException(
-                status.HTTP_401_UNAUTHORIZED,
-                "missing or unknown bearer token",
-                headers={"WWW-Authenticate": "Bearer"},
+
+async def _forward(call: Awaitable[httpx.Response]) -> JSONResponse:
+    try:
+        resp = await call
+    except httpx.HTTPError as e:
+        log.warning("Home Assistant request failed: %r", e)
+        return _message(status.HTTP_502_BAD_GATEWAY, "Home Assistant is unreachable")
+    try:
+        content = resp.json()
+    except ValueError:
+        content = {"message": resp.text}
+    return JSONResponse(content, status_code=resp.status_code)
+
+
+class Devices:
+    """Latest Home Assistant state of every configured device, fanned out to dashboards."""
+
+    def __init__(self, config: HomeConfig) -> None:
+        self._config = config
+        self._states: dict[str, State] = {}
+        self.ha_connected = False
+        self.hub = Hub()
+
+    def view(self, entity: str) -> DeviceState:
+        device = self._config.devices[entity]
+        state = self._states.get(entity, {})
+        return DeviceState(
+            entity=entity,
+            space=device.space,
+            owner=device.owner,
+            state=state.get("state"),
+            attributes=state.get("attributes", {}),
+            last_changed=state.get("last_changed"),
+        )
+
+    def snapshot(self) -> dict[str, Any]:
+        devices = [self.view(e) for e in self._config.devices]
+        return Snapshot(ha_connected=self.ha_connected, devices=devices).model_dump(mode="json")
+
+    def reload(self, states: list[State]) -> None:
+        home = self._config.devices
+        self._states = {s["entity_id"]: s for s in states if s.get("entity_id") in home}
+        self.ha_connected = True
+        self.hub.publish(self.snapshot())
+
+    def disconnected(self) -> None:
+        self.ha_connected = False
+        self.hub.publish(self.snapshot())
+
+    def change(self, data: dict[str, Any], time_fired: str) -> None:
+        entity, new, old = data["entity_id"], data.get("new_state"), data.get("old_state")
+        if new is None:
+            self._states.pop(entity, None)
+        else:
+            self._states[entity] = new
+        changed = StateChanged(
+            at=time_fired or datetime.now(UTC),
+            device=self.view(entity),
+            previous=old.get("state") if old else None,
+        )
+        self.hub.publish(changed.model_dump(mode="json"))
+
+
+def create_app(
+    config: HomeConfig,
+    *,
+    ha_transport: httpx.AsyncBaseTransport | None = None,
+    ws_connect: Any = None,
+    stream: bool = True,
+) -> FastAPI:
+    """Build the Gateway. `stream=False` skips the Home Assistant event stream (tests)."""
+    if config.ha_token is None:
+        raise ConfigError(["HA_TOKEN is not set: the Gateway needs a Home Assistant token"])
+    ha = HomeAssistant(config.ha_url, config.ha_token, transport=ha_transport)
+    devices = Devices(config)
+    auth = make_auth(config)
+
+    async def load_all() -> None:
+        devices.reload(await ha.states())
+
+    async def on_change(data: dict[str, Any], time_fired: str) -> None:
+        devices.change(data, time_fired)
+
+    async def on_disconnect() -> None:
+        devices.disconnected()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        task = None
+        if stream:
+            follow = StateStream(
+                config.ha_url,
+                config.ha_token,
+                set(config.devices),
+                on_connect=load_all,
+                on_change=on_change,
+                on_disconnect=on_disconnect,
+                **({} if ws_connect is None else {"connect": ws_connect}),
             )
-        return agent
+            task = asyncio.create_task(follow.run())
+        try:
+            yield
+        finally:
+            if task is not None:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+            await ha.aclose()
 
-    def operator(agent: Annotated[Agent, Depends(caller)]) -> Agent:
-        if agent.role is not AgentRole.OPERATOR:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "operator only")
-        return agent
-
-    Caller = Annotated[Agent, Depends(caller)]
-    Operator = Annotated[Agent, Depends(operator)]
+    app = FastAPI(title="Device Gateway", lifespan=lifespan)
+    app.state.devices = devices
 
     @app.get("/health")
     async def health() -> dict:
-        return {"ok": True}
+        return {"ok": True, "ha_connected": devices.ha_connected}
 
     @app.get("/devices")
-    async def list_devices(_: Caller) -> list[dict]:
-        return state.device_views()
+    async def list_devices(_: auth.caller) -> list[dict]:
+        return [devices.view(e).model_dump(mode="json") for e in config.devices]
 
-    @app.post("/devices/{device_id}/commands")
-    async def run_command(device_id: str, body: CommandRequest, agent: Caller) -> dict:
-        device = config.devices.get(device_id)
-        if device is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown device {device_id!r}")
-        # Owner agents decide; the Gateway checks ownership again. Operators own nothing.
-        if device.owner != agent.id:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"{device_id!r} is owned by {device.owner!r}; send device.control to it",
-            )
-        # TODO(W8-2): high-impact commands must carry a valid approval token
-        #   (reject a mismatched or expired token) before they are applied.
-        result, changed = state.command(
-            agent.id, device_id, body.request_id, body.command, body.params
-        )
-        if changed:
-            await clients.send(
-                {
-                    "type": "device.state_changed",
-                    "at": _now(),
-                    "device": device_id,
-                    "state": result["state"],
-                    "by": agent.id,
-                }
-            )
-        return result
+    @app.get("/api/states/{entity_id}")
+    async def get_state(entity_id: str, _: auth.caller) -> JSONResponse:
+        if entity_id not in config.devices:  # other HA entities (people, zones) stay hidden
+            return _message(status.HTTP_404_NOT_FOUND, "Entity not found.")
+        return await _forward(ha.get_state(entity_id))
 
-    @app.get("/spaces/{space_id}")
-    async def get_space(space_id: str, agent: Caller) -> dict:
-        if space_id not in config.spaces:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown space {space_id!r}")
-        if not (
-            agent.role is AgentRole.OPERATOR
-            or agent.id == HOME_AGENT
-            or space_id in agent.owned_spaces
-        ):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, f"{agent.id!r} cannot read {space_id!r}")
-        return state.space_view(space_id)
-
-    @app.post("/inputs")
-    async def post_input(event: Annotated[InputEvent, Body()], agent: Operator) -> dict:
-        """Scenario replay / sensor input: person.moved or sensor.changed."""
-        changed = state.apply_input(event)
-        for space_id in changed:
-            await clients.send(
-                {
-                    "type": "space.state_changed",
-                    "at": _now(),
-                    "space": space_id,
-                    "state": state.space_state(space_id),
-                    "by": agent.id,
-                }
-            )
-        return {"spaces": [state.space_view(s) for s in changed]}
+    @app.post("/api/services/{domain}/{service}")
+    async def call_service(domain: str, service: str, request: Request, who: auth.agent):
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        try:
+            entities = targets(config, who.id, domain, service, body)
+        except Blocked as e:
+            log.warning("blocked %s -> %s.%s: %s", who.id, domain, service, e.message)
+            return _message(e.status_code, e.message)
+        forwarded = {**body, "entity_id": entities}
+        return await _forward(ha.call_service(domain, service, forwarded))
 
     @app.websocket("/ws")
-    async def events(ws: WebSocket) -> None:
-        # Browsers cannot set headers on WebSocket, so the token comes in the query string.
-        agent = config.agent_by_token(ws.query_params.get("token", ""))
-        if agent is None or not agent.enabled or agent.role is not AgentRole.OPERATOR:
-            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+    async def follow_devices(websocket: WebSocket, token: str | None = None) -> None:
+        if ws_caller(config, token, Role.OPERATOR) is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-        await ws.accept()
+        await websocket.accept()
+        queue = devices.hub.subscribe()
         try:
-            with contextlib.suppress(WebSocketDisconnect):
-                await clients.join(ws, state.snapshot)
-                while (await ws.receive())["type"] != "websocket.disconnect":
-                    pass  # client messages are ignored
+            # No await between subscribing and building the snapshot, so nothing is missed.
+            await websocket.send_json(devices.snapshot())
+            await push(websocket, queue)
+        except WebSocketDisconnect:
+            pass
         finally:
-            clients.leave(ws)
-
-    # TODO(W8-3): POST /scenarios/{id}/run
+            devices.hub.unsubscribe(queue)
 
     return app
 
 
-app = create_app(load_config())
+def build() -> FastAPI:
+    """App for `uvicorn gateway.main:build --factory` (config files + environment)."""
+    return create_app(load_config())

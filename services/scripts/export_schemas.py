@@ -1,40 +1,31 @@
-"""Write JSON Schemas for Ambient-A2A messages into contracts/ambient/ and the Event Collector
-event into contracts/collector/.
+"""Write JSON Schemas for what dashboards and agents exchange with this repo's services:
+contracts/collector/event.schema.json and contracts/gateway/stream.schema.json.
 
-Run after changing ambient/schemas.py or collector/events.py: python scripts/export_schemas.py
+Run after changing collector/events.py or gateway/stream.py: python scripts/export_schemas.py
 CI fails if the committed files are out of date.
 """
 
 import json
 import sys
 from pathlib import Path
+from typing import Annotated
+
+from pydantic import Field, TypeAdapter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ambient import schemas  # noqa: E402
 from collector.events import AgentEvent  # noqa: E402
+from gateway.stream import Snapshot, StateChanged  # noqa: E402
 
 CONTRACTS = Path(__file__).resolve().parent.parent / "contracts"
-OUT = CONTRACTS / "ambient"
-MODELS = [
-    schemas.ContextUpdate,
-    schemas.ContextSubscribe,
-    schemas.ContextUnsubscribe,
-    schemas.SubscribeResult,
-    schemas.DeviceControl,
-    schemas.ControlResult,
-]
 
 
-def write(path: Path, model: type) -> None:
+def write(path: Path, schema: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(model.model_json_schema(), indent=2, ensure_ascii=False) + "\n")
+    path.write_text(json.dumps(schema, indent=2, ensure_ascii=False) + "\n")
+    print(f"wrote {path.relative_to(CONTRACTS.parent)}")
 
 
-for model in MODELS:
-    name = model.model_fields["type"].default
-    write(OUT / f"{name}.schema.json", model)
-print(f"wrote {len(MODELS)} schemas to {OUT}")
-
-write(CONTRACTS / "collector" / "event.schema.json", AgentEvent)
-print(f"wrote event schema to {CONTRACTS / 'collector'}")
+write(CONTRACTS / "collector" / "event.schema.json", AgentEvent.model_json_schema())
+stream = TypeAdapter(Annotated[Snapshot | StateChanged, Field(discriminator="type")])
+write(CONTRACTS / "gateway" / "stream.schema.json", stream.json_schema())

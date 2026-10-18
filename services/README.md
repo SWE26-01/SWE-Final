@@ -1,29 +1,32 @@
-# A2A based Agentic Home
+# A2A based Agentic Home — Device Gateway · Event Collector
 
-A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분산 스마트홈 제어 시스템.
+A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분산 스마트홈 제어 시스템의 **기기 검문소와 통신 기록** 부분.
 
-- Desktop·Mobile Agent가 필요한 사용자 상태만 공유하고
-- 방마다 Room Agent가 자기 기기의 제어 권한과 정책을 가지며
-- 다른 Agent의 요청은 공간별 정책에 따라 수락·거절한다.
+팀 레포 구성:
 
-기획서: (팀 기획 문서 링크)
+| 레포 | 내용 |
+| --- | --- |
+| [SWE26-01/A2A-agents](https://github.com/SWE26-01/A2A-agents) | 에이전트 5개(OpenClaw), Ambient-A2A 확장 명세, Home Assistant 가상 기기 |
+| [SWE26-01/SWE-frontend](https://github.com/SWE26-01/SWE-frontend) | 스마트홈 시뮬레이터 화면 (React) |
+| **이 레포** | Device Gateway, Event Collector, 연동 확인 |
+
+- **Device Gateway** (`gateway/`): 에이전트는 Home Assistant 대신 Gateway를 부른다. Gateway는 요청한 에이전트가 그 기기의
+  주인인지 다시 확인하고, 통과한 명령만 HA에 넘긴다. 대시보드에는 기기 상태를 WebSocket으로 보낸다.
+- **Event Collector** (`collector/`): 모든 에이전트의 A2A 통신·실행·자동화 기록을 한곳에 모으고 대시보드에 실시간으로 보낸다.
+
+연동 방법과 A2A-agents 쪽에서 바꿀 것: [docs/integration.md](docs/integration.md)
 
 ## 구조
 
-| 폴더 | 내용 | WBS |
-| --- | --- | --- |
-| `ambient/` | Ambient-A2A 메시지 스키마, 검증, 구독 관리, A2A 변환 | W1 |
-| `homeconfig/` | `config/*.yaml` 로더와 파일 간 일관성 검사 | W0-3 |
-| `agents/common` | Agent 서버 템플릿, 인증, 메시지 라우팅 | W2 |
-| `agents/desktop` | Desktop Agent (호스트에서 실행) | W3 |
-| `agents/mobile` | Mobile Agent + 휴대폰 웹페이지 | W4 |
-| `agents/room` | Room Agent 템플릿 (my_room, baby_room, elderly_room) | W5, W7 |
-| `agents/home` | Home Agent | W6 |
-| `gateway/` | 가상 Device Gateway + 시나리오 재생 | W8 |
-| `collector/` | Event Collector | W8 |
-| `dashboard/` | React 대시보드 | W9 |
-| `contracts/` | Agent 간 메시지와 Device Gateway 이벤트 명세 (JSON Schema) | - |
-| `config/` | agents / policies / devices / scenarios | W0 |
+| 폴더 | 내용 |
+| --- | --- |
+| `gateway/` | Device Gateway: HA 프록시(주인 검사), HA 상태 스트림, 대시보드 WebSocket |
+| `collector/` | Event Collector: 이벤트 저장(SQLite), 조회, 대시보드 WebSocket |
+| `common/` | 두 서비스가 같이 쓰는 토큰 인증, WebSocket 전달 |
+| `homeconfig/` | `config/*.yaml` 로더와 검사 (토큰은 환경 변수에서 읽음) |
+| `config/` | `agents.yaml`(호출자와 토큰 변수 이름), `devices.yaml`(HA 엔티티와 주인) |
+| `contracts/` | 대시보드가 받는 메시지 형식 (JSON Schema, 코드에서 생성) |
+| `scripts/` | `verify_integration.py`(실행 중인 시스템 확인), `export_schemas.py` |
 
 ## 시작하기
 
@@ -31,12 +34,14 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-uvicorn gateway.main:app --port 8100
-python -m agents.run my-room-user1   # 설정(agents.yaml)만으로 Agent 기동
+
+# A2A-agents의 .env(에이전트 토큰, HA_URL, HA_TOKEN)에 DASHBOARD_TOKEN을 추가한 뒤
+uvicorn gateway.main:build --factory --port 8100 --env-file ../A2A-agents/.env
+uvicorn collector.main:build --factory --port 8200 --env-file ../A2A-agents/.env
 ```
 
 ## 규칙
 
-- AI 코딩 도구는 `CLAUDE.md`(= `AGENTS.md`)의 규칙을 따른다. A2A v1.0만 사용.
-- `ambient/schemas.py`를 바꾸면 `python scripts/export_schemas.py`로 `contracts/`를 갱신한다.
-- `main`에 직접 push하지 않고 PR로 올린다. PR 제목에 WBS ID를 적는다 (예: `[W1-2] context validator`).
+- AI 코딩 도구는 `CLAUDE.md`(= `AGENTS.md`)의 규칙을 따른다.
+- `collector/events.py`나 `gateway/stream.py`를 바꾸면 `python scripts/export_schemas.py`로 `contracts/`를 갱신한다.
+- `main`에 직접 push하지 않고 PR로 올린다.

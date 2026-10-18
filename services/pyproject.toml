@@ -1,22 +1,23 @@
 [project]
 name = "a2a-agentic-home"
 version = "0.1.0"
-description = "A2A based Agentic Home: cross-device context sharing and room-level control via Ambient-A2A"
+description = "A2A based Agentic Home: Device Gateway and Event Collector for the A2A-agents smart home"
 requires-python = ">=3.11"
 dependencies = [
-  "a2a-sdk[http-server,fastapi,sqlite]>=1.2,<1.3",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",  # [standard] brings a WebSocket library
   "pydantic>=2.7",
   "pyyaml>=6",
   "httpx>=0.27",
+  "websockets>=13",  # Home Assistant event stream (websockets.asyncio)
+  "python-dotenv>=1",  # scripts/verify_integration.py --env-file
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["ambient", "homeconfig", "agents", "gateway", "collector"]
+packages = ["common", "homeconfig", "gateway", "collector"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
