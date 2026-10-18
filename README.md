@@ -12,7 +12,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | [scripts/](scripts/) | 설치·실행·검증 스크립트 |
 | [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
 | [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React |
-| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`) |
+| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문) |
 | [tools/](tools/) | `sync_upstream.sh`: 원래 레포의 새 커밋을 가져오는 PR 만들기 |
 | [plan.md](plan.md) | 기획서 |
 
@@ -85,14 +85,11 @@ scripts/scenario.sh --kill-home   # Home 중단 후에도 room1이 독립적으�
 ```
 대시보드: http://127.0.0.1:8123/ambient-home
 
-Device Gateway·Event Collector (`services/`, 루트 `.env`를 읽는다):
+Device Gateway·Event Collector (`services/`): `scripts/run_all.sh`가 함께 띄우고 에이전트가 쓰게 한다(`AMBIENT_SERVICES=off`로 끔).
 ```bash
-cd services && pip install -e ".[dev]"
-uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
-uvicorn collector.main:build --factory --port 8200 --env-file ../.env
-python scripts/verify_integration.py --env-file ../.env   # 실행 중인 시스템 확인
+python services/scripts/verify_integration.py --env-file .env   # 실행 중인 시스템 확인
 ```
-에이전트가 Gateway·Collector를 쓰게 하려면 `.env`에 `AMBIENT_GATEWAY_URL`, `AMBIENT_COLLECTOR_URL`을 넣는다 ([docs/integration.md](docs/integration.md)).
+요청 단위 흐름은 Collector `GET /flows`, 자세한 내용은 [docs/integration.md](docs/integration.md).
 
 시뮬레이터 화면: `cd frontend && npm install && npm run dev` (http://localhost:5173)
 

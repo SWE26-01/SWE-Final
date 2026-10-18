@@ -16,7 +16,10 @@
 
 ## 켜는 방법
 
-에이전트 쪽 지원은 들어가 있다(SWE26-01/A2A-agents#1). 루트 `.env`에 두 주소를 넣으면 켜지고, 비워 두면 예전처럼 HA를 직접 쓴다.
+**SWE-Final에서는 기본으로 켜져 있다.** `scripts/run_all.sh`가 `services/`의 Gateway·Collector를 Docker로 함께 띄우고,
+에이전트가 그쪽을 쓰게 한다(SWE26-01/A2A-agents#2). 30초 안에 안 뜨면 경고를 내고 HA를 직접 쓴다. `AMBIENT_SERVICES=off`로 끌 수 있다.
+
+주소를 바꾸려면 루트 `.env`에 넣는다. 비워 두면 아래 기본값을 쓴다. A2A-agents 레포만 따로 돌릴 때는 `services/`가 없어서 예전처럼 HA를 직접 쓴다.
 
 ```bash
 AMBIENT_GATEWAY_URL=http://127.0.0.1:8100    # HA 호출이 Gateway로, 공용 HA 토큰 대신 각 에이전트 자기 토큰으로
@@ -34,12 +37,11 @@ DASHBOARD_TOKEN=...                          # 대시보드가 Gateway·Collecto
 ## 실행
 
 ```bash
-scripts/run_all.sh                                   # HA + 에이전트 5개
+scripts/run_all.sh                                   # HA + Gateway·Collector + 에이전트 5개 (Ctrl-C는 에이전트만 멈춤)
 
-cd services                                          # 루트 .env를 읽는다
-uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
-uvicorn collector.main:build --factory --port 8200 --env-file ../.env
-# 또는 docker compose up (AMBIENT_ENV=<.env 경로>, 기본 ../.env)
+# services만 따로 띄울 때 (루트 .env를 읽는다)
+cd services && docker compose up -d --build
+# 또는 uvicorn gateway.main:build --factory --port 8100 --env-file ../.env (collector는 8200)
 
 # 확인
 scripts/scenario.sh                                  # 루트에서
