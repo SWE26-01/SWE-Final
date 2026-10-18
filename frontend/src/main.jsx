@@ -31,9 +31,10 @@ import {
 } from 'lucide-react';
 import Home3D from './Home3D';
 import {
+  canControlHomeAssistantPower,
   connectHomeAssistant,
   mergeHomeAssistantDevices,
-  setHomeAssistantLight,
+  setHomeAssistantPower,
   syncHomeAssistantDevices,
 } from './homeAssistant';
 import './styles.css';
@@ -480,8 +481,8 @@ function App() {
     }));
     setToast(`${label}이(가) ${nextValue ? '켜졌습니다' : '꺼졌습니다'}`);
     window.setTimeout(() => setToast(''), 2200);
-    if (targetDevice.entityId && targetDevice.type === 'light') {
-      setHomeAssistantLight({
+    if (canControlHomeAssistantPower(targetDevice.entityId)) {
+      setHomeAssistantPower({
         url: gatewayUrl,
         token: dashboardToken,
         entity: targetDevice.entityId,
@@ -517,7 +518,8 @@ function App() {
   };
 
   const setGroupPower = (nextValue) => {
-    const targetIds = new Set(selectedTargets.filter((device) => device.connected).map((device) => device.id));
+    const connectedTargets = selectedTargets.filter((device) => device.connected);
+    const targetIds = new Set(connectedTargets.map((device) => device.id));
     if (!targetIds.size) return;
     setRooms((current) => current.map((item) => ({
       ...item,
@@ -527,6 +529,24 @@ function App() {
     })));
     setToast(`${selectedTargetId === 'all' ? `전체 ${selectedGroup.label}` : selectedTargets[0].roomName}을(를) ${nextValue ? '켰습니다' : '껐습니다'}`);
     window.setTimeout(() => setToast(''), 2200);
+    connectedTargets.forEach((device) => {
+      if (!canControlHomeAssistantPower(device.entityId)) return;
+      setHomeAssistantPower({
+        url: gatewayUrl,
+        token: dashboardToken,
+        entity: device.entityId,
+        on: nextValue,
+      }).catch(() => {
+        setRooms((current) => current.map((item) => ({
+          ...item,
+          devices: item.devices.map((candidate) => candidate.id === device.id
+            ? { ...candidate, on: !nextValue, value: !nextValue ? '켜짐' : '꺼짐' }
+            : candidate),
+        })));
+        setToast(`${device.name} 제어에 실패했습니다`);
+        window.setTimeout(() => setToast(''), 2200);
+      });
+    });
   };
 
   const toggleGroupConnection = () => {

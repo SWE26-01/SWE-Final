@@ -49,6 +49,10 @@ const MANAGED_DEVICE_IDS = new Set(
 );
 
 const disconnectedStates = new Set([null, 'unknown', 'unavailable']);
+const controllableDomains = new Set([
+  'input_boolean', 'light', 'switch', 'fan', 'humidifier', 'media_player',
+  'climate', 'cover', 'lock', 'vacuum',
+]);
 
 const deviceType = (device) => {
   const icon = device.attributes?.icon || '';
@@ -87,11 +91,13 @@ const mergeDevice = (rooms, haDevice) => {
       found = true;
       return {
         ...device,
-        ...(mapped?.valueOnly ? {} : { on: isOn(haDevice.state) }),
-        connected,
-        haManaged: true,
-        entityId: haDevice.entity,
-        owner: haDevice.owner,
+        ...(mapped?.valueOnly ? {} : {
+          on: isOn(haDevice.state),
+          connected,
+          haManaged: true,
+          entityId: haDevice.entity,
+          owner: haDevice.owner,
+        }),
         value: stateLabel(haDevice),
       };
     });
@@ -139,11 +145,15 @@ export const syncHomeAssistantDevices = (rooms, devices) => {
   }));
 };
 
-export const setHomeAssistantLight = async ({ url, token, entity, on }) => {
+export const canControlHomeAssistantPower = (entity) => (
+  controllableDomains.has(entity?.split('.', 1)[0])
+);
+
+export const setHomeAssistantPower = async ({ url, token, entity, on }) => {
   if (!url || !token || !entity) throw new Error('Home Assistant control is not configured');
   const endpoint = new URL(url, window.location.href);
   endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
-  endpoint.pathname = `/dashboard/lights/${encodeURIComponent(entity)}/${on ? 'turn_on' : 'turn_off'}`;
+  endpoint.pathname = `/dashboard/devices/${encodeURIComponent(entity)}/${on ? 'turn_on' : 'turn_off'}`;
   endpoint.search = '';
   const response = await fetch(endpoint, {
     method: 'POST',

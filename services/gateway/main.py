@@ -55,6 +55,18 @@ DEVICE_DOMAINS = {
     "binary_sensor", "button", "climate", "cover", "fan", "humidifier", "input_boolean",
     "input_number", "input_select", "light", "lock", "media_player", "sensor", "switch", "vacuum",
 }
+DASHBOARD_POWER_SERVICES = {
+    "input_boolean": ("turn_on", "turn_off"),
+    "light": ("turn_on", "turn_off"),
+    "switch": ("turn_on", "turn_off"),
+    "fan": ("turn_on", "turn_off"),
+    "humidifier": ("turn_on", "turn_off"),
+    "media_player": ("turn_on", "turn_off"),
+    "climate": ("turn_on", "turn_off"),
+    "cover": ("open_cover", "close_cover"),
+    "lock": ("lock", "unlock"),
+    "vacuum": ("start", "return_to_base"),
+}
 
 
 class Blocked(Exception):
@@ -145,20 +157,12 @@ class Devices:
         devices = [self.view(e) for e in entities]
         return Snapshot(ha_connected=self.ha_connected, devices=devices).model_dump(mode="json")
 
-    def is_light(self, entity: str) -> bool:
-        state = self._states.get(entity)
-        if state is None:
-            return False
+    def power_service(self, entity: str, turn_on: bool) -> tuple[str, str] | None:
+        if entity not in self._states:
+            return None
         domain = entity.partition(".")[0]
-        if domain == "light":
-            return True
-        attributes = state.get("attributes", {})
-        identity = " ".join(
-            (entity, attributes.get("friendly_name", ""), attributes.get("icon", ""))
-        ).lower()
-        return domain in {"input_boolean", "switch"} and any(
-            marker in identity for marker in ("light", "lamp", "조명", "전등")
-        )
+        services = DASHBOARD_POWER_SERVICES.get(domain)
+        return (domain, services[0 if turn_on else 1]) if services else None
 
     def reload(self, states: list[State], entity_areas: dict[str, str] | None = None) -> None:
         placements = entity_areas or {}
@@ -270,18 +274,19 @@ def create_app(
             return _message(status.HTTP_404_NOT_FOUND, "Entity not found.")
         return await _forward(ha.get_state(entity_id))
 
-    @app.post("/dashboard/lights/{entity_id}/{action}")
-    async def dashboard_light(
+    @app.post("/dashboard/devices/{entity_id}/{action}")
+    async def dashboard_device(
         entity_id: str,
         action: str,
         _: auth.operator,
     ) -> JSONResponse:
         if action not in {"turn_on", "turn_off"}:
             return _message(status.HTTP_400_BAD_REQUEST, "action must be turn_on or turn_off")
-        if not devices.is_light(entity_id):
-            return _message(status.HTTP_403_FORBIDDEN, "entity is not a visible light")
-        domain = entity_id.partition(".")[0]
-        return await _forward(ha.call_service(domain, action, {"entity_id": entity_id}))
+        service = devices.power_service(entity_id, action == "turn_on")
+        if service is None:
+            return _message(status.HTTP_403_FORBIDDEN, "entity is not a controllable device")
+        domain, service_name = service
+        return await _forward(ha.call_service(domain, service_name, {"entity_id": entity_id}))
 
     @app.post("/api/services/{domain}/{service}")
     async def call_service(domain: str, service: str, request: Request, who: auth.agent):
