@@ -10,7 +10,8 @@ case $id in
   orchestrator|room1|room2) dir=internel/$id ;;
   *) echo "unknown agent: $id" >&2; exit 1 ;;
 esac
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+# run_all.sh loads .env itself and may adjust it (services URLs); keep what it passes down.
+[ -z "${AMBIENT_ENV_LOADED:-}" ] && [ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
 # OpenClaw needs Node >=24.16; switch via nvm when the shell's node is older.
 if ! node -v 2>/dev/null | grep -qE '^v(2[4-9]|[3-9][0-9])\.'; then
   . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" && nvm use 24 >/dev/null
