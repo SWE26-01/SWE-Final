@@ -255,6 +255,17 @@ def test_dashboard_activity_keeps_ha_shape_and_labels_agent_and_user(client, ha)
     assert user["action_type"] == "user" and user["actor"] == "사용자"
     assert agent["context_event_type"] == "call_service"
     assert "person.me" not in {item["entity_id"] for item in response.json()}
+    logbook_request = ha.requests[-1]
+    assert logbook_request.url.path == "/api/logbook/2026-10-17T15:00:00+00:00"
+    assert logbook_request.url.params["end_time"] == "2026-10-18T15:00:00+00:00"
+
+
+def test_dashboard_activity_accepts_a_korean_calendar_day(client, ha):
+    response = client.get("/dashboard/activity?day=2026-10-17", headers=DASHBOARD)
+    assert response.status_code == 200
+    request = ha.requests[-1]
+    assert request.url.path == "/api/logbook/2026-10-16T15:00:00+00:00"
+    assert request.url.params["end_time"] == "2026-10-17T15:00:00+00:00"
 
 
 @pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])

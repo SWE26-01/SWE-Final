@@ -4,6 +4,8 @@ import {
   BedDouble,
   Bot,
   BrainCircuit,
+  CalendarDays,
+  ChevronLeft,
   ChevronRight,
   CircleDot,
   CookingPot,
@@ -180,6 +182,17 @@ const formatActivityTime = (value, withSeconds = false) => {
 };
 
 const activityStateLabel = (state) => ({ on: '켜짐', off: '꺼짐' }[state] || state || '상태 변경');
+
+const localDateKey = (value = new Date()) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatActivityDate = (value) => new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
+}).format(new Date(`${value}T00:00:00`));
 
 const simulationScenarios = [
   {
@@ -373,6 +386,7 @@ function App() {
   const [userMessages, setUserMessages] = useState(initialUserMessages);
   const [homeAssistantActivity, setHomeAssistantActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [selectedActivityDate, setSelectedActivityDate] = useState(localDateKey);
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -388,9 +402,14 @@ function App() {
 
   useEffect(() => {
     let stopped = false;
+    setActivityLoading(true);
     const refresh = async () => {
       try {
-        const activity = await fetchHomeAssistantActivity({ url: gatewayUrl, token: dashboardToken });
+        const activity = await fetchHomeAssistantActivity({
+          url: gatewayUrl,
+          token: dashboardToken,
+          day: selectedActivityDate,
+        });
         if (!stopped) setHomeAssistantActivity(activity.slice().reverse());
       } catch {
         if (!stopped) setHomeAssistantActivity([]);
@@ -404,7 +423,13 @@ function App() {
       stopped = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [selectedActivityDate]);
+
+  const moveActivityDate = (amount) => {
+    const next = new Date(`${selectedActivityDate}T12:00:00`);
+    next.setDate(next.getDate() + amount);
+    setSelectedActivityDate(localDateKey(next));
+  };
 
   useEffect(() => () => {
     if (environmentAnimationFrame.current) window.cancelAnimationFrame(environmentAnimationFrame.current);
@@ -751,7 +776,7 @@ function App() {
             ['model', '3D Model'],
             ['live', 'Live Simulation'],
             ['chat', 'Agent Chat'],
-            ['activity', 'Agent Activity'],
+            ['activity', 'Agent Activity Log'],
           ].map(([key, label]) => (
             <button className={activeTab === key ? 'active' : ''} key={key} onClick={() => setActiveTab(key)}>{label}</button>
           ))}
@@ -850,7 +875,7 @@ function App() {
 
             <section className="activity-card panel">
               <div className="panel-heading compact">
-                <div><h2>Agent Activity</h2></div>
+                <div><h2>Agent Activity Log</h2></div>
                 <button className="text-button">전체 보기 <ChevronRight size={14} /></button>
               </div>
               <div className="timeline">
@@ -927,7 +952,7 @@ function App() {
             <aside className="side-column" aria-label="실시간 에이전트 모니터링">
               <section className="activity-card panel">
                 <div className="panel-heading compact">
-                  <div><h2>Agent Activity</h2></div>
+                  <div><h2>Agent Activity Log</h2></div>
                   <span className={`live-phase phase-${livePhase.toLowerCase()}`}>{livePhase}</span>
                 </div>
                 <div className="live-run-summary">
@@ -1028,11 +1053,15 @@ function App() {
           <div className="activity-tab">
             <section className="activity-detail panel">
               <div className="activity-page-heading">
-                <div><span>LIVE EVENT STREAM</span><h1>Agent Activity</h1></div>
-                <div className="live-state"><i /> LIVE</div>
+                <div><span>HOME ASSISTANT LOGBOOK</span><h1>Agent Activity Log</h1><p>선택한 날짜 · {formatActivityDate(selectedActivityDate)}</p></div>
+                <div className="activity-date-controls">
+                  <button type="button" onClick={() => moveActivityDate(-1)} aria-label="이전 날짜"><ChevronLeft size={16} /></button>
+                  <label><CalendarDays size={15} /><input type="date" max={localDateKey()} value={selectedActivityDate} onChange={(event) => setSelectedActivityDate(event.target.value)} aria-label="로그 날짜 선택" /></label>
+                  <button type="button" onClick={() => moveActivityDate(1)} disabled={selectedActivityDate >= localDateKey()} aria-label="다음 날짜"><ChevronRight size={16} /></button>
+                </div>
               </div>
               <div className="activity-stats">
-                <div><span>HA 로그</span><b>{homeAssistantActivity.length}</b><small>최근 24시간</small></div>
+                <div><span>HA 로그</span><b>{homeAssistantActivity.length}</b><small>{formatActivityDate(selectedActivityDate)}</small></div>
                 <div><span>Agent Action</span><b>{homeAssistantActivity.filter((event) => event.action_type === 'agent').length}</b><small>에이전트가 실행</small></div>
                 <div><span>User Action</span><b>{homeAssistantActivity.filter((event) => event.action_type === 'user').length}</b><small>사용자가 실행</small></div>
               </div>
@@ -1049,7 +1078,7 @@ function App() {
                     <em>{event.action_type === 'agent' ? 'Agent Action' : 'User Action'}<small>{event.actor}</small></em>
                   </div>
                 ))}
-                {!homeAssistantActivity.length && <div className="activity-empty"><Wifi size={18} /><p>{activityLoading ? 'Home Assistant Logbook을 불러오는 중입니다.' : '최근 24시간 동안 표시할 기기 로그가 없습니다.'}</p></div>}
+                {!homeAssistantActivity.length && <div className="activity-empty"><Wifi size={18} /><p>{activityLoading ? 'Home Assistant Logbook을 불러오는 중입니다.' : '선택한 날짜에 표시할 기기 로그가 없습니다.'}</p></div>}
               </div>
             </section>
 

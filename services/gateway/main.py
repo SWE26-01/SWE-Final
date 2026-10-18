@@ -13,8 +13,9 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, Request, WebSocket, status
@@ -74,6 +75,7 @@ AGENT_NAMES = {
     "desktop": "Desktop Agent",
     "smartphone": "Mobile Agent",
 }
+SEOUL = ZoneInfo("Asia/Seoul")
 
 
 class Blocked(Exception):
@@ -350,11 +352,17 @@ def create_app(
         return await _forward(ha.call_service(domain, service_name, {"entity_id": entity_id}))
 
     @app.get("/dashboard/activity")
-    async def dashboard_activity(_: auth.operator, limit: int = 50) -> JSONResponse:
+    async def dashboard_activity(
+        _: auth.operator,
+        limit: int = 50,
+        day: date | None = None,
+    ) -> JSONResponse:
         limit = max(1, min(limit, 200))
-        end = datetime.now(UTC)
+        selected_day = day or datetime.now(SEOUL).date()
+        start = datetime.combine(selected_day, time.min, tzinfo=SEOUL).astimezone(UTC)
+        end = (start + timedelta(days=1)).astimezone(UTC)
         try:
-            response = await ha.logbook(end - timedelta(hours=24), end)
+            response = await ha.logbook(start, end)
             response.raise_for_status()
             rows = response.json()
         except (httpx.HTTPError, ValueError) as e:

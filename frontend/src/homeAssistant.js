@@ -177,10 +177,11 @@ const gatewayHttpUrl = (url, path) => {
   return endpoint;
 };
 
-export const fetchHomeAssistantActivity = async ({ url, token, limit = 50 }) => {
+export const fetchHomeAssistantActivity = async ({ url, token, day, limit = 50 }) => {
   if (!url || !token) return [];
   const endpoint = gatewayHttpUrl(url, '/dashboard/activity');
   endpoint.searchParams.set('limit', String(limit));
+  if (day) endpoint.searchParams.set('day', day);
   const response = await fetch(endpoint, {
     headers: { Authorization: `Bearer ${token}` },
   });
