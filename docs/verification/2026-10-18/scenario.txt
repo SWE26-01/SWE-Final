@@ -1,0 +1,151 @@
+
+== 8. interop: a2a-sdk resolves every Agent Card + Ambient-A2A extension
+desktop      http://127.0.0.1:18800/plugins/ambient/a2a/v1  ambient=yes  {"owned_devices": [], "role": "external", "energy_saving": [], "space": null, "provided_fields": ["meeting_app_active", "pc_state"]}
+smartphone   http://127.0.0.1:18920/plugins/ambient/a2a/v1  ambient=yes  {"owned_devices": [], "role": "external", "energy_saving": [], "space": null, "provided_fields": ["presence"]}
+orchestrator http://127.0.0.1:19040/plugins/ambient/a2a/v1  ambient=yes  {"owned_devices": ["input_boolean.living_light", "input_boolean.living_tv", "input_boolean.living_tv_muted"], "role": "home", "energy_saving": [{"device": "input_boolean.living_light", "command": "TURN_OFF"}, {"device": "input_boolean.living_tv", "command": "TURN_OFF"}], "space": "living_room", "provided_fields": []}
+room1        http://127.0.0.1:19160/plugins/ambient/a2a/v1  ambient=yes  {"owned_devices": ["input_boolean.room1_light", "input_select.room1_light_mode", "input_boolean.room1_ac", "input_boolean.room1_occupied"], "role": "room", "energy_saving": [{"device": "input_boolean.room1_light", "command": "TURN_OFF"}, {"device": "input_boolean.room1_ac", "command": "TURN_OFF"}], "space": "my_room", "provided_fields": []}
+room2        http://127.0.0.1:19280/plugins/ambient/a2a/v1  ambient=yes  {"owned_devices": ["input_boolean.room2_light", "input_boolean.room2_ac", "input_boolean.room2_sleep_mode"], "role": "room", "energy_saving": [{"device": "input_boolean.room2_light", "command": "TURN_OFF"}, {"device": "input_boolean.room2_ac", "command": "TURN_OFF"}], "space": "protected_room", "provided_fields": []}
+
+== A. desktop → home → room1: light meeting mode (home checks ACL, delegates; room1 decides)
+TASK_STATE_COMPLETED {
+  "reason_code": "OK",
+  "delegated_to": "room1",
+  "message": "SET input_select.room1_light_mode=meeting",
+  "request_id": "scn-A1",
+  "accepted": true,
+  "device": "input_select.room1_light_mode"
+}
+
+== A. desktop → home: mute living-room TV (home-owned)
+TASK_STATE_COMPLETED {
+  "request_id": "scn-A2",
+  "accepted": true,
+  "reason_code": "OK",
+  "message": "TURN_ON input_boolean.living_tv_muted",
+  "device": "input_boolean.living_tv_muted"
+}
+
+== 1-1. home rejects an unauthorized request before it reaches room2
+TASK_STATE_REJECTED {
+  "message": "desktop may not request TURN_OFF input_boolean.room2_ac",
+  "request_id": "scn-A3",
+  "accepted": false,
+  "reason_code": "UNAUTHORIZED"
+}
+
+== B. home queries desktop context — pc_state is not shared with home
+TASK_STATE_COMPLETED {
+  "denied": [
+    "pc_state"
+  ],
+  "granted": [
+    "meeting_app_active"
+  ],
+  "sequence": 1792303042089.0,
+  "accepted": true,
+  "message": "context snapshot",
+  "expires_at": "1970-01-01T00:00:00.000Z",
+  "values": {
+    "meeting_app_active": null
+  },
+  "reason_code": "FIELD_NOT_ALLOWED"
+}
+
+== 3. unknown bearer token is rejected
+TASK_STATE_REJECTED {
+  "accepted": false,
+  "reason_code": "UNAUTHORIZED",
+  "message": "unknown bearer token"
+}
+
+== 4. context freshness at room1: fresh → accepted, older sequence → STALE, expired → STALE
+TASK_STATE_COMPLETED {
+  "accepted": true,
+  "reason_code": "OK",
+  "message": "OK"
+}
+TASK_STATE_REJECTED {
+  "accepted": false,
+  "message": "sequence 1792303047999 <= 1792303048000",
+  "reason_code": "STALE"
+}
+TASK_STATE_REJECTED {
+  "reason_code": "STALE",
+  "accepted": false,
+  "message": "expired at 2026-10-18T04:57:35.172638+00:00"
+}
+
+== 5. ownership: room1 refuses a device it does not own
+TASK_STATE_REJECTED {
+  "request_id": "scn-5",
+  "accepted": false,
+  "reason_code": "NOT_OWNER",
+  "message": "room1 does not own input_boolean.living_tv"
+}
+
+== 6. energy saving with room2 asleep: room1 complies, room2 keeps AC on (SAFETY_POLICY), home aggregates
+TASK_STATE_COMPLETED {
+  "message": "home energy saving",
+  "reason_code": "PARTIAL",
+  "accepted": false,
+  "results": [
+    {
+      "device": "input_boolean.living_light",
+      "message": "TURN_OFF input_boolean.living_light",
+      "room": "orchestrator",
+      "accepted": true,
+      "reason_code": "OK"
+    },
+    {
+      "device": "input_boolean.living_tv",
+      "message": "TURN_OFF input_boolean.living_tv",
+      "room": "orchestrator",
+      "accepted": true,
+      "reason_code": "OK"
+    },
+    {
+      "message": "room1 energy saving",
+      "room": "room1",
+      "accepted": true,
+      "reason_code": "OK",
+      "request_id": "scn-6/room1",
+      "results": [
+        {
+          "device": "input_boolean.room1_light",
+          "message": "TURN_OFF input_boolean.room1_light",
+          "reason_code": "OK",
+          "accepted": true
+        },
+        {
+          "device": "input_boolean.room1_ac",
+          "message": "TURN_OFF input_boolean.room1_ac",
+          "reason_code": "OK",
+          "accepted": true
+        }
+      ]
+    },
+    {
+      "message": "room2 energy saving",
+      "room": "room2",
+      "accepted": false,
+      "reason_code": "PARTIAL",
+      "request_id": "scn-6/room2",
+      "results": [
+        {
+          "device": "input_boolean.room2_light",
+          "message": "TURN_OFF input_boolean.room2_light",
+          "reason_code": "OK",
+          "accepted": true
+        },
+        {
+          "device": "input_boolean.room2_ac",
+          "message": "Temperature regulation must remain enabled while sleeping.",
+          "reason_code": "SAFETY_POLICY",
+          "accepted": false
+        }
+      ]
+    }
+  ],
+  "request_id": "scn-6"
+}
+room1_ac=off room2_ac=on

@@ -12,7 +12,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | [scripts/](scripts/) | 설치·실행·검증 스크립트 |
 | [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
 | [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React |
-| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문) |
+| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`) |
 | [tools/](tools/) | `sync_upstream.sh`: 원래 레포의 새 커밋을 가져오는 PR 만들기 |
 | [plan.md](plan.md) | 기획서 |
 
