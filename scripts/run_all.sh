@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 [ -f "$ROOT/.env" ] || { echo "run scripts/setup.sh first" >&2; exit 1; }
 set -a; . "$ROOT/.env"; set +a
+export AMBIENT_ENV_LOADED=1 # oc.sh must not reload .env over the settings below
 [ -n "${HA_TOKEN:-}" ] || { echo "HA_TOKEN missing in .env (scripts/setup.sh creates it)" >&2; exit 1; }
 [ -n "${OPENROUTER_API_KEY:-}" ] || echo "warning: OPENROUTER_API_KEY empty — A2A works, but agents can't answer natural-language messages" >&2
 
