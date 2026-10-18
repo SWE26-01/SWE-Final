@@ -24,6 +24,7 @@ from starlette.websockets import WebSocketDisconnect
 from common.auth import make_auth, ws_caller
 from common.cors import allow_dashboards
 from common.hub import Hub, push
+from common.logs import hide_tokens_in_server_logs
 from gateway.ha import HomeAssistant, State, StateStream
 from gateway.stream import DeviceState, Snapshot, StateChanged
 from homeconfig import ConfigError, HomeConfig, load_config
@@ -192,6 +193,7 @@ def create_app(
             await ha.aclose()
 
     app = FastAPI(title="Device Gateway", lifespan=lifespan)
+    hide_tokens_in_server_logs()
     app.state.devices = devices
     allow_dashboards(app, config)
 

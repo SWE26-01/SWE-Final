@@ -5,6 +5,7 @@
 > - `src/live/config.js` 접속 주소·토큰, `socket.js` 자동 재연결, `useLiveHome.js` 데이터 훅, `mapping.js` 대응·문구 규칙, `LiveViews.jsx` 실제 데이터 패널
 > - 실제 데이터를 쓰는 화면: Home(3D 모델·기기 상태·Agent Decision=요청 카드·Agent Activity·A2A 로그), 3D Model, Agent Activity 탭.
 >   Live Simulation·Control Mode 탭은 그대로 가짜 데이터다.
+> - Agent Activity 탭의 에이전트 카드와 Home 탭의 에이전트 표시는 Collector가 확인한 실제 상태(ONLINE/OFFLINE, 역할·공간, 마지막 활동)다.
 > - LIVE에서는 화면에서 기기를 조작할 수 없다(안내만 뜬다).
 
 `frontend/`(시뮬레이터 화면)를 실제 시스템에 연결하는 방법이다. 화면은 데이터를 **`services/`의 Gateway와 Collector에서만 읽는다.**
@@ -15,6 +16,7 @@
 | 기기 상태 (켜짐·꺼짐, 조명 모드 …) | Device Gateway | WebSocket `/ws`, 처음 한 번 `GET /devices` |
 | 에이전트 통신 로그 | Event Collector | WebSocket `/ws` (최근 기록 + 실시간) |
 | 요청 하나의 흐름 (누가 요청 → 누가 받음 → 결과) | Event Collector | `GET /flows`, `GET /flows/{flow}` |
+| 에이전트가 살아 있는지 | Event Collector | WebSocket `snapshot.agents`와 `agents` 메시지, `GET /agents` |
 
 ## 1. 실행
 
@@ -78,6 +80,8 @@ const flows = await fetch('/collector/flows?limit=20', {
 
 ### 끊겼을 때
 
+- `vite.config.js`가 바뀌어 Vite가 스스로 재시작하면 WebSocket 프록시가 끊길 수 있다(HTTP는 됨). 그럴 때는 `npm run dev`를 다시 실행한다.
+
 - 두 WebSocket 모두 끊기면 1초, 2초, 4초 … 최대 10초 간격으로 다시 연결한다.
 - 다시 붙으면 서버가 `snapshot`을 다시 보낸다. 받은 상태를 **통째로 교체**하면 된다.
 - Gateway는 Home Assistant와 다시 연결될 때도 `snapshot`을 보낸다.
@@ -122,6 +126,10 @@ const flows = await fetch('/collector/flows?limit=20', {
   | `message`, `rule`, `error` | 사람이 읽는 설명 (최대 300자) |
 
 - 맥락 값(일정 제목, 위치 등)은 기록에 **일부러 없다**.
+- **에이전트 상태**: Collector가 5초마다 각 에이전트의 Agent Card를 확인한다.
+  - `snapshot`에 `agents` 목록이 같이 오고, 누가 켜지거나 꺼지면 `{"type": "agents", "agents": [...]}`가 온다.
+  - 항목: `id`, `online`, `checked_at`, `role`, `space`, `owned_devices`, `provided_fields`, `last_event_at`, `events`
+  - `GET /agents`로도 읽을 수 있다. 형식은 `services/contracts/collector/agent.schema.json`.
 
 ### Collector `/flows`
 - `GET /flows?limit=20`: 최근에 움직인 요청부터 → `flows.json`

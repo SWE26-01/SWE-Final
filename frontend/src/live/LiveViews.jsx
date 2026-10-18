@@ -1,6 +1,6 @@
 // Panels for live data, built from the same class names as the mock panels so they look alike.
 import React from 'react';
-import { BrainCircuit, ChevronRight, Radio, Wifi, WifiOff } from 'lucide-react';
+import { Bot, BrainCircuit, ChevronRight, Radio, Wifi, WifiOff } from 'lucide-react';
 import { socketLabel } from './mapping';
 import './live.css';
 
@@ -66,6 +66,17 @@ export function LiveLogRows({ rows, limit }) {
       <span className={`agent-pill ${row.color}`}>{row.from.replace(' Agent', '')}</span>
       <ChevronRight size={12} />
       <span className={`log-text ${row.accepted === false ? 'live-rejected' : ''}`}><b>{row.to.replace(' Agent', '')}</b> · {row.text}</span>
+    </div>
+  ));
+}
+
+export function LiveAgentCards({ agents }) {
+  if (!agents.length) return <div className="live-empty-state compact"><Wifi size={14} /><span>에이전트 상태를 확인하는 중입니다.</span></div>;
+  return agents.map((agent) => (
+    <div className={`expanded-agent ${agent.online ? '' : 'live-agent-offline'}`} key={agent.id}>
+      <Bot size={20} /><b>{agent.name}</b>
+      <span>{!agent.checked ? 'CHECKING' : agent.online ? 'ONLINE' : 'OFFLINE'}</span>
+      <small>{agent.detail}</small>
     </div>
   ));
 }

@@ -1,5 +1,5 @@
 """Write JSON Schemas for what dashboards and agents exchange with this repo's services:
-contracts/collector/{event,flow}.schema.json and contracts/gateway/stream.schema.json.
+contracts/collector/{event,flow,agent}.schema.json and contracts/gateway/stream.schema.json.
 
 Run after changing collector/events.py, collector/flows.py or gateway/stream.py:
     python scripts/export_schemas.py
@@ -15,6 +15,7 @@ from pydantic import Field, TypeAdapter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from collector.agents import AgentStatus  # noqa: E402
 from collector.events import AgentEvent  # noqa: E402
 from collector.flows import Flow  # noqa: E402
 from gateway.stream import Snapshot, StateChanged  # noqa: E402
@@ -30,5 +31,6 @@ def write(path: Path, schema: dict) -> None:
 
 write(CONTRACTS / "collector" / "event.schema.json", AgentEvent.model_json_schema())
 write(CONTRACTS / "collector" / "flow.schema.json", Flow.model_json_schema())
+write(CONTRACTS / "collector" / "agent.schema.json", AgentStatus.model_json_schema())
 stream = TypeAdapter(Annotated[Snapshot | StateChanged, Field(discriminator="type")])
 write(CONTRACTS / "gateway" / "stream.schema.json", stream.json_schema())

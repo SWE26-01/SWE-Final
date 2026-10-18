@@ -32,8 +32,8 @@ import {
 import Home3D from './Home3D';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
-import { applyLiveDevices, liveOccupantRoom, toActivity, toFlowCard, toLogRow } from './live/mapping';
-import { DataModeToggle, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
+import { NODE_AGENT, applyLiveDevices, liveOccupantRoom, toActivity, toAgentCard, toFlowCard, toLogRow } from './live/mapping';
+import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
 const initialRooms = [
@@ -358,6 +358,8 @@ function App() {
   const liveFlowCards = useMemo(() => liveData.flows.map((flow) => toFlowCard(flow, liveDevices)), [liveData.flows, liveDevices]);
   const liveOccupant = live ? liveOccupantRoom(liveDevices) : null;
   const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
+  const liveAgents = useMemo(() => liveData.agents.map(toAgentCard), [liveData.agents]);
+  const offlineAgents = new Set(liveAgents.filter((agent) => agent.checked && !agent.online).map((agent) => agent.id));
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -800,7 +802,7 @@ function App() {
                 {live ? <SocketState status={liveData.collector.status} /> : <div className="socket-state"><Wifi size={13} /> CONNECTED</div>}
               </div>
               <div className="agent-network">
-                {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
+                {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${live && offlineAgents.has(NODE_AGENT[agent]) ? 'live-agent-offline' : ''}`} title={live && offlineAgents.has(NODE_AGENT[agent]) ? 'OFFLINE' : undefined}><Bot size={17} /><span>{agent}</span></div>)}
                 <svg className="agent-connection-map" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path d="M47 32 C90 4 110 4 150 32 S215 60 256 32" /><circle cx="111" cy="15" r="3" /><circle cx="218" cy="49" r="3" /></svg>
               </div>
               <div className="log-list">
@@ -985,7 +987,7 @@ function App() {
                 {live ? <SocketState status={liveData.collector.status} /> : <div className="socket-state"><Wifi size={13} /> CONNECTED</div>}
               </div>
               <div className="expanded-network">
-                {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
+                {live ? <LiveAgentCards agents={liveAgents} /> : ['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
               </div>
               <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span></div>
               <div className="expanded-log-list">

@@ -7,6 +7,7 @@ consuming team reviewing.
 | File | Between | Source of truth |
 | --- | --- | --- |
 | `gateway/stream.schema.json` | Device Gateway → dashboards (WebSocket `/ws`): `snapshot`, `device.state_changed` | `gateway/stream.py` |
+| `collector/agent.schema.json` | Event Collector → dashboards (`GET /agents`, WebSocket `snapshot.agents` and `{type: "agents"}`): each agent up or down and its latest activity | `collector/agents.py` |
 | `collector/flow.schema.json` | Event Collector → dashboards (`GET /flows`, `GET /flows/{flow}`): one request followed across agents | `collector/flows.py` |
 | `collector/event.schema.json` | agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
 

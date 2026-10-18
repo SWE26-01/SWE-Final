@@ -1,4 +1,4 @@
-// Live device states (Device Gateway), agent events and request flows (Event Collector).
+// Live device states (Device Gateway); agent events, request flows and agents up/down (Event Collector).
 import { useEffect, useState } from 'react';
 import { collectorWsUrl, gatewayWsUrl, getCollector } from './config';
 import { openSocket } from './socket';
@@ -10,6 +10,7 @@ export function useLiveHome(enabled) {
   const [gateway, setGateway] = useState({ status: 'off', haConnected: false, devices: {} });
   const [collector, setCollector] = useState({ status: 'off', events: [] });
   const [flows, setFlows] = useState([]);
+  const [agents, setAgents] = useState([]);
 
   useEffect(() => {
     if (!enabled) {
@@ -33,6 +34,7 @@ export function useLiveHome(enabled) {
     if (!enabled) {
       setCollector({ status: 'off', events: [] });
       setFlows([]);
+      setAgents([]);
       return undefined;
     }
     let refresh = null;
@@ -47,7 +49,10 @@ export function useLiveHome(enabled) {
       onMessage: (message) => {
         if (message.type === 'snapshot') {
           setCollector((current) => ({ ...current, events: message.events }));
+          setAgents(message.agents || []);
           loadFlows();
+        } else if (message.type === 'agents') {
+          setAgents(message.agents);
         } else if (message.type === 'event') {
           setCollector((current) => ({ ...current, events: [...current.events, message.event].slice(-MAX_EVENTS) }));
           if (message.event.flow) loadFlows();
@@ -60,5 +65,5 @@ export function useLiveHome(enabled) {
     };
   }, [enabled]);
 
-  return { gateway, collector, flows };
+  return { gateway, collector, flows, agents };
 }

@@ -18,7 +18,8 @@ from homeconfig import load_config
 
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
-    with TestClient(create_app(load_config(env=ENV), str(tmp_path / "events.sqlite"))) as c:
+    app = create_app(load_config(env=ENV), str(tmp_path / "events.sqlite"), watch_agents=False)
+    with TestClient(app) as c:
         yield c
 
 
@@ -275,11 +276,13 @@ def test_flows_are_operator_only(client):
 
 def test_old_database_gets_flows(tmp_path):
     db = tmp_path / "old.sqlite"
-    with sqlite3.connect(db) as conn:  # schema before flows existed
+    conn = sqlite3.connect(db)  # schema before flows existed
+    with conn:
         conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT)")
         for body in SCENARIO[:5]:
             conn.execute("INSERT INTO events (json) VALUES (?)", (json.dumps(body),))
-    with TestClient(create_app(load_config(env=ENV), str(db))) as c:
+    conn.close()
+    with TestClient(create_app(load_config(env=ENV), str(db), watch_agents=False)) as c:
         (flow,) = c.get("/flows", headers=DASHBOARD).json()
         assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 5, "desktop")
 
@@ -309,7 +312,8 @@ def test_flow_follows_event_time_not_arrival(client):
 
 def test_collector_cors_only_for_configured_origins(tmp_path):
     env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173"}
-    with TestClient(create_app(load_config(env=env), str(tmp_path / "e.sqlite"))) as c:
+    app = create_app(load_config(env=env), str(tmp_path / "e.sqlite"), watch_agents=False)
+    with TestClient(app) as c:
         r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://localhost:5173"})
         assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
         r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://evil.test"})

@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
+from urllib.parse import urlsplit, urlunsplit
 
 import yaml
 from pydantic import BaseModel, ValidationError
@@ -56,6 +57,18 @@ class HomeConfig:
         return [d.entity for d in self.devices.values() if d.owner == agent_id]
 
 
+def _on_host(url: str | None, host: str | None) -> str | None:
+    """Point a loopback agent URL at `host` (env AMBIENT_AGENTS_HOST). A service in Docker reaches
+    agents running on the machine through e.g. host.docker.internal, not 127.0.0.1."""
+    if not url or not host:
+        return url
+    parts = urlsplit(url)
+    if parts.hostname not in ("127.0.0.1", "localhost"):
+        return url
+    netloc = f"{host}:{parts.port}" if parts.port else host
+    return urlunsplit(parts._replace(netloc=netloc))
+
+
 def _read(path: Path, model: type[M], problems: list[str]) -> M | None:
     try:
         raw = yaml.safe_load(path.read_text()) or {}
@@ -99,7 +112,8 @@ def load_config(
         if token in by_token:
             problems.append(f"{caller_id}: same token as {by_token[token]!r}")
             continue
-        callers[caller_id] = Caller(id=caller_id, role=role, token=token, url=entry.url)
+        url = _on_host(entry.url, env.get("AMBIENT_AGENTS_HOST") or None)
+        callers[caller_id] = Caller(id=caller_id, role=role, token=token, url=url)
         by_token[token] = caller_id
 
     devices: dict[str, Device] = {}
