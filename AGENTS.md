@@ -22,4 +22,7 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
   and `services/config/devices.yaml`.
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).
 - Keep repo paths ASCII: OpenClaw rejects non-ASCII (NFD) paths (see `scripts/oc.sh`).
-- Do not change `frontend/` unless asked; it belongs to the frontend team.
+- Upstream-owned paths are synced in from the original repos with `tools/sync_upstream.sh` and are
+  not edited here: `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md` (SWE26-01/A2A-agents)
+  and `frontend/` (SWE26-01/SWE-frontend). Propose such changes as a PR to the original repo.
+  Edit freely: `services/`, `docs/`, `tools/`, `.github/`, root `CLAUDE.md`/`AGENTS.md`.

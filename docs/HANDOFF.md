@@ -11,7 +11,17 @@
 
 ## 레포 구성 (2026-10-18 통합)
 
-팀 레포 세 개를 커밋 기록째 이 레포(SWE26-01/SWE-Final) 하나로 합쳤다. 옛 레포는 그대로 남아 있지만 앞으로의 작업은 여기서 한다.
+팀 레포 세 개를 커밋 기록째 이 레포(SWE26-01/SWE-Final) 하나로 합쳤다.
+
+**작업 흐름**
+- 에이전트(A2A-agents)와 프론트(SWE-frontend) 팀원은 **원래 레포에서 계속 작업한다.**
+- SWE-Final 관리자가 `tools/sync_upstream.sh`로 새 커밋을 가져온다. 레포마다 `sync/...` 브랜치와 PR을 하나씩 만든다.
+  `--check`로 새 커밋 수만 볼 수 있다.
+- a2a-agentic-home은 더 이상 쓰지 않는다. `services/` 작업은 SWE-Final에서 바로 한다.
+- **원래 레포가 주인인 경로는 SWE-Final에서 직접 고치지 않는다**: 루트의 `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`,
+  그리고 `frontend/`. 고칠 게 있으면 원래 레포에 PR을 올리고 동기화로 가져온다. 여기서 직접 고치면 다음 동기화 때 충돌한다.
+- SWE-Final에서만 고치는 경로: `services/`, `docs/`, `tools/`, `.github/`, 루트 `CLAUDE.md`·`AGENTS.md`.
+  루트 `README.md`·`.gitignore`·`.env.example`은 A2A-agents에서도 바뀌므로, 동기화 때 충돌이 나면 양쪽 내용을 모두 살린다.
 
 | 폴더 | 원래 레포 | 담당 | 내용 |
 | --- | --- | --- | --- |
@@ -31,7 +41,7 @@
 - **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
   Collector는 정해진 필드만 저장하며, Gateway는 `services/config/devices.yaml`에 있는 엔티티만 보여 준다.
 - **HA 토큰은 Gateway만 가진다**(목표). 에이전트는 자기 토큰으로 Gateway를 부르고, 기록은 에이전트가 Collector로 보낸다.
-  에이전트 쪽 변경은 `docs/integration.md`에 있고 아직 적용 전이다(담당자 합의 필요).
+  에이전트 쪽 변경은 `docs/integration.md`에 있고 아직 적용 전이다. 에이전트 코드라서 A2A-agents에 PR로 올린 뒤 동기화한다(담당자 합의 필요).
 - **대시보드는 frontend 쪽에서 합친다.** `services/`는 데이터(Gateway·Collector WebSocket, `services/contracts/`)만 제공한다.
 
 ## 아직 정할 것
@@ -62,4 +72,4 @@
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector·연동 확인 스크립트 완료. 에이전트와 연결은 아직이다.
 - frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결과 대시보드 통합은 frontend 쪽에서 한다.
-- 다음: 에이전트 쪽 연동 변경 합의 → 실제 시스템으로 `verify_integration.py` 통과 → 사용자 승인 등 범위 결정.
+- 다음: 에이전트 쪽 연동 변경(A2A-agents에 PR) 합의 → 실제 시스템으로 `verify_integration.py` 통과 → 사용자 승인 등 범위 결정.
