@@ -74,6 +74,6 @@
 
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
-  아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분).
+  아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
 - frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결과 대시보드 통합은 frontend 쪽에서 한다.
-- 다음(services): 검증 결과 보고서(#6), 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤).
+- 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.

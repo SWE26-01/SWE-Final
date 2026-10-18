@@ -1,0 +1,7 @@
+회의 모드로 전환했어요. 요청 두 건 모두 수락됐고, 거절된 건 없어요.
+
+- **상태 공유:** `meeting_app_active: true`, `pc_state: ACTIVE`로 알렸고 room1과 orchestrator 둘 다 받았어요.
+- **거실 TV 음소거:** `input_boolean.living_tv_muted`를 켰어요. (OK)
+- **방1 조명:** `input_select.room1_light_mode`를 `meeting`으로 바꿨어요. (OK, room1이 처리)
+
+회의 끝나면 말씀해 주세요. 상태를 해제할게요.

@@ -1,0 +1,7 @@
+desktop      up  (log: logs/desktop.log)
+smartphone   up  (log: logs/smartphone.log)
+orchestrator up  (log: logs/orchestrator.log)
+room1        up  (log: logs/room1.log)
+room2        up  (log: logs/room2.log)
+Gateway        http://127.0.0.1:8100   (agents reach HA through it)
+Collector      http://127.0.0.1:8200   (all agents' events)

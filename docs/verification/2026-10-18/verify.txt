@@ -1,0 +1,25 @@
+1. Agent Cards declare the same owners as config/devices.yaml
+  ok   desktop: owns nothing
+  ok   smartphone: owns nothing
+  ok   orchestrator: owns ['input_boolean.living_light', 'input_boolean.living_tv', 'input_boolean.living_tv_muted']
+  ok   room1: owns ['input_boolean.room1_ac', 'input_boolean.room1_light', 'input_boolean.room1_occupied', 'input_select.room1_light_mode']
+  ok   room2: owns ['input_boolean.room2_ac', 'input_boolean.room2_light', 'input_boolean.room2_sleep_mode']
+2. Gateway refuses commands outside the caller's own devices
+  ok   desktop -> input_boolean.living_light: 403
+  ok   desktop -> homeassistant.restart: 403
+  ok   smartphone -> input_boolean.living_light: 403
+  ok   smartphone -> homeassistant.restart: 403
+  ok   orchestrator -> input_boolean.room1_light: 403
+  ok   orchestrator -> homeassistant.restart: 403
+  ok   room1 -> input_boolean.living_light: 403
+  ok   room1 -> homeassistant.restart: 403
+  ok   room2 -> input_boolean.living_light: 403
+  ok   room2 -> homeassistant.restart: 403
+3. Event Collector has events from every agent
+  ok   desktop: 4 events
+  ok   smartphone: 2 events
+  ok   orchestrator: 17 events
+  ok   room1: 15 events
+  ok   room2: 3 events
+
+all checks passed

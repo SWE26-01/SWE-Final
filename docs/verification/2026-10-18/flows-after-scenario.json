@@ -1,0 +1,131 @@
+[
+    {
+        "flow": "scn-6",
+        "first_id": 29,
+        "last_id": 41,
+        "started_at": "2026-10-18T05:57:35.896000Z",
+        "ended_at": "2026-10-18T05:57:35.939000Z",
+        "agents": [
+            "orchestrator",
+            "room1",
+            "room2"
+        ],
+        "events": 13,
+        "requester": "smartphone",
+        "entry": "orchestrator",
+        "action": {
+            "device": null,
+            "command": "ENERGY_SAVING",
+            "value": null,
+            "macro": null
+        },
+        "accepted": false,
+        "reason_code": "PARTIAL"
+    },
+    {
+        "flow": "scn-5",
+        "first_id": 28,
+        "last_id": 28,
+        "started_at": "2026-10-18T05:57:35.613000Z",
+        "ended_at": "2026-10-18T05:57:35.613000Z",
+        "agents": [
+            "room1"
+        ],
+        "events": 1,
+        "requester": "orchestrator",
+        "entry": "room1",
+        "action": {
+            "device": "input_boolean.living_tv",
+            "command": "TURN_OFF",
+            "value": null,
+            "macro": null
+        },
+        "accepted": false,
+        "reason_code": "NOT_OWNER"
+    },
+    {
+        "flow": "2ef68d9f-57e3-4c38-b5f9-6281a31ca76e",
+        "first_id": 24,
+        "last_id": 25,
+        "started_at": "2026-10-18T05:57:34.902000Z",
+        "ended_at": "2026-10-18T05:57:34.904000Z",
+        "agents": [
+            "room1"
+        ],
+        "events": 2,
+        "requester": "room1",
+        "entry": "room1",
+        "action": {
+            "device": "input_select.room1_light_mode",
+            "command": "SET",
+            "value": "normal",
+            "macro": null
+        },
+        "accepted": true,
+        "reason_code": "OK"
+    },
+    {
+        "flow": "scn-A3",
+        "first_id": 20,
+        "last_id": 20,
+        "started_at": "2026-10-18T05:57:33.742000Z",
+        "ended_at": "2026-10-18T05:57:33.742000Z",
+        "agents": [
+            "orchestrator"
+        ],
+        "events": 1,
+        "requester": "desktop",
+        "entry": "orchestrator",
+        "action": {
+            "device": "input_boolean.room2_ac",
+            "command": "TURN_OFF",
+            "value": null,
+            "macro": null
+        },
+        "accepted": false,
+        "reason_code": "UNAUTHORIZED"
+    },
+    {
+        "flow": "scn-A2",
+        "first_id": 18,
+        "last_id": 19,
+        "started_at": "2026-10-18T05:57:33.233000Z",
+        "ended_at": "2026-10-18T05:57:33.234000Z",
+        "agents": [
+            "orchestrator"
+        ],
+        "events": 2,
+        "requester": "desktop",
+        "entry": "orchestrator",
+        "action": {
+            "device": "input_boolean.living_tv_muted",
+            "command": "TURN_ON",
+            "value": null,
+            "macro": null
+        },
+        "accepted": true,
+        "reason_code": "OK"
+    },
+    {
+        "flow": "scn-A1",
+        "first_id": 13,
+        "last_id": 17,
+        "started_at": "2026-10-18T05:57:31.928000Z",
+        "ended_at": "2026-10-18T05:57:32.081000Z",
+        "agents": [
+            "orchestrator",
+            "room1"
+        ],
+        "events": 5,
+        "requester": "desktop",
+        "entry": "orchestrator",
+        "action": {
+            "device": "input_select.room1_light_mode",
+            "command": "SET",
+            "value": "meeting",
+            "macro": null
+        },
+        "accepted": true,
+        "reason_code": "OK"
+    }
+]
