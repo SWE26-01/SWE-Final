@@ -31,6 +31,7 @@ const ENTITY_TO_DEVICE = {
   'input_boolean.room1_light': { roomId: 'bedroom1', deviceId: 'bedroom1-light' },
   'input_select.room1_light_mode': { roomId: 'bedroom1', deviceId: 'bedroom1-light', valueOnly: true },
   'input_boolean.room1_ac': { roomId: 'bedroom1', deviceId: 'bedroom1-air' },
+  'input_boolean.room1_occupied': { roomId: 'bedroom1', hidden: true },
   'input_boolean.bedroom1_curtain': { roomId: 'bedroom1', deviceId: 'bedroom1-curtain' },
   'input_boolean.bedroom1_humidifier': { roomId: 'bedroom1', deviceId: 'bedroom1-humidifier' },
   'input_boolean.room2_light': { roomId: 'bedroom2', deviceId: 'bedroom2-light' },
@@ -45,7 +46,9 @@ const ENTITY_TO_DEVICE = {
 };
 
 const MANAGED_DEVICE_IDS = new Set(
-  Object.values(ENTITY_TO_DEVICE).filter((mapping) => !mapping.valueOnly).map((mapping) => mapping.deviceId),
+  Object.values(ENTITY_TO_DEVICE)
+    .filter((mapping) => mapping.deviceId && !mapping.valueOnly)
+    .map((mapping) => mapping.deviceId),
 );
 
 const disconnectedStates = new Set([null, 'unknown', 'unavailable']);
@@ -78,6 +81,7 @@ const stateLabel = (device) => {
 
 const mergeDevice = (rooms, haDevice) => {
   const mapped = ENTITY_TO_DEVICE[haDevice.entity];
+  if (mapped?.hidden) return rooms;
   const roomId = mapped?.roomId || SPACE_TO_ROOM[haDevice.space];
   if (!roomId) return rooms;
 
@@ -127,8 +131,9 @@ export const mergeHomeAssistantDevices = (rooms, devices) => (
 );
 
 export const syncHomeAssistantDevices = (rooms, devices) => {
-  const activeEntities = new Set(devices.map((device) => device.entity));
-  const activeDeviceIds = new Set(devices.flatMap((device) => {
+  const visibleDevices = devices.filter((device) => !ENTITY_TO_DEVICE[device.entity]?.hidden);
+  const activeEntities = new Set(visibleDevices.map((device) => device.entity));
+  const activeDeviceIds = new Set(visibleDevices.flatMap((device) => {
     const mapped = ENTITY_TO_DEVICE[device.entity];
     return mapped && !mapped.valueOnly ? [mapped.deviceId] : [];
   }));
@@ -139,7 +144,7 @@ export const syncHomeAssistantDevices = (rooms, devices) => {
       return !MANAGED_DEVICE_IDS.has(device.id) || activeDeviceIds.has(device.id);
     }),
   }));
-  return devices.reduce(mergeDevice, reconciled).map((room) => ({
+  return visibleDevices.reduce(mergeDevice, reconciled).map((room) => ({
     ...room,
     devices: room.devices.map((device) => (
       device.entityId && activeEntities.has(device.entityId) ? { ...device, haManaged: true } : device
