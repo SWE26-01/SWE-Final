@@ -1,4 +1,23 @@
-# A2A-agents — Ambient-A2A 분산 스마트홈
+# SWE-Final — A2A based Agentic Home
+
+A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분산 스마트홈 제어 시스템 (한양대 CSE406 · LG전자 IC-PBL "Proactive Agentic Home").
+
+## 레포 구성
+
+| 폴더 | 내용 |
+|---|---|
+| [agents/](agents/) | OpenClaw 에이전트 5개와 공용 Ambient-A2A 플러그인 |
+| [spec/](spec/) | Ambient-A2A 확장 명세 |
+| [homeassistant/](homeassistant/) | Home Assistant 가상 기기와 Lovelace 대시보드 |
+| [scripts/](scripts/) | 설치·실행·검증 스크립트 |
+| [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
+| [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React |
+| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`) |
+| [plan.md](plan.md) | 기획서 |
+
+SWE26-01의 A2A-agents(루트), a2a-agentic-home(`services/`), SWE-frontend(`frontend/`)를 커밋 기록째 합친 레포다.
+
+## 에이전트
 
 OpenClaw 에이전트 5개가 A2A v1.0에 **Ambient-A2A 확장**([spec/ambient-a2a.md](spec/ambient-a2a.md))을 얹어 서로 소통한다. 확장은 상태 공유·구독, 공간별 소유권, 정책 기반 협업을 정의한다. 설계 배경은 [plan.md](plan.md)에 있다.
 
@@ -62,6 +81,17 @@ scripts/scenario.sh --kill-home   # Home 중단 후에도 room1이 독립적으�
 ```
 대시보드: http://127.0.0.1:8123/ambient-home
 
+Device Gateway·Event Collector (`services/`, 루트 `.env`를 읽는다):
+```bash
+cd services && pip install -e ".[dev]"
+uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
+uvicorn collector.main:build --factory --port 8200 --env-file ../.env
+python scripts/verify_integration.py --env-file ../.env   # 실행 중인 시스템 확인
+```
+에이전트가 Gateway·Collector를 쓰도록 연결하는 방법은 [docs/integration.md](docs/integration.md).
+
+시뮬레이터 화면: `cd frontend && npm install && npm run dev` (http://localhost:5173)
+
 직접 말 걸기: `scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"`
 
 ## 검증 항목 (plan.md 8.3)
@@ -78,5 +108,5 @@ scripts/scenario.sh --kill-home   # Home 중단 후에도 room1이 독립적으�
 
 ## 알려진 한계
 - 토큰은 에이전트당 하나이고 피어끼리 공유한다. 상호 신뢰하지 않는 환경이라면 쌍별 토큰이나 mTLS로 바꿔야 한다.
-- HA에는 엔티티별 ACL이 없다. 기기 단의 권한 검사는 플러그인 화이트리스트로 대신한다.
+- HA에는 엔티티별 ACL이 없다. 기기 단의 권한 검사는 플러그인 화이트리스트로 대신한다. `services/`의 Device Gateway가 이와 독립된 두 번째 검사를 맡는다(연결 방법: [docs/integration.md](docs/integration.md)).
 - 구독 정보는 publisher 메모리에만 있다. external을 재시작하면 구독하던 쪽도 재시작해야 한다.

@@ -1,8 +1,13 @@
-name: CI
+name: services
 on:
   pull_request:
+    paths: ["services/**", ".github/workflows/services.yml"]
   push:
     branches: [main]
+    paths: ["services/**", ".github/workflows/services.yml"]
+defaults:
+  run:
+    working-directory: services
 jobs:
   test:
     runs-on: ubuntu-latest

@@ -1,7 +1,7 @@
 [project]
 name = "a2a-agentic-home"
 version = "0.1.0"
-description = "A2A based Agentic Home: Device Gateway and Event Collector for the A2A-agents smart home"
+description = "A2A based Agentic Home: Device Gateway and Event Collector for the Ambient-A2A smart home agents"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",

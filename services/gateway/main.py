@@ -1,11 +1,11 @@
 """Device Gateway: checks who may move which device, in front of Home Assistant (plan 5.4).
 
-A2A-agents' agents call it exactly like the Home Assistant REST API: their `ha.url` points here
+The agents (../agents) call it exactly like the Home Assistant REST API: their `ha.url` points here
 and they send their own agent token instead of the shared HA token. For every command the Gateway
 checks that the caller owns each target entity (config/devices.yaml), and only then forwards it
 with the one real HA token. Dashboards read device states over WebSocket /ws.
 
-Run: uvicorn gateway.main:build --factory --port 8100 --env-file ../A2A-agents/.env
+Run: uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 """
 
 import asyncio

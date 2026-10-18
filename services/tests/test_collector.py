@@ -21,7 +21,8 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
 
 
 def received(**kw) -> dict:
-    """room1's log line for a request Home delegated on behalf of Desktop (A2A-agents agent.ts)."""
+    """room1's log line (agents/ambient-a2a-plugin/src/agent.ts `log()`) for a request Home
+    delegated on behalf of Desktop."""
     return {
         "ts": "2026-10-18T01:00:00.123Z",
         "agent": "room1",

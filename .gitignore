@@ -3,3 +3,6 @@
 logs/
 .venv/
 node_modules/
+.DS_Store
+# Claude Code local state
+.claude/
