@@ -27,6 +27,9 @@ export type Config = {
   rules?: Rule[];
   energySaving?: Action[];
   ha?: { url: string; token: string };
+  // Optional services (SWE-Final services/). Empty = off.
+  gatewayUrl?: string; // Device Gateway: HA calls go here with this agent's own token; it re-checks ownership
+  collectorUrl?: string; // Event Collector: every log line is also POSTed here
   ttlSec?: number;
   logFile?: string;
 };
@@ -35,17 +38,24 @@ type Result = Decision & Record<string, unknown>;
 
 export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m: string): void } = console) {
   const owned = cfg.owned ?? [];
-  const ha = cfg.ha ? haClient(cfg.ha.url, cfg.ha.token, owned) : null;
+  const myToken = cfg.tokens[cfg.agentId];
+  const ha = cfg.ha ? haClient(cfg.gatewayUrl || cfg.ha.url, cfg.gatewayUrl ? myToken : cfg.ha.token, owned) : null;
   const store = new ContextStore();
   const pub = new Publisher(cfg.agentId, cfg.subject ?? "user1", cfg.provides ?? [], cfg.fieldAcl ?? {});
   const ownership: Record<string, string> = {}; // device -> owning agent (home only, filled from Agent Cards)
   const rooms = new Set<string>();
   const byToken = new Map(Object.entries(cfg.tokens).map(([id, t]) => [t, id]));
-  const myToken = cfg.tokens[cfg.agentId];
 
   const log = (e: Record<string, unknown>) => {
     const line = { ts: new Date().toISOString(), agent: cfg.agentId, ...e };
     logger.info(`[ambient] ${JSON.stringify(line)}`);
+    if (cfg.collectorUrl)
+      void fetch(`${cfg.collectorUrl}/events`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${myToken}`, "content-type": "application/json" },
+        body: JSON.stringify(line),
+        signal: AbortSignal.timeout(2000),
+      }).catch(() => {}); // the Collector being down must never break the agent
     if (!cfg.logFile) return;
     try {
       mkdirSync(dirname(cfg.logFile), { recursive: true });
