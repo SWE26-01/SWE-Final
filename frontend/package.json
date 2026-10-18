@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdi/js": "^7.4.47",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",

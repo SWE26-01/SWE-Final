@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
+import HomeAssistantIcon from './HomeAssistantIcon';
 
 const layout = {
   kitchen: { left: 1, top: 1, width: 41, height: 25, furniture: 'counter', pin: [18, 11], walls: { south: false }, windows: { north: ['left'] }, doors: { north: 'right' } },
@@ -77,7 +78,7 @@ function Pin({ device, style }) {
   else if (device.name === '에어컨') Icon = AirVent;
   else if (device.name === '환풍기') Icon = Fan;
   else if (device.type === 'air') Icon = Wind;
-  return <span className={`css-device-pin ${device.on ? 'active' : ''}`} style={style} role="img" aria-label={`${device.name} ${device.on ? '켜짐' : '꺼짐'}`} title={device.name}><Icon size={15} /></span>;
+  return <span className={`css-device-pin ${device.on ? 'active' : ''}`} style={style} role="img" aria-label={`${device.name} ${device.on ? '켜짐' : '꺼짐'}`} title={device.name}><HomeAssistantIcon icon={device.icon} size={15}><Icon size={15} /></HomeAssistantIcon></span>;
 }
 
 function getDevicePinPosition(index, count, roomId) {

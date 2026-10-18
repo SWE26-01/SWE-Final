@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
+import HomeAssistantIcon from './HomeAssistantIcon';
 import {
   canControlHomeAssistantPower,
   connectHomeAssistant,
@@ -267,17 +268,18 @@ const actionHistory = {
   '2026-10-18': [{ time: '21:30', title: '주간 에너지 리포트', detail: '기기별 사용량 분석', status: '예정' }],
 };
 
-function DeviceIcon({ type }) {
-  if (type === 'light') return <Lightbulb size={18} />;
-  if (type === 'air') return <Wind size={18} />;
-  if (type === 'cleaner') return <Bot size={18} />;
-  if (type === 'tv') return <Tv size={18} />;
-  if (type === 'washer') return <WashingMachine size={18} />;
-  if (type === 'humidifier') return <Droplets size={18} />;
-  if (type === 'purifier' || type === 'hood') return <Wind size={18} />;
-  if (type === 'pc') return <Monitor size={18} />;
-  if (type === 'stove') return <Flame size={18} />;
-  return <SlidersHorizontal size={18} />;
+function DeviceIcon({ type, icon }) {
+  let fallback = <SlidersHorizontal size={18} />;
+  if (type === 'light') fallback = <Lightbulb size={18} />;
+  else if (type === 'air') fallback = <Wind size={18} />;
+  else if (type === 'cleaner') fallback = <Bot size={18} />;
+  else if (type === 'tv') fallback = <Tv size={18} />;
+  else if (type === 'washer') fallback = <WashingMachine size={18} />;
+  else if (type === 'humidifier') fallback = <Droplets size={18} />;
+  else if (type === 'purifier' || type === 'hood') fallback = <Wind size={18} />;
+  else if (type === 'pc') fallback = <Monitor size={18} />;
+  else if (type === 'stove') fallback = <Flame size={18} />;
+  return <HomeAssistantIcon icon={icon}>{fallback}</HomeAssistantIcon>;
 }
 
 function getDeviceGroup(device) {
@@ -757,7 +759,7 @@ function App() {
                 <div className="room-side-devices">
                   {room.devices.map((device) => (
                     <button className={`device-card ${device.on ? 'active' : ''}`} key={device.id} onClick={() => toggleDevice(room.id, device.id)}>
-                      <span className="device-icon"><DeviceIcon type={device.type} /></span>
+                      <span className="device-icon"><DeviceIcon type={device.type} icon={device.icon} /></span>
                       <span className="device-info"><b>{device.name}</b><small>{device.value}</small></span>
                       <span className="power-button"><Power size={16} /></span>
                     </button>
@@ -798,7 +800,7 @@ function App() {
                       const connected = group.devices.filter((device) => device.connected).length;
                       const powered = group.devices.filter((device) => device.connected && device.on).length;
                       return <button className={`${selectedDeviceGroup === group.key ? 'selected' : ''} ${connected ? '' : 'disconnected'}`} key={group.key} onClick={() => { setSelectedDeviceGroup(group.key); setSelectedTargetId('all'); }} aria-haspopup="dialog">
-                        <span className="device-icon"><DeviceIcon type={group.type} /></span>
+                        <span className="device-icon"><DeviceIcon type={group.type} icon={group.devices[0]?.icon} /></span>
                         <span><small>{connected}/{group.devices.length} 연결됨</small><b>{group.label}</b></span>
                         <em>{connected ? `${powered} ON` : 'OFFLINE'}</em>
                       </button>
@@ -1019,7 +1021,7 @@ function App() {
           <button className="device-control-backdrop" onClick={() => setSelectedDeviceGroup(null)} aria-label="기기 상세 닫기" />
           <section className="device-control-modal" role="dialog" aria-modal="true" aria-labelledby="device-control-title">
             <button className="device-control-close" onClick={() => setSelectedDeviceGroup(null)} aria-label="닫기"><X size={17} /></button>
-            <span className="device-control-icon"><DeviceIcon type={selectedGroup.type} /></span>
+            <span className="device-control-icon"><DeviceIcon type={selectedGroup.type} icon={selectedGroup.devices[0]?.icon} /></span>
             <p>SMART HOME · DEVICE CONTROL</p>
             <h2 id="device-control-title">{selectedGroup.label}</h2>
             <label className="device-target-select">제어할 위치

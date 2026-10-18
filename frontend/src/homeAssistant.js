@@ -97,6 +97,7 @@ const mergeDevice = (rooms, haDevice) => {
           haManaged: true,
           entityId: haDevice.entity,
           owner: haDevice.owner,
+          icon: haDevice.attributes?.icon,
         }),
         value: stateLabel(haDevice),
       };
@@ -109,6 +110,7 @@ const mergeDevice = (rooms, haDevice) => {
         entityId: haDevice.entity,
         owner: haDevice.owner,
         name: haDevice.attributes?.friendly_name || haDevice.entity,
+        icon: haDevice.attributes?.icon,
         type: deviceType(haDevice),
         on: isOn(haDevice.state),
         connected,
