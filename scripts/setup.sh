@@ -35,8 +35,10 @@ set -a; . "$ENV"; set +a
 say "Home Assistant"
 docker compose -f "$ROOT/homeassistant/docker-compose.yml" up -d
 HA=${HA_URL:-http://127.0.0.1:8123}
-printf 'waiting for HA'; until curl -fs -o /dev/null "$HA/api/onboarding"; do printf .; sleep 3; done; echo
+# Any HTTP answer means HA is up (/api/onboarding disappears once onboarding is done, so don't wait on it).
+printf 'waiting for HA'; until curl -s -o /dev/null "$HA/"; do printf .; sleep 3; done; echo
 if [ -z "${HA_TOKEN:-}" ]; then
+  until curl -fs -o /dev/null "$HA/api/onboarding"; do sleep 3; done
   pw=$(openssl rand -hex 12)
   setenv HA_TOKEN "$("$ROOT/.venv/bin/python" "$ROOT/scripts/ha_token.py" "$HA" "$pw")"
   setenv HA_ADMIN_PASSWORD "$pw"
