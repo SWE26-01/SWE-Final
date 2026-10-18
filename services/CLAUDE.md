@@ -14,7 +14,7 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   (other HA entities, such as people and zones, may hold personal data).
 - The Event Collector stores only the fields of `collector/events.py`; unknown fields are dropped.
   Never add a free-form data field: context values (calendar titles, GPS) must not reach the log.
-- After changing `collector/events.py` or `gateway/stream.py`, run `python scripts/export_schemas.py`
+- After changing `collector/events.py`, `collector/flows.py` or `gateway/stream.py`, run `python scripts/export_schemas.py`
   and commit `contracts/`.
 - Service modules that declare FastAPI routes with `common.auth` types must not use
   `from __future__ import annotations` (FastAPI reads those annotations at runtime).
