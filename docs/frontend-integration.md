@@ -1,5 +1,12 @@
 # 프론트 연결 가이드
 
+> **구현됨 (2026-10-18)**: `frontend/src/live/`에 이 가이드대로 연결해 두었다. 화면 오른쪽 위 **LIVE / MOCK** 전환으로 실제 데이터와
+> 데모용 가짜 시나리오를 오간다. 시작: `frontend/.env.example`을 `frontend/.env.local`로 복사해 토큰을 넣고 `npm run dev`.
+> - `src/live/config.js` 접속 주소·토큰, `socket.js` 자동 재연결, `useLiveHome.js` 데이터 훅, `mapping.js` 대응·문구 규칙, `LiveViews.jsx` 실제 데이터 패널
+> - 실제 데이터를 쓰는 화면: Home(3D 모델·기기 상태·Agent Decision=요청 카드·Agent Activity·A2A 로그), 3D Model, Agent Activity 탭.
+>   Live Simulation·Control Mode 탭은 그대로 가짜 데이터다.
+> - LIVE에서는 화면에서 기기를 조작할 수 없다(안내만 뜬다).
+
 `frontend/`(시뮬레이터 화면)를 실제 시스템에 연결하는 방법이다. 화면은 데이터를 **`services/`의 Gateway와 Collector에서만 읽는다.**
 에이전트나 Home Assistant에 직접 붙지 않는다.
 

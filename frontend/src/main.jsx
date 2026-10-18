@@ -30,6 +30,10 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
+import { LIVE_AVAILABLE } from './live/config';
+import { useLiveHome } from './live/useLiveHome';
+import { applyLiveDevices, liveOccupantRoom, toActivity, toFlowCard, toLogRow } from './live/mapping';
+import { DataModeToggle, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
 const initialRooms = [
@@ -335,6 +339,25 @@ function App() {
   const [livePhase, setLivePhase] = useState('READY');
   const [liveSensor, setLiveSensor] = useState('대기 중');
   const [occupantRoom, setOccupantRoom] = useState(null);
+  // LIVE: real devices and agent events from services/ (docs/frontend-integration.md); MOCK: scripted demo data.
+  const [dataMode, setDataMode] = useState(LIVE_AVAILABLE ? 'live' : 'mock');
+  const live = dataMode === 'live';
+  const liveData = useLiveHome(live);
+  const liveDevices = liveData.gateway.devices;
+  const liveOnline = liveData.gateway.status === 'open' && liveData.gateway.haConnected;
+  const shownRooms = useMemo(
+    () => (live ? applyLiveDevices(rooms, liveDevices, liveOnline) : rooms),
+    [live, rooms, liveDevices, liveOnline],
+  );
+  const liveEvents = useMemo(
+    () => [...liveData.collector.events].sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : b.id - a.id)),
+    [liveData.collector.events],
+  );
+  const liveLogRows = useMemo(() => liveEvents.filter((event) => event.dir === 'in').map((event) => toLogRow(event, liveDevices)), [liveEvents, liveDevices]);
+  const liveTimelineItems = useMemo(() => liveEvents.filter((event) => event.dir === 'exec' || event.dir === 'rule').map((event) => toActivity(event, liveDevices)), [liveEvents, liveDevices]);
+  const liveFlowCards = useMemo(() => liveData.flows.map((flow) => toFlowCard(flow, liveDevices)), [liveData.flows, liveDevices]);
+  const liveOccupant = live ? liveOccupantRoom(liveDevices) : null;
+  const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -374,9 +397,9 @@ function App() {
   }, [tick, running]);
 
   const deviceItems = useMemo(
-    () => rooms.flatMap((item) => item.devices
+    () => shownRooms.flatMap((item) => item.devices
       .map((device) => ({ ...device, roomId: item.id, roomName: item.name, connected: device.connected !== false }))),
-    [rooms],
+    [shownRooms],
   );
   const connectedDevices = deviceItems.filter((device) => device.connected).length;
   const deviceGroups = useMemo(() => {
@@ -395,7 +418,7 @@ function App() {
   const targetConnectedCount = selectedTargets.filter((device) => device.connected).length;
   const targetOnCount = selectedTargets.filter((device) => device.connected && device.on).length;
 
-  const room = selectedRoom ? rooms.find((item) => item.id === selectedRoom) : null;
+  const room = selectedRoom ? shownRooms.find((item) => item.id === selectedRoom) : null;
   const selectedDay = actionWeek.find((day) => day.key === selectedActionDate);
   const selectedDayActions = actionHistory[selectedActionDate] || [];
   const completedActionCount = selectedDayActions.filter((action) => action.status === '완료').length;
@@ -436,7 +459,13 @@ function App() {
   environment.presence = '거실';
   testEnvironment.presence = '거실';
 
+  const readOnlyNotice = () => {
+    setToast('실제 데이터 모드에서는 화면에서 기기를 조작할 수 없어요. 기기는 에이전트가 제어해요.');
+    window.setTimeout(() => setToast(''), 2600);
+  };
+
   const setDevicePower = (roomId, deviceId, nextValue) => {
+    if (live) { readOnlyNotice(); return; }
     const targetRoom = rooms.find((item) => item.id === roomId);
     const targetDevice = targetRoom?.devices.find((device) => device.id === deviceId);
     if (!targetDevice || targetDevice.connected === false) return;
@@ -461,6 +490,7 @@ function App() {
   };
 
   const toggleConnection = (roomId, deviceId) => {
+    if (live) { readOnlyNotice(); return; }
     const target = rooms.find((item) => item.id === roomId)?.devices.find((device) => device.id === deviceId);
     if (!target) return;
     const reconnect = target.connected === false;
@@ -473,6 +503,7 @@ function App() {
   };
 
   const setGroupPower = (nextValue) => {
+    if (live) { readOnlyNotice(); return; }
     const targetIds = new Set(selectedTargets.filter((device) => device.connected).map((device) => device.id));
     if (!targetIds.size) return;
     setRooms((current) => current.map((item) => ({
@@ -486,6 +517,7 @@ function App() {
   };
 
   const toggleGroupConnection = () => {
+    if (live) { readOnlyNotice(); return; }
     const reconnect = targetConnectedCount === 0;
     const targetIds = new Set(selectedTargets.map((device) => device.id));
     setRooms((current) => current.map((item) => ({
@@ -652,6 +684,7 @@ function App() {
             <button className={activeTab === key ? 'active' : ''} key={key} onClick={() => setActiveTab(key)}>{label}</button>
           ))}
         </nav>
+        <DataModeToggle mode={dataMode} available={LIVE_AVAILABLE} onChange={setDataMode} />
       </header>
 
       <main className={`dashboard tab-${activeTab}`}>
@@ -663,17 +696,19 @@ function App() {
                 <div className="heading-label"><h2>Home Simulation</h2></div>
               </div>
               <div className="panel-heading-actions">
-                <p>공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.</p>
+                <p>{live ? '실제 기기 상태예요. 거실·침실 2·침실 3이 연결돼 있고, 기기는 에이전트가 제어해요.' : '공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.'}</p>
                 <div className="simulation-control">
+                  {live ? <SocketState status={liveData.gateway.haConnected ? liveData.gateway.status : 'closed'} label="DEVICES" /> : (
                   <button onClick={toggleSimulation} className={running ? 'pause' : ''}>
                     {running ? <CircleDot size={17} /> : <Play size={17} />}
                     LIVE SIMULATION
                   </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            <Home3D rooms={rooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
 
           </section>
 
@@ -701,6 +736,7 @@ function App() {
               </section>
             ) : (
               <>
+                {live ? <LiveDecisionCard cards={liveFlowCards} /> : (
                 <section className="decision-card dark-card" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setDecisionOpen(true)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setDecisionOpen(true); }}>
                   <div className="card-title-row">
                     <div className="mint-icon"><BrainCircuit size={22} /></div>
@@ -723,6 +759,7 @@ function App() {
                   </div>
                   <div className="decision-footer"><span>최근 업데이트 · 22:32</span><span>오늘 기록 보기 <ChevronRight size={13} /></span></div>
                 </section>
+                )}
                 <section className="active-manager panel" aria-label="기기 연결 상태">
                   <div className="active-manager-heading">
                     <div><span className="active-manager-icon"><Wifi size={15} /></span><h2>기기 연결 상태</h2></div>
@@ -749,23 +786,25 @@ function App() {
                 <button className="text-button">전체 보기 <ChevronRight size={14} /></button>
               </div>
               <div className="timeline">
+                {live ? <LiveTimeline items={liveTimelineItems.slice(0, 3)} /> : (<>
                 <div className="timeline-item"><span className="time">22:31</span><i className="timeline-dot" /><p><b>위치 상태 수신</b><small>Mobile Agent · 침실 재실</small></p><span className="event-tag">CONTEXT</span></div>
                 <div className="timeline-item"><span className="time">22:32</span><i className="timeline-dot purple" /><p><b>활동 맥락 결합</b><small>Desktop Agent · PC 활동 종료</small></p><span className="event-tag purple">CONTEXT</span></div>
                 <div className="timeline-item"><span className="time">22:32</span><i className="timeline-dot green" /><p><b>개인 방 환경 실행</b><small>My Room Agent · 조명·냉방 제어</small></p><span className="event-tag green">ACTION</span></div>
+                </>)}
               </div>
             </section>
 
             <section className="a2a-card panel">
               <div className="panel-heading compact">
                 <div><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
+                {live ? <SocketState status={liveData.collector.status} /> : <div className="socket-state"><Wifi size={13} /> CONNECTED</div>}
               </div>
               <div className="agent-network">
                 {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
                 <svg className="agent-connection-map" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path d="M47 32 C90 4 110 4 150 32 S215 60 256 32" /><circle cx="111" cy="15" r="3" /><circle cx="218" cy="49" r="3" /></svg>
               </div>
               <div className="log-list">
-                {logs.slice(0, 3).map((log, index) => (
+                {live ? <LiveLogRows rows={liveLogRows} limit={3} /> : logs.slice(0, 3).map((log, index) => (
                   <div className="log-row" key={`${log.time}-${index}`}>
                     <span className="log-time">{log.time}</span>
                     <span className={`agent-pill ${log.color}`}>{log.from.replace(' Agent', '')}</span>
@@ -781,7 +820,7 @@ function App() {
 
         {activeTab === 'model' && (
           <section className="model-tab" aria-label="3D 스마트홈 모델">
-            <Home3D rooms={rooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
           </section>
         )}
 
@@ -811,6 +850,7 @@ function App() {
                   </div>
                 </div>
               </div>
+              {live && <p className="live-banner">이 탭은 데모용 가짜 시나리오예요. 실제 데이터는 Home, 3D Model, Agent Activity 탭에서 볼 수 있어요.</p>}
               <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
             </section>
 
@@ -907,12 +947,23 @@ function App() {
                 <div className="live-state"><i /> LIVE</div>
               </div>
               <div className="activity-stats">
+                {live ? (<>
+                  <div><span>받은 기록</span><b>{liveEvents.length}</b><small>모든 에이전트 · 최근 {liveEvents.length}건</small></div>
+                  <div><span>기기 실행</span><b>{liveExecs.length}</b><small>성공 {liveExecs.filter((event) => event.accepted).length} · 거절 {liveExecs.filter((event) => !event.accepted).length}</small></div>
+                  <div><span>요청</span><b>{liveFlowCards.length}</b><small>수락 {liveFlowCards.filter((card) => card.accepted).length} · 그 외 {liveFlowCards.filter((card) => !card.accepted).length}</small></div>
+                </>) : (<>
                 <div><span>오늘의 이벤트</span><b>24</b><small>+6 since 18:00</small></div>
                 <div><span>자동 실행</span><b>9</b><small>성공률 100%</small></div>
                 <div><span>평균 응답</span><b>0.8s</b><small>실시간 연결</small></div>
+                </>)}
               </div>
               <div className="expanded-timeline">
-                {[
+                {live ? liveTimelineItems.map((item, index) => (
+                  <div className="expanded-event" key={item.key}>
+                    <time>{item.time}</time><i className={index < 2 ? 'active' : ''} />
+                    <div><span>{item.tag}</span><h3>{item.title}</h3><p>{item.detail}</p></div><em>{item.agent}</em>
+                  </div>
+                )) : [
                   ['22:32:10', 'ACTION', '개인 방 환경 적용', '침실 조명 30% · 에어컨 24°C 설정 완료', 'My Room Agent'],
                   ['22:32:09', 'COORDINATE', '수면 환경 작업 조정', '활동·위치 맥락을 결합해 취침 준비 요청', 'Home Agent'],
                   ['22:32:08', 'CONTEXT', 'PC 활동·일정 전달', 'PC 활동 종료와 다음 일정 없음 확인', 'Desktop Agent'],
@@ -931,14 +982,14 @@ function App() {
             <section className="a2a-detail panel">
               <div className="activity-page-heading compact-heading">
                 <div><span>AGENT TO AGENT</span><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
+                {live ? <SocketState status={liveData.collector.status} /> : <div className="socket-state"><Wifi size={13} /> CONNECTED</div>}
               </div>
               <div className="expanded-network">
                 {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
               </div>
               <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span></div>
               <div className="expanded-log-list">
-                {logs.map((log, index) => (
+                {live ? <LiveExpandedLog rows={liveLogRows} /> : logs.map((log, index) => (
                   <div className="expanded-log" key={`${log.time}-${index}`}>
                     <time>{log.time}</time><div><b>{log.from}</b><ChevronRight size={12} /><b>{log.to}</b></div><p>{log.text}</p>
                   </div>

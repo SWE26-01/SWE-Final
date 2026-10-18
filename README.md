@@ -11,7 +11,7 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | [homeassistant/](homeassistant/) | Home Assistant 가상 기기와 Lovelace 대시보드 |
 | [scripts/](scripts/) | 설치·실행·검증 스크립트 |
 | [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
-| [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React. 실제 데이터 연결: [docs/frontend-integration.md](docs/frontend-integration.md) |
+| [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React. LIVE(실제 데이터)/MOCK 전환: [docs/frontend-integration.md](docs/frontend-integration.md) |
 | [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`) |
 | [tools/](tools/) | `sync_upstream.sh`: A2A-agents의 새 커밋을 가져오는 PR 만들기 |
 | [plan.md](plan.md) | 기획서 |
@@ -91,7 +91,7 @@ python services/scripts/verify_integration.py --env-file .env   # 실행 중인 
 ```
 요청 단위 흐름은 Collector `GET /flows`, 자세한 내용은 [docs/integration.md](docs/integration.md).
 
-시뮬레이터 화면: `cd frontend && npm install && npm run dev` (http://localhost:5173)
+시뮬레이터 화면: `cp frontend/.env.example frontend/.env.local`(토큰 입력) 후 `cd frontend && npm ci && npm run dev` (http://localhost:5173). 오른쪽 위 LIVE/MOCK으로 실제 데이터와 데모 데이터를 전환
 
 직접 말 걸기: `scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"`
 

@@ -26,5 +26,6 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
   not edited here: `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`. Propose such changes
   as a PR to A2A-agents. Edit freely: `services/`, `frontend/`, `docs/`, `tools/`, `.github/`, root
   `CLAUDE.md`/`AGENTS.md`. (`frontend/` came from SWE26-01/SWE-frontend but is no longer synced.)
-- The frontend reads live data only through the services (`docs/frontend-integration.md`); the
-  dashboard token is read-only, so the UI never commands devices directly.
+- The frontend reads live data only through the services (`frontend/src/live/`,
+  `docs/frontend-integration.md`); the dashboard token is read-only, so the UI never commands devices
+  directly. Keep the mock scenarios working (MOCK mode) for offline demos.
