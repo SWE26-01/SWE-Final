@@ -139,6 +139,19 @@ export const syncHomeAssistantDevices = (rooms, devices) => {
   }));
 };
 
+export const setHomeAssistantLight = async ({ url, token, entity, on }) => {
+  if (!url || !token || !entity) throw new Error('Home Assistant control is not configured');
+  const endpoint = new URL(url, window.location.href);
+  endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
+  endpoint.pathname = `/dashboard/lights/${encodeURIComponent(entity)}/${on ? 'turn_on' : 'turn_off'}`;
+  endpoint.search = '';
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Home Assistant control failed (${response.status})`);
+};
+
 export const connectHomeAssistant = ({ url, token, onStatus, onSnapshot, onDevice }) => {
   if (!url || !token) {
     onStatus('configuration_required');

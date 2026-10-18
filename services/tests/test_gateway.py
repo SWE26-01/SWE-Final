@@ -207,6 +207,21 @@ def test_area_devices_are_added_and_deleted_from_snapshots(client):
         assert extra not in {item["entity"] for item in ws.receive_json()["devices"]}
 
 
+def test_dashboard_can_control_visible_lights_only(client, ha):
+    devices = client.app.state.devices
+    light = "input_boolean.kitchen_light"
+    client.portal.call(devices.reload, [state(light, "off"), state(TV, "off")])
+
+    response = client.post(f"/dashboard/lights/{light}/turn_on", headers=DASHBOARD)
+    assert response.status_code == 200
+    assert ha.requests[-1].url.path == "/api/services/input_boolean/turn_on"
+    assert json.loads(ha.requests[-1].content) == {"entity_id": light}
+
+    assert client.post(f"/dashboard/lights/{TV}/turn_on", headers=DASHBOARD).status_code == 403
+    assert client.post(f"/dashboard/lights/{light}/toggle", headers=DASHBOARD).status_code == 400
+    assert client.post(f"/dashboard/lights/{light}/turn_on", headers=ROOM1).status_code == 403
+
+
 @pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])
 def test_websocket_is_operator_only(client, query):
     with pytest.raises(WebSocketDisconnect) as exc:

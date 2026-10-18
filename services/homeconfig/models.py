@@ -21,7 +21,7 @@ class _Cfg(BaseModel):
 
 class Role(StrEnum):
     AGENT = "agent"  # an agent in ../agents: commands the devices it owns, reports events
-    OPERATOR = "operator"  # dashboard or simulator: reads everything, commands nothing
+    OPERATOR = "operator"  # dashboard or simulator: reads state and uses limited dashboard controls
 
 
 class CallerEntry(_Cfg):

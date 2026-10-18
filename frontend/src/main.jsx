@@ -30,7 +30,12 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
-import { connectHomeAssistant, mergeHomeAssistantDevices, syncHomeAssistantDevices } from './homeAssistant';
+import {
+  connectHomeAssistant,
+  mergeHomeAssistantDevices,
+  setHomeAssistantLight,
+  syncHomeAssistantDevices,
+} from './homeAssistant';
 import './styles.css';
 
 const gatewayUrl = import.meta.env.VITE_GATEWAY_WS_URL || 'ws://127.0.0.1:8100/ws';
@@ -475,6 +480,23 @@ function App() {
     }));
     setToast(`${label}이(가) ${nextValue ? '켜졌습니다' : '꺼졌습니다'}`);
     window.setTimeout(() => setToast(''), 2200);
+    if (targetDevice.entityId && targetDevice.type === 'light') {
+      setHomeAssistantLight({
+        url: gatewayUrl,
+        token: dashboardToken,
+        entity: targetDevice.entityId,
+        on: nextValue,
+      }).catch(() => {
+        setRooms((current) => current.map((item) => item.id !== roomId ? item : {
+          ...item,
+          devices: item.devices.map((device) => device.id === deviceId
+            ? { ...device, on: !nextValue, value: !nextValue ? '켜짐' : '꺼짐' }
+            : device),
+        }));
+        setToast(`${label} 제어에 실패했습니다`);
+        window.setTimeout(() => setToast(''), 2200);
+      });
+    }
   };
 
   const toggleDevice = (roomId, deviceId) => {
