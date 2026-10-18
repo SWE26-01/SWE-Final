@@ -8,7 +8,13 @@ from gateway.ha import StateStream, websocket_url
 LIGHT = "input_boolean.room1_light"
 HELLO = {"type": "auth_required", "ha_version": "2026.10.0"}
 AUTH_OK = {"type": "auth_ok"}
-SUBSCRIBED = {"id": 1, "type": "result", "success": True, "result": None}
+
+
+def subscribed(request_id: int) -> dict:
+    return {"id": request_id, "type": "result", "success": True, "result": None}
+
+
+SUBSCRIPTIONS = [subscribed(request_id) for request_id in range(1, 5)]
 
 
 def event(entity: str, event_type: str = "state_changed") -> dict:
@@ -98,7 +104,7 @@ async def test_subscribes_and_forwards_only_home_devices():
         [
             HELLO,
             AUTH_OK,
-            SUBSCRIBED,
+            *SUBSCRIPTIONS,
             event(LIGHT),
             event("person.me"),
             event(LIGHT, event_type="call_service"),
@@ -109,6 +115,9 @@ async def test_subscribes_and_forwards_only_home_devices():
     assert session.sent == [
         {"type": "auth", "access_token": "t-ha"},
         {"id": 1, "type": "subscribe_events", "event_type": "state_changed"},
+        {"id": 2, "type": "subscribe_events", "event_type": "entity_registry_updated"},
+        {"id": 3, "type": "subscribe_events", "event_type": "device_registry_updated"},
+        {"id": 4, "type": "subscribe_events", "event_type": "area_registry_updated"},
     ]
     assert calls == [("connect", None), ("change", LIGHT), ("disconnect", None)]
 
@@ -118,7 +127,7 @@ async def test_reconnects_after_failures():
         OSError("connection refused"),
         FakeSocket([HELLO, {"type": "auth_invalid", "message": "Invalid access token"}]),
         FakeSocket([HELLO, AUTH_OK, {"id": 1, "type": "result", "success": False}]),
-        FakeSocket([HELLO, AUTH_OK, SUBSCRIBED, event(LIGHT)]),
+        FakeSocket([HELLO, AUTH_OK, *SUBSCRIPTIONS, event(LIGHT)]),
     )
     calls = await follow(sessions)
     assert len(sessions.urls) == 5  # four attempts, then the script cancels

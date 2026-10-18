@@ -37,6 +37,24 @@ SERVICES: dict[str, dict[str, frozenset[str]]] = {
     "input_number": {"set_value": frozenset({"value"})},
 }
 
+AREA_TO_SPACE = {
+    "주방": "kitchen",
+    "다이닝": "dining",
+    "거실": "living",
+    "베란다": "veranda",
+    "배란다": "veranda",
+    "욕실 1": "bath1",
+    "침실 1": "bedroom1",
+    "침실 2": "bedroom2",
+    "욕실 2": "bath2",
+    "침실 3": "bedroom3",
+}
+SPACE_OWNER = {"bedroom1": "room1", "bedroom2": "room2", "bedroom3": "room1"}
+DEVICE_DOMAINS = {
+    "binary_sensor", "button", "climate", "cover", "fan", "humidifier", "input_boolean",
+    "input_number", "input_select", "light", "lock", "media_player", "sensor", "switch", "vacuum",
+}
+
 
 class Blocked(Exception):
     def __init__(self, status_code: int, message: str) -> None:
@@ -101,28 +119,42 @@ class Devices:
     def __init__(self, config: HomeConfig) -> None:
         self._config = config
         self._states: dict[str, State] = {}
+        self._dynamic: dict[str, tuple[str, str]] = {}
         self.ha_connected = False
         self.hub = Hub()
 
     def view(self, entity: str) -> DeviceState:
-        device = self._config.devices[entity]
+        configured = self._config.devices.get(entity)
+        space, owner = self._dynamic.get(
+            entity,
+            (configured.space, configured.owner) if configured else ("", "orchestrator"),
+        )
         state = self._states.get(entity, {})
         return DeviceState(
             entity=entity,
-            space=device.space,
-            owner=device.owner,
+            space=space,
+            owner=owner,
             state=state.get("state"),
             attributes=state.get("attributes", {}),
             last_changed=state.get("last_changed"),
         )
 
     def snapshot(self) -> dict[str, Any]:
-        devices = [self.view(e) for e in self._config.devices]
+        entities = self._states if self.ha_connected else self._config.devices
+        devices = [self.view(e) for e in entities]
         return Snapshot(ha_connected=self.ha_connected, devices=devices).model_dump(mode="json")
 
-    def reload(self, states: list[State]) -> None:
-        home = self._config.devices
-        self._states = {s["entity_id"]: s for s in states if s.get("entity_id") in home}
+    def reload(self, states: list[State], entity_areas: dict[str, str] | None = None) -> None:
+        placements = entity_areas or {}
+        dynamic = {}
+        for entity, area_name in placements.items():
+            space = AREA_TO_SPACE.get(area_name)
+            domain = entity.partition(".")[0]
+            if space and domain in DEVICE_DOMAINS:
+                dynamic[entity] = (space, SPACE_OWNER.get(space, "orchestrator"))
+        self._dynamic = dynamic
+        visible = set(self._config.devices) | set(dynamic)
+        self._states = {s["entity_id"]: s for s in states if s.get("entity_id") in visible}
         self.ha_connected = True
         self.hub.publish(self.snapshot())
 
@@ -132,8 +164,12 @@ class Devices:
 
     def change(self, data: dict[str, Any], time_fired: str) -> None:
         entity, new, old = data["entity_id"], data.get("new_state"), data.get("old_state")
+        if entity not in self._config.devices and entity not in self._dynamic:
+            return
         if new is None:
             self._states.pop(entity, None)
+            self.hub.publish(self.snapshot())
+            return
         else:
             self._states[entity] = new
         changed = StateChanged(
@@ -159,13 +195,17 @@ def create_app(
     auth = make_auth(config)
 
     async def load_all() -> None:
-        devices.reload(await ha.states())
+        states, entity_areas = await asyncio.gather(ha.states(), ha.entity_areas())
+        devices.reload(states, entity_areas)
 
     async def on_change(data: dict[str, Any], time_fired: str) -> None:
         devices.change(data, time_fired)
 
     async def on_disconnect() -> None:
         devices.disconnected()
+
+    async def on_registry_change() -> None:
+        await load_all()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -177,6 +217,7 @@ def create_app(
                 set(config.devices),
                 on_connect=load_all,
                 on_change=on_change,
+                on_registry_change=on_registry_change,
                 on_disconnect=on_disconnect,
                 **({} if ws_connect is None else {"connect": ws_connect}),
             )

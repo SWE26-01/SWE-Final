@@ -30,7 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
-import { connectHomeAssistant, mergeHomeAssistantDevices } from './homeAssistant';
+import { connectHomeAssistant, mergeHomeAssistantDevices, syncHomeAssistantDevices } from './homeAssistant';
 import './styles.css';
 
 const gatewayUrl = import.meta.env.VITE_GATEWAY_WS_URL || 'ws://127.0.0.1:8100/ws';
@@ -358,7 +358,7 @@ function App() {
     url: gatewayUrl,
     token: dashboardToken,
     onStatus: setGatewayStatus,
-    onSnapshot: (devices) => setRooms((current) => mergeHomeAssistantDevices(current, devices)),
+    onSnapshot: (devices) => setRooms((current) => syncHomeAssistantDevices(current, devices)),
     onDevice: (device) => setRooms((current) => mergeHomeAssistantDevices(current, [device])),
   }), []);
 

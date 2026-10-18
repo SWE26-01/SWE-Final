@@ -44,6 +44,10 @@ const ENTITY_TO_DEVICE = {
   'input_boolean.bedroom3_pc': { roomId: 'bedroom3', deviceId: 'bedroom3-pc' },
 };
 
+const MANAGED_DEVICE_IDS = new Set(
+  Object.values(ENTITY_TO_DEVICE).filter((mapping) => !mapping.valueOnly).map((mapping) => mapping.deviceId),
+);
+
 const disconnectedStates = new Set([null, 'unknown', 'unavailable']);
 
 const deviceType = (device) => {
@@ -85,6 +89,7 @@ const mergeDevice = (rooms, haDevice) => {
         ...device,
         ...(mapped?.valueOnly ? {} : { on: isOn(haDevice.state) }),
         connected,
+        haManaged: true,
         entityId: haDevice.entity,
         owner: haDevice.owner,
         value: stateLabel(haDevice),
@@ -101,6 +106,7 @@ const mergeDevice = (rooms, haDevice) => {
         type: deviceType(haDevice),
         on: isOn(haDevice.state),
         connected,
+        haManaged: true,
         value: stateLabel(haDevice),
       }],
     };
@@ -111,6 +117,27 @@ const mergeDevice = (rooms, haDevice) => {
 export const mergeHomeAssistantDevices = (rooms, devices) => (
   devices.reduce(mergeDevice, rooms)
 );
+
+export const syncHomeAssistantDevices = (rooms, devices) => {
+  const activeEntities = new Set(devices.map((device) => device.entity));
+  const activeDeviceIds = new Set(devices.flatMap((device) => {
+    const mapped = ENTITY_TO_DEVICE[device.entity];
+    return mapped && !mapped.valueOnly ? [mapped.deviceId] : [];
+  }));
+  const reconciled = rooms.map((room) => ({
+    ...room,
+    devices: room.devices.filter((device) => {
+      if (device.haManaged) return activeEntities.has(device.entityId);
+      return !MANAGED_DEVICE_IDS.has(device.id) || activeDeviceIds.has(device.id);
+    }),
+  }));
+  return devices.reduce(mergeDevice, reconciled).map((room) => ({
+    ...room,
+    devices: room.devices.map((device) => (
+      device.entityId && activeEntities.has(device.entityId) ? { ...device, haManaged: true } : device
+    )),
+  }));
+};
 
 export const connectHomeAssistant = ({ url, token, onStatus, onSnapshot, onDevice }) => {
   if (!url || !token) {

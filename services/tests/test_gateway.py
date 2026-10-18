@@ -184,6 +184,29 @@ def test_devices_and_websocket_follow_home_assistant(client):
     assert client.get("/health").json() == {"ok": True, "ha_connected": False}
 
 
+def test_area_devices_are_added_and_deleted_from_snapshots(client):
+    devices = client.app.state.devices
+    extra = "switch.reading_lamp"
+    with client.websocket_connect("/ws?token=t-dashboard") as ws:
+        ws.receive_json()
+        client.portal.call(
+            devices.reload,
+            [state(TV, "off"), state(extra, "on")],
+            {extra: "침실 1"},
+        )
+        snapshot = ws.receive_json()
+        by_entity = {item["entity"]: item for item in snapshot["devices"]}
+        assert by_entity[extra]["space"] == "bedroom1"
+        assert by_entity[extra]["owner"] == "room1"
+
+        client.portal.call(
+            devices.change,
+            {"entity_id": extra, "old_state": state(extra, "on"), "new_state": None},
+            "2026-10-18T01:00:06+00:00",
+        )
+        assert extra not in {item["entity"] for item in ws.receive_json()["devices"]}
+
+
 @pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])
 def test_websocket_is_operator_only(client, query):
     with pytest.raises(WebSocketDisconnect) as exc:
