@@ -1,0 +1,273 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "`device.control` action ({device?, command, value?}) or a rule macro ({macro}).",
+      "properties": {
+        "device": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "macro": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Macro"
+        }
+      },
+      "title": "Action",
+      "type": "object"
+    },
+    "Direction": {
+      "enum": [
+        "in",
+        "out",
+        "out-result",
+        "out-error",
+        "exec",
+        "rule"
+      ],
+      "title": "Direction",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    },
+    "agent": {
+      "description": "reporting agent; must match the caller's token",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Agent",
+      "type": "string"
+    },
+    "dir": {
+      "$ref": "#/$defs/Direction"
+    },
+    "to": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "peer of an out* event",
+      "title": "To"
+    },
+    "from": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "peer of an `in` event ('?' if unknown token)",
+      "title": "From"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Ambient-A2A message type",
+      "title": "Type"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "on_behalf_of": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "original requester",
+      "title": "On Behalf Of"
+    },
+    "action": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Action"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "fields": {
+      "anyOf": [
+        {
+          "items": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fields"
+    },
+    "accepted": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Accepted"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "maxLength": 40,
+          "pattern": "^[A-Z][A-Z_]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "OK, NOT_OWNER, SAFETY_POLICY ...",
+      "title": "Reason Code"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "rule": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "rule events: the field=value that fired",
+      "title": "Rule"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "out-error events",
+      "title": "Error"
+    }
+  },
+  "required": [
+    "ts",
+    "agent",
+    "dir"
+  ],
+  "title": "AgentEvent",
+  "type": "object"
+}

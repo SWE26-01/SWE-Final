@@ -1,0 +1,23 @@
+# Device Gateway and Event Collector next to A2A-agents (SWE26-01/A2A-agents).
+# Tokens, HA_URL and HA_TOKEN come from that repo's .env (add DASHBOARD_TOKEN to it).
+# Set AMBIENT_ENV if it is not at ../A2A-agents/.env.
+services:
+  gateway:
+    build: .
+    command: uvicorn gateway.main:build --factory --host 0.0.0.0 --port 8100
+    env_file: ${AMBIENT_ENV:-../A2A-agents/.env}
+    environment:
+      HA_URL: http://host.docker.internal:8123  # A2A-agents' Home Assistant, published on the host
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["8100:8100"]
+  collector:
+    build: .
+    command: uvicorn collector.main:build --factory --host 0.0.0.0 --port 8200
+    env_file: ${AMBIENT_ENV:-../A2A-agents/.env}
+    environment:
+      COLLECTOR_DB: /data/collector.sqlite
+    volumes: ["collector-data:/data"]
+    ports: ["8200:8200"]
+
+volumes:
+  collector-data:

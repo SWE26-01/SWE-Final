@@ -1,0 +1,32 @@
+[project]
+name = "a2a-agentic-home"
+version = "0.1.0"
+description = "A2A based Agentic Home: Device Gateway and Event Collector for the A2A-agents smart home"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",  # [standard] brings a WebSocket library
+  "pydantic>=2.7",
+  "pyyaml>=6",
+  "httpx>=0.27",
+  "websockets>=13",  # Home Assistant event stream (websockets.asyncio)
+  "python-dotenv>=1",  # scripts/verify_integration.py --env-file
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
+
+[tool.setuptools]
+packages = ["common", "homeconfig", "gateway", "collector"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["spikes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
