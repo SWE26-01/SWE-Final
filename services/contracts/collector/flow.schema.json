@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "`device.control` action ({device?, command, value?}) or a rule macro ({macro}).",
+      "properties": {
+        "device": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "macro": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Macro"
+        }
+      },
+      "title": "Action",
+      "type": "object"
+    }
+  },
+  "description": "Summary of one request for dashboards; GET /flows/{flow} has its events.",
+  "properties": {
+    "flow": {
+      "title": "Flow",
+      "type": "string"
+    },
+    "first_id": {
+      "title": "First Id",
+      "type": "integer"
+    },
+    "last_id": {
+      "title": "Last Id",
+      "type": "integer"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "ended_at": {
+      "format": "date-time",
+      "title": "Ended At",
+      "type": "string"
+    },
+    "agents": {
+      "description": "agents that logged events, in order of appearance",
+      "items": {
+        "type": "string"
+      },
+      "title": "Agents",
+      "type": "array"
+    },
+    "events": {
+      "title": "Events",
+      "type": "integer"
+    },
+    "requester": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "who asked: the sender to the first agent, or the agent whose rule fired",
+      "title": "Requester"
+    },
+    "entry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "agent that received the request and gave the answer",
+      "title": "Entry"
+    },
+    "action": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Action"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "accepted": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "final answer to the requester",
+      "title": "Accepted"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason Code"
+    }
+  },
+  "required": [
+    "flow",
+    "first_id",
+    "last_id",
+    "started_at",
+    "ended_at",
+    "agents",
+    "events",
+    "requester",
+    "entry",
+    "accepted"
+  ],
+  "title": "Flow",
+  "type": "object"
+}

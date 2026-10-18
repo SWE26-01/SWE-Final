@@ -1,3 +1,5 @@
+import json
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -57,7 +59,7 @@ def test_requires_token(client):
 def test_stores_the_agents_own_log_line(client):
     assert post(client, ROOM1, received()).json() == {"id": 1}
     (stored,) = events(client)
-    assert stored == {"id": 1, **received(ts="2026-10-18T01:00:00.123000Z")}
+    assert stored == {"id": 1, "flow": "scn-A1", **received(ts="2026-10-18T01:00:00.123000Z")}
 
 
 LINES = [
@@ -188,3 +190,95 @@ async def test_hub_drops_subscriber_that_falls_behind():
     assert queue.qsize() == 1 and queue.get_nowait() is None
     hub.publish({"id": 9})
     assert queue.empty()
+
+
+# --- flows: one request followed across agents -----------------------------------------------
+
+
+def line(agent: str, dir: str, rid: str | None, at: int, **kw) -> dict:
+    body = {"ts": f"2026-10-18T01:00:{at:02d}Z", "agent": agent, "dir": dir, **kw}
+    return body | ({"request_id": rid} if rid else {})
+
+
+TOKENS = {"orchestrator": HOME, "room1": ROOM1, "room2": bearer("t-room2")}
+LIGHT_MODE = {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"}
+SAVE = {"command": "ENERGY_SAVING"}
+
+# What the agents log, in order, for three requests (agents/ambient-a2a-plugin/src/agent.ts):
+SCENARIO = [
+    # Desktop asks Home for room1's light mode; Home delegates and room1 executes.
+    line("orchestrator", "out", "req-1", 1, to="room1", type="device.control", action=LIGHT_MODE),
+    line("room1", "exec", "req-1", 2, action=LIGHT_MODE, accepted=True, reason_code="OK"),
+    line("room1", "in", "req-1", 2, **{"from": "orchestrator"}, type="device.control",
+         on_behalf_of="desktop", action=LIGHT_MODE, accepted=True, reason_code="OK"),
+    line("orchestrator", "out-result", "req-1", 3, to="room1", type="device.control",
+         accepted=True, reason_code="OK"),
+    line("orchestrator", "in", "req-1", 3, **{"from": "desktop"}, type="device.control",
+         action=LIGHT_MODE, accepted=True, reason_code="OK"),
+    # Context updates carry no request_id and belong to no flow.
+    line("room1", "in", None, 4, **{"from": "desktop"}, type="context.update", accepted=True),
+    # Energy saving: each room gets `<id>/<room>`; room2 keeps its AC on.
+    line("room2", "in", "req-2/room2", 5, **{"from": "orchestrator"}, type="device.control",
+         action=SAVE, accepted=False, reason_code="PARTIAL"),
+    line("room1", "in", "req-2/room1", 5, **{"from": "orchestrator"}, type="device.control",
+         action=SAVE, accepted=True, reason_code="OK"),
+    line("orchestrator", "in", "req-2", 6, **{"from": "desktop"}, type="device.control",
+         action=SAVE, accepted=False, reason_code="PARTIAL"),
+    # A rule room1 fired by itself.
+    line("room1", "exec", "r-3", 7, action=LIGHT_MODE, accepted=True, reason_code="OK"),
+    line("room1", "rule", "r-3", 7, rule="meeting_app_active=true", action=LIGHT_MODE,
+         accepted=True, reason_code="OK"),
+]
+
+
+def play(client: TestClient) -> None:
+    for body in SCENARIO:
+        assert post(client, TOKENS[body["agent"]], body).status_code == 201
+
+
+def test_flows_follow_requests_across_agents(client):
+    play(client)
+    flows = client.get("/flows", headers=DASHBOARD).json()
+    assert [f["flow"] for f in flows] == ["r-3", "req-2", "req-1"]  # most recent first
+    rule, saving, delegated = flows
+
+    assert delegated["requester"] == "desktop" and delegated["entry"] == "orchestrator"
+    assert delegated["agents"] == ["orchestrator", "room1"]
+    assert (delegated["events"], delegated["accepted"], delegated["reason_code"]) == (5, True, "OK")
+    assert delegated["action"]["device"] == "input_select.room1_light_mode"
+    assert delegated["started_at"] == "2026-10-18T01:00:01Z"
+
+    assert (saving["requester"], saving["entry"]) == ("desktop", "orchestrator")
+    assert saving["agents"] == ["room2", "room1", "orchestrator"]
+    assert (saving["accepted"], saving["reason_code"]) == (False, "PARTIAL")
+
+    assert (rule["requester"], rule["entry"], rule["accepted"]) == ("room1", "room1", True)
+
+    assert len(client.get("/flows", params={"limit": 1}, headers=DASHBOARD).json()) == 1
+
+
+def test_flow_detail_and_events_carry_their_flow(client):
+    play(client)
+    detail = client.get("/flows/req-2", headers=DASHBOARD).json()
+    assert detail["flow"]["flow"] == "req-2"
+    assert [e["request_id"] for e in detail["events"]] == ["req-2/room2", "req-2/room1", "req-2"]
+    assert client.get("/flows/nope", headers=DASHBOARD).status_code == 404
+    flows_of = {e["id"]: e.get("flow") for e in events(client)}
+    assert flows_of[6] is None and flows_of[7] == "req-2"
+
+
+def test_flows_are_operator_only(client):
+    assert client.get("/flows", headers=ROOM1).status_code == 403
+    assert client.get("/flows/req-1", headers=ROOM1).status_code == 403
+    assert client.get("/flows").status_code == 401
+
+
+def test_old_database_gets_flows(tmp_path):
+    db = tmp_path / "old.sqlite"
+    with sqlite3.connect(db) as conn:  # schema before flows existed
+        conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT)")
+        for body in SCENARIO[:5]:
+            conn.execute("INSERT INTO events (json) VALUES (?)", (json.dumps(body),))
+    with TestClient(create_app(load_config(env=ENV), str(db))) as c:
+        (flow,) = c.get("/flows", headers=DASHBOARD).json()
+        assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 5, "desktop")

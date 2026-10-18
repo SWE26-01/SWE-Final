@@ -59,6 +59,10 @@ python services/scripts/verify_integration.py --env-file .env
   형식은 `services/contracts/gateway/stream.schema.json`. 사람·구역 같은 다른 HA 엔티티는 보내지 않는다.
 - Collector `WebSocket /ws?token=<DASHBOARD_TOKEN>`: 접속하면 최근 이벤트 `snapshot`, 이후 `event`.
   `GET /events?after_id=&limit=`로 페이지 조회도 된다. 형식은 `services/contracts/collector/event.schema.json`.
+- Collector `GET /flows?limit=`: 요청 하나를 에이전트를 넘나들며 묶은 요약(누가 요청, 누가 받음, 어떤 기기, 최종 수락·거절과 사유), 최근 것부터.
+  `GET /flows/{flow}`는 그 요청의 이벤트 전체. 이벤트마다 `flow` 값이 붙어 있어서 WebSocket에서도 바로 묶을 수 있다.
+  형식은 `services/contracts/collector/flow.schema.json`. 에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지
+  이어 주기 때문에 가능하다(`spec/ambient-a2a.md`).
 
 ## ID
 

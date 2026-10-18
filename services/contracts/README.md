@@ -7,8 +7,10 @@ consuming team reviewing.
 | File | Between | Source of truth |
 | --- | --- | --- |
 | `gateway/stream.schema.json` | Device Gateway → dashboards (WebSocket `/ws`): `snapshot`, `device.state_changed` | `gateway/stream.py` |
+| `collector/flow.schema.json` | Event Collector → dashboards (`GET /flows`, `GET /flows/{flow}`): one request followed across agents | `collector/flows.py` |
 | `collector/event.schema.json` | agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
 
 Agents call the Gateway with Home Assistant's own REST API shape (`GET /api/states/<entity>`,
-`POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Agent-to-agent
+`POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Stored events come
+back with `id` and, when they carry a `request_id`, `flow` (its part before the first `/`). Agent-to-agent
 messages are `../spec/ambient-a2a.md`. Device and agent ids: `config/devices.yaml`.
