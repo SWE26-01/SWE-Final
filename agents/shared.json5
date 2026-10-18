@@ -17,6 +17,10 @@
     probe: "${AMBIENT_TOKEN_PROBE}",
   },
   ha: { url: "${HA_URL:-http://127.0.0.1:8123}", token: "${HA_TOKEN}" },
+  // Optional (SWE-Final services/), empty = off. With a Device Gateway, HA calls go through it using
+  // each agent's own token, and it re-checks device ownership; the Event Collector gathers every log line.
+  gatewayUrl: "${AMBIENT_GATEWAY_URL:-}",
+  collectorUrl: "${AMBIENT_COLLECTOR_URL:-}",
   logFile: "${AMBIENT_ROOT}/logs/events.jsonl",
   ttlSec: 3600,
 }
