@@ -47,6 +47,8 @@ URI: `https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1`
 
 `command`는 `TURN_ON`, `TURN_OFF`, `SET`(`value`: 옵션 또는 숫자), `ENERGY_SAVING` 중 하나다. `ENERGY_SAVING`에는 `device`가 없으며, 각 방이 자기 `energy_saving` 목록을 직접 해석해 실행한다.
 
+`request_id`는 요청 하나를 끝까지 따라간다. Home이 위임할 때는 같은 값을 쓰고, `ENERGY_SAVING`을 여러 방에 나눌 때는 `<request_id>/<room>`을 쓴다. 자동화 규칙이 시작한 동작은 규칙마다 새 `request_id`를 받는다. 그래서 `/` 앞부분이 같은 기록이 한 요청의 전체 흐름이다.
+
 ## 4. 처리 규칙
 
 1. **Context Sharing**
