@@ -14,39 +14,22 @@
   지금은 각 에이전트가 자기 코드로만 막고 있다(`ha.ts`의 화이트리스트). Gateway는 그 코드와 상관없이 막는 두 번째 검사다.
 - **Event Collector**: 각 에이전트의 `logs/events.jsonl` 한 줄을 그대로 받아 한곳에 모으고, 대시보드에 실시간으로 보낸다.
 
-## 에이전트 쪽에서 바꿀 것 (아직 안 함, 에이전트 담당자와 합의 필요)
+## 켜는 방법
 
-에이전트 코드는 SWE26-01/A2A-agents가 원본이라, 아래 변경은 그 레포에 PR로 올리고 `tools/sync_upstream.sh`로 가져온다.
-코드는 몇 줄이다. 두 주소가 비어 있으면 지금처럼 동작하게 해 두면 된다.
+에이전트 쪽 지원은 들어가 있다(SWE26-01/A2A-agents#1). 루트 `.env`에 두 주소를 넣으면 켜지고, 비워 두면 예전처럼 HA를 직접 쓴다.
 
-1. **설정** (`agents/shared.json5`): 주소 두 개 추가
-   ```json5
-   gatewayUrl: "${AMBIENT_GATEWAY_URL:-}",     // 예: http://127.0.0.1:8100
-   collectorUrl: "${AMBIENT_COLLECTOR_URL:-}", // 예: http://127.0.0.1:8200
-   ```
-2. **HA 호출을 Gateway로** (`agents/ambient-a2a-plugin/src/agent.ts`, `createAgent`): `gatewayUrl`이 있으면 HA 주소 대신
-   Gateway를, HA 토큰 대신 **자기 에이전트 토큰**(`cfg.tokens[cfg.agentId]`)을 쓴다. Gateway는 HA REST API와 같은 경로
-   (`GET /api/states/<entity>`, `POST /api/services/<domain>/<service>`)를 받으므로 `ha.ts`는 그대로 둔다.
-   ```ts
-   const myToken = cfg.tokens[cfg.agentId]; // 지금보다 위로 옮김
-   const ha = cfg.ha
-     ? haClient(cfg.gatewayUrl || cfg.ha.url, cfg.gatewayUrl ? myToken : cfg.ha.token, owned)
-     : null;
-   ```
-3. **이벤트를 Collector로** (`agent.ts`, `log()`): 파일에 쓰는 줄을 그대로 보낸다. 실패해도 에이전트는 계속 동작해야 한다.
-   ```ts
-   if (cfg.collectorUrl)
-     void fetch(`${cfg.collectorUrl}/events`, {
-       method: "POST",
-       headers: { authorization: `Bearer ${myToken}`, "content-type": "application/json" },
-       body: JSON.stringify(line),
-       signal: AbortSignal.timeout(2000),
-     }).catch(() => {});
-   ```
-4. **`.env`**: `DASHBOARD_TOKEN`(대시보드가 Gateway·Collector를 읽을 때 쓰는 토큰). 새로 `scripts/setup.sh`를 돌리면
-   `.env.example`에서 랜덤 값으로 채워지고, 기존 `.env`에는 한 줄을 직접 추가한다.
+```bash
+AMBIENT_GATEWAY_URL=http://127.0.0.1:8100    # HA 호출이 Gateway로, 공용 HA 토큰 대신 각 에이전트 자기 토큰으로
+AMBIENT_COLLECTOR_URL=http://127.0.0.1:8200  # 이벤트 로그 한 줄마다 Collector에도 전송 (실패해도 에이전트는 계속 동작)
+DASHBOARD_TOKEN=...                          # 대시보드가 Gateway·Collector를 읽는 토큰 (setup.sh가 새 .env에 자동으로 채움)
+```
 
-`HA_TOKEN`은 Gateway와 설정·시나리오 스크립트(`scripts/setup.sh`, `scripts/scenario.sh`)만 쓴다. 연결 후 에이전트 프로세스에는 필요 없다.
+- 코드: `agents/shared.json5`(`gatewayUrl`, `collectorUrl`), `agents/ambient-a2a-plugin/src/agent.ts`(`createAgent`, `log()`),
+  테스트 `agents/ambient-a2a-plugin/src/services.test.ts`. Gateway가 HA REST API와 같은 경로를 받아서 `ha.ts`는 그대로다.
+- Gateway를 켜면 에이전트는 `services/config/devices.yaml`에 있는 엔티티만 읽고 쓸 수 있다. 에이전트 정책이 새 HA 엔티티를 보게 되면
+  `devices.yaml`에도 추가해야 한다.
+- `HA_TOKEN`은 Gateway와 설정·시나리오 스크립트(`scripts/setup.sh`, `scripts/scenario.sh`)만 쓴다.
+- 에이전트 코드는 A2A-agents가 원본이다. 고칠 때는 그 레포에 PR을 올리고 `tools/sync_upstream.sh`로 가져온다.
 
 ## 실행
 
@@ -66,7 +49,9 @@ python services/scripts/verify_integration.py --env-file .env
 `verify_integration.py`가 보는 것:
 1. 각 에이전트 카드의 `owned_devices`와 `services/config/devices.yaml`이 같은지
 2. 각 에이전트가 남의 기기나 기기 명령이 아닌 서비스(`homeassistant.restart` 등)를 부르면 Gateway가 403으로 막는지
-3. Collector에 모든 에이전트의 이벤트가 들어왔는지 (위 3번 변경 후)
+3. Collector에 모든 에이전트의 이벤트가 들어왔는지
+
+2026-10-18 로컬 실제 환경(HA + 에이전트 5개 + Docker Gateway·Collector)에서 `scripts/scenario.sh` 후 세 항목 모두 통과했다.
 
 ## 대시보드·시뮬레이터가 받는 것
 

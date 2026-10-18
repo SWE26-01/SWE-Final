@@ -92,7 +92,7 @@ uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 uvicorn collector.main:build --factory --port 8200 --env-file ../.env
 python scripts/verify_integration.py --env-file ../.env   # 실행 중인 시스템 확인
 ```
-에이전트가 Gateway·Collector를 쓰도록 연결하는 방법은 [docs/integration.md](docs/integration.md).
+에이전트가 Gateway·Collector를 쓰게 하려면 `.env`에 `AMBIENT_GATEWAY_URL`, `AMBIENT_COLLECTOR_URL`을 넣는다 ([docs/integration.md](docs/integration.md)).
 
 시뮬레이터 화면: `cd frontend && npm install && npm run dev` (http://localhost:5173)
 
