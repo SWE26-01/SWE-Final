@@ -5,8 +5,13 @@
     defaults: {
       workspace: "${AMBIENT_HOME}/state/room1/workspace",
       model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-sonnet-5-5}" },
+      thinkingDefault: "off", // tool routing needs no extended reasoning
+      skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
     },
   },
+  // Lean prompt: only Ambient-A2A tools, exposed directly (no tool_search indirection), no bundled skills.
+  tools: { profile: "minimal", alsoAllow: ["ambient-a2a"], toolSearch: false },
+  skills: { allowBundled: [] },
   plugins: {
     load: { paths: ["${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"] },
     entries: {
