@@ -33,4 +33,6 @@ uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 uvicorn collector.main:build --factory --port 8200 --env-file ../.env
 ```
 
+브라우저 대시보드가 프록시 없이 직접 읽게 하려면 `.env`에 `AMBIENT_CORS_ORIGINS=http://localhost:5173`을 넣는다(GET만 허용).
+
 `collector/events.py`나 `gateway/stream.py`를 바꾸면 `python scripts/export_schemas.py`로 `contracts/`를 갱신한다.

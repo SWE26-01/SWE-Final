@@ -190,3 +190,29 @@ def test_websocket_is_operator_only(client, query):
         with client.websocket_connect(f"/ws{query}") as ws:
             ws.receive_json()
     assert exc.value.code == 1008
+
+
+def preflight(client: TestClient, origin: str) -> httpx.Response:
+    headers = {
+        "Origin": origin,
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization",
+    }
+    return client.options("/devices", headers=headers)
+
+
+def test_cors_only_for_configured_origins(ha):
+    env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173"}
+    app = create_app(load_config(env=env), ha_transport=httpx.MockTransport(ha), stream=False)
+    with TestClient(app) as c:
+        ok = preflight(c, "http://localhost:5173")
+        assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
+        assert "POST" not in ok.headers["access-control-allow-methods"]  # read only
+        assert "access-control-allow-origin" not in preflight(c, "http://evil.test").headers
+        r = c.get("/devices", headers={**DASHBOARD, "Origin": "http://localhost:5173"})
+        assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_no_cors_by_default(client):
+    r = client.get("/devices", headers={**DASHBOARD, "Origin": "http://localhost:5173"})
+    assert "access-control-allow-origin" not in r.headers

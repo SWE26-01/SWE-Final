@@ -63,7 +63,10 @@ python services/scripts/verify_integration.py --env-file .env
   `GET /events?after_id=&limit=`로 페이지 조회도 된다. 형식은 `services/contracts/collector/event.schema.json`.
 - Collector `GET /flows?limit=`: 요청 하나를 에이전트를 넘나들며 묶은 요약(누가 요청, 누가 받음, 어떤 기기, 최종 수락·거절과 사유), 최근 것부터.
   `GET /flows/{flow}`는 그 요청의 이벤트 전체. 이벤트마다 `flow` 값이 붙어 있어서 WebSocket에서도 바로 묶을 수 있다.
-  형식은 `services/contracts/collector/flow.schema.json`. 에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지
+  형식은 `services/contracts/collector/flow.schema.json`. 흐름 안의 이벤트는 실제 시각(`ts`) 순이다. 이벤트 `id`는 Collector에 도착한 순서라서
+  에이전트들이 동시에 보내면 실제 순서와 조금 다를 수 있다.
+- 브라우저에서 프록시 없이 직접 읽으려면 루트 `.env`에 `AMBIENT_CORS_ORIGINS=http://localhost:5173`(쉼표로 여러 개)을 넣는다.
+  GET만 허용하고, 비워 두면 허용하지 않는다. WebSocket은 CORS와 상관없이 붙는다. 에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지
   이어 주기 때문에 가능하다(`spec/ambient-a2a.md`).
 
 ## ID
