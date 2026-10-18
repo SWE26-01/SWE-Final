@@ -38,8 +38,8 @@ button { font: inherit; }
 .live-mode-controls { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
 .live-mode-controls button { display:flex; align-items:center; gap:7px; padding:9px 13px; border:0; border-radius:7px; background:#e7eaec; color:rgba(0,0,0,.5); box-shadow:none; font-size:10px; font-weight:600; letter-spacing:.1em; white-space:nowrap; cursor:pointer; transition:background .18s,color .18s,box-shadow .18s,transform .18s; }
 .live-mode-controls button:hover { color:rgba(0,0,0,.72); background:#dfe4e7; transform:translateY(-1px); }
-.live-mode-controls button.active { color:var(--black); background:#c4dcef; box-shadow:0 5px 16px rgba(106,166,218,.16); }
-.live-mode-controls button.active svg { color:var(--black); }
+.live-mode-controls button.active { color:#fff; background:var(--cornflower); box-shadow:0 5px 16px rgba(3,169,244,.2); }
+.live-mode-controls button.active svg { color:#fff; }
 .live-mode-controls .live-restart { width:34px; justify-content:center; padding:9px; letter-spacing:0; }
 .live-phase { padding:5px 8px; border-radius:999px; color:#60717a; background:rgba(219,227,233,.62); font-size:7px; font-weight:700; letter-spacing:.08em; }
 .live-phase.phase-sensor { color:#397eaf; background:rgba(106,166,218,.17); }.live-phase.phase-predict { color:#655a91; background:rgba(219,227,233,.8); }.live-phase.phase-action { color:#68733b; background:rgba(225,229,172,.7); }.live-phase.phase-verify { color:#2f6f65; background:rgba(190,220,211,.55); }
@@ -367,10 +367,10 @@ button { font: inherit; }
 }
 @media (max-width: 420px) { .panel-heading-actions > p { font-size:7.7px; }.simulation-control button { padding:7px 8px; }.simulation-control button svg { width:13px; }.home-3d { height:430px; }.css-house { width:88%; }.css-room-name { left:5px;bottom:5px; }.css-room-name b { font-size:8px; }.css-room-temp { display:none; }.css-device-pin { width:24px;height:24px; }.room-atmosphere { display:none; } }
 
-/* Palette: Canvas · Mist · Cornflower · Pear · Black */
-:root { --canvas:#FBFBF8; --mist:#DBE3E9; --cornflower:#6AA6DA; --pear:#E1E5AC; --model-accent:#DCE3E6; --black:#000000; --ink:var(--black); --muted:rgba(0,0,0,.56); --line:var(--mist); --mint:var(--pear); --mint-dark:var(--cornflower); --navy:var(--black); --purple:var(--cornflower); }
-body { background:var(--canvas); color:var(--black); }
-.topbar { background:rgba(251,251,248,.9); }.panel { background:var(--canvas); border-color:var(--mist); }
+/* Home Assistant inspired palette: surface · divider · primary · active · text */
+:root { --canvas:#FAFAFA; --mist:#E0E0E0; --cornflower:#03A9F4; --pear:#FFC107; --model-accent:#ECEFF1; --black:#212121; --ink:var(--black); --muted:#727272; --line:var(--mist); --mint:var(--pear); --mint-dark:var(--cornflower); --navy:var(--black); --purple:var(--cornflower); }
+body { background:#f5f5f5; color:var(--black); }
+.topbar { background:rgba(255,255,255,.94); border-bottom:1px solid var(--mist); }.panel { background:#fff; border-color:var(--mist); }
 .simulation-control button,.dark-card,.toast { background:var(--black); }.simulation-control button.pause svg,.mint-icon,.action-plan > div > span,.toast svg { color:var(--pear); }
 .mint-icon,.action-plan > div > span { background:rgba(225,229,172,.15); }.confidence { color:var(--pear); background:rgba(225,229,172,.12); }.confidence-bar { background:rgba(219,227,233,.18); }.confidence-bar span { background:linear-gradient(90deg,var(--cornflower),var(--pear)); }.action-plan { border-color:rgba(219,227,233,.2); }.action-plan em { color:var(--pear); }
 .section-index,.environment-name em { color:rgba(0,0,0,.42); }.environment-name,.environment-summary b,.panel-heading-actions > p { color:rgba(0,0,0,.62); }.environment-summary svg,.updated,.socket-state { color:var(--cornflower); }.environment-summary > span:not(.environment-name) { border-color:var(--mist); }
@@ -485,16 +485,15 @@ body { background:var(--canvas); color:var(--black); }
 @media (max-width:420px) { .three-zoom input { width:68px; }.three-zoom { right:4px; padding:0 6px; gap:4px; }.three-zoom span { display:none; } }
 
 /* Cornflower emphasis instead of high-contrast black */
-.simulation-control button,.dark-card { background:#c4dcef; color:var(--black); }
-.simulation-control button { box-shadow:0 5px 16px rgba(106,166,218,.11); }
-.simulation-control button.pause svg { color:var(--black); }
-.dark-card { box-shadow:0 12px 32px rgba(106,166,218,.1); }
-.dark-card .micro-label,.dark-card .action-plan small { color:rgba(0,0,0,.58); }
-.dark-card .mint-icon,.dark-card .action-plan > div > span { color:var(--black); background:rgba(225,229,172,.72); }
-.dark-card .confidence { color:var(--black); background:rgba(251,251,248,.5); }
-.dark-card .confidence-bar { background:rgba(251,251,248,.46); }
-.dark-card .confidence-bar span { background:var(--pear); }
-.dark-card .action-plan { border-color:rgba(0,0,0,.12); }
+.simulation-control button { color:#fff; background:var(--cornflower); box-shadow:0 5px 16px rgba(3,169,244,.2); }
+.simulation-control button.pause svg { color:#fff; }
+.dark-card { color:var(--black); background:#fff; border-color:var(--mist); box-shadow:0 8px 26px rgba(0,0,0,.06); }
+.dark-card .micro-label,.dark-card .action-plan small { color:var(--muted); }
+.dark-card .mint-icon,.dark-card .action-plan > div > span { color:#9a7100; background:rgba(255,193,7,.22); }
+.dark-card .confidence { color:#0277bd; background:rgba(3,169,244,.1); }
+.dark-card .confidence-bar { background:#eceff1; }
+.dark-card .confidence-bar span { background:var(--cornflower); }
+.dark-card .action-plan { border-color:var(--mist); }
 .dark-card .action-plan em { color:var(--black); }
 
 /* Agent actions */
