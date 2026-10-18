@@ -1,51 +1,103 @@
 {
   "$defs": {
-    "EventKind": {
-      "enum": [
-        "a2a.sent",
-        "a2a.received",
-        "policy.decision",
-        "automation.fired"
-      ],
-      "title": "EventKind",
-      "type": "string"
+    "Action": {
+      "description": "`device.control` action ({device?, command, value?}) or a rule macro ({macro}).",
+      "properties": {
+        "device": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "macro": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Macro"
+        }
+      },
+      "title": "Action",
+      "type": "object"
     },
-    "ReasonCode": {
+    "Direction": {
       "enum": [
-        "ENERGY_SAVING",
-        "MEETING_MODE",
-        "AUTOMATION",
-        "USER_REQUEST",
-        "SAFETY_POLICY",
-        "OCCUPIED",
-        "NOT_OWNER",
-        "NOT_ALLOWED",
-        "EXPIRED_CONTEXT",
-        "APPROVAL_REQUIRED"
+        "in",
+        "out",
+        "out-result",
+        "out-error",
+        "exec",
+        "rule"
       ],
-      "title": "ReasonCode",
+      "title": "Direction",
       "type": "string"
     }
   },
-  "additionalProperties": false,
-  "description": "One audit-log entry reported by an agent.\n\nOnly IDs, message types and outcomes are recorded. There is deliberately no free-form data\nfield, and `summary` must not contain raw personal data (calendar titles, GPS coordinates).",
   "properties": {
-    "at": {
+    "ts": {
       "format": "date-time",
-      "title": "At",
+      "title": "Ts",
       "type": "string"
     },
     "agent": {
-      "description": "reporting agent id; must match the caller's token",
+      "description": "reporting agent; must match the caller's token",
       "maxLength": 64,
       "minLength": 1,
       "title": "Agent",
       "type": "string"
     },
-    "kind": {
-      "$ref": "#/$defs/EventKind"
+    "dir": {
+      "$ref": "#/$defs/Direction"
     },
-    "peer": {
+    "to": {
       "anyOf": [
         {
           "maxLength": 64,
@@ -57,20 +109,14 @@
         }
       ],
       "default": null,
-      "description": "other agent of an A2A exchange",
-      "title": "Peer"
+      "description": "peer of an out* event",
+      "title": "To"
     },
-    "message_type": {
+    "from": {
       "anyOf": [
         {
-          "enum": [
-            "context.update",
-            "context.subscribe",
-            "context.unsubscribe",
-            "context.subscribe.result",
-            "device.control",
-            "device.control.result"
-          ],
+          "maxLength": 64,
+          "minLength": 1,
           "type": "string"
         },
         {
@@ -78,9 +124,10 @@
         }
       ],
       "default": null,
-      "title": "Message Type"
+      "description": "peer of an `in` event ('?' if unknown token)",
+      "title": "From"
     },
-    "request_id": {
+    "type": {
       "anyOf": [
         {
           "maxLength": 64,
@@ -91,12 +138,13 @@
         }
       ],
       "default": null,
-      "title": "Request Id"
+      "description": "Ambient-A2A message type",
+      "title": "Type"
     },
-    "task_state": {
+    "request_id": {
       "anyOf": [
         {
-          "pattern": "^TASK_STATE_[A-Z_]+$",
+          "maxLength": 128,
           "type": "string"
         },
         {
@@ -104,7 +152,50 @@
         }
       ],
       "default": null,
-      "title": "Task State"
+      "title": "Request Id"
+    },
+    "on_behalf_of": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "original requester",
+      "title": "On Behalf Of"
+    },
+    "action": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Action"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "fields": {
+      "anyOf": [
+        {
+          "items": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fields"
     },
     "accepted": {
       "anyOf": [
@@ -121,25 +212,61 @@
     "reason_code": {
       "anyOf": [
         {
-          "$ref": "#/$defs/ReasonCode"
+          "maxLength": 40,
+          "pattern": "^[A-Z][A-Z_]*$",
+          "type": "string"
         },
         {
           "type": "null"
         }
       ],
-      "default": null
+      "default": null,
+      "description": "OK, NOT_OWNER, SAFETY_POLICY ...",
+      "title": "Reason Code"
     },
-    "summary": {
-      "default": "",
-      "maxLength": 200,
-      "title": "Summary",
-      "type": "string"
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "rule": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "rule events: the field=value that fired",
+      "title": "Rule"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "out-error events",
+      "title": "Error"
     }
   },
   "required": [
-    "at",
+    "ts",
     "agent",
-    "kind"
+    "dir"
   ],
   "title": "AgentEvent",
   "type": "object"

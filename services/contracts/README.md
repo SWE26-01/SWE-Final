@@ -1,11 +1,14 @@
 # Contracts
 
-Interfaces shared across teams. Change these by PR with both sides reviewing.
+What dashboards and agents exchange with this repo's services. Generated from code by
+`python scripts/export_schemas.py`; CI fails if they are out of date. Change them by PR with the
+consuming team reviewing.
 
-| Folder | Between | Source of truth |
+| File | Between | Source of truth |
 | --- | --- | --- |
-| `ambient/` | Agent ↔ Agent (Ambient-A2A messages in A2A DataParts) | generated from `ambient/schemas.py` by `scripts/export_schemas.py` |
-| `gateway/` | Device Gateway → dashboard (WebSocket), scenario replay → Gateway (inputs) | hand-written; IDs from `config/devices.yaml` |
-| `collector/` | Agent → Event Collector (`POST /events`), Event Collector → dashboard (`GET /events`, WebSocket `/ws`) | generated from `collector/events.py` by `scripts/export_schemas.py` |
+| `gateway/stream.schema.json` | Device Gateway → dashboards (WebSocket `/ws`): `snapshot`, `device.state_changed` | `gateway/stream.py` |
+| `collector/event.schema.json` | A2A-agents agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
 
-Space IDs: `my_room`, `baby_room`, `elderly_room`, `living_room`, `entrance`.
+Agents call the Gateway with Home Assistant's own REST API shape (`GET /api/states/<entity>`,
+`POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Agent-to-agent
+messages are A2A-agents' `spec/ambient-a2a.md`. Device and agent ids: `config/devices.yaml`.

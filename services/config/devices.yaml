@@ -1,19 +1,19 @@
-# Device ownership (plan doc 3.2). Each device has exactly one owner agent.
-# Space and device IDs are part of the Gateway contract (contracts/gateway) — change them by PR.
-spaces:
-  - {id: my_room, type: personal}
-  - {id: baby_room, type: baby}        # P1
-  - {id: elderly_room, type: elderly}  # P1
-  - {id: living_room, type: shared}
-  - {id: entrance, type: shared}
+# Home Assistant entities and the one agent that may command each (plan 5.4 Room Ownership).
+# Loaded and checked by homeconfig.load_config().
+#
+# Must match SWE26-01/A2A-agents: homeassistant/config/configuration.yaml and each agent's
+# `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
+# The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
+spaces: [living_room, my_room, protected_room]
 
 devices:
-  - {id: my_room_light, space: my_room, kind: light, owner: my-room-user1, state: {power: "off", mode: normal}}
-  - {id: my_room_ac, space: my_room, kind: ac, owner: my-room-user1, state: {power: "off", target_temp: "24"}}
-  - {id: baby_room_light, space: baby_room, kind: light, owner: baby-room-agent, state: {power: "off", mode: normal}}
-  - {id: baby_room_ac, space: baby_room, kind: ac, owner: baby-room-agent, state: {power: "on", target_temp: "24"}}
-  - {id: living_room_light, space: living_room, kind: light, owner: home-agent, state: {power: "on", mode: normal}}
-  - {id: living_room_tv, space: living_room, kind: tv, owner: home-agent, state: {power: "off"}}
-  - {id: living_room_ac, space: living_room, kind: ac, owner: home-agent, state: {power: "off", target_temp: "24"}}
-  - {id: robot_vacuum, space: living_room, kind: vacuum, owner: home-agent, state: {status: idle}}
-  - {id: entrance_light, space: entrance, kind: light, owner: home-agent, state: {power: "off"}}
+  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator}
+  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator}
+  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator}
+  - {entity: input_boolean.room1_light, space: my_room, owner: room1}
+  - {entity: input_select.room1_light_mode, space: my_room, owner: room1}
+  - {entity: input_boolean.room1_ac, space: my_room, owner: room1}
+  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1}
+  - {entity: input_boolean.room2_light, space: protected_room, owner: room2}
+  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2}
+  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2}

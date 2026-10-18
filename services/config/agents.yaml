@@ -1,44 +1,15 @@
-# Agent registry (plan doc 3.4, 6.2). Tokens here are local-dev placeholders only.
-# Loaded and checked by homeconfig.load_config().
+# Who may call the Gateway and the Event Collector. Loaded and checked by homeconfig.load_config().
+#
+# Agent ids and URLs match SWE26-01/A2A-agents (agents/shared.json5 `peers`). Tokens are not
+# stored here: each entry names the environment variable that holds it, so the services can run
+# with that repo's .env (`--env-file ../A2A-agents/.env`).
 agents:
-  - id: desktop-user1
-    kind: desktop
-    url: http://host.docker.internal:9001
-    token: dev-desktop-user1
-    subject: user1
-    provides: [meeting_app_active, meeting_start_at, pc_state]
+  desktop: {token_env: AMBIENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/ambient"}
+  smartphone: {token_env: AMBIENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/ambient"}
+  orchestrator: {token_env: AMBIENT_TOKEN_ORCHESTRATOR, url: "http://127.0.0.1:19040/plugins/ambient"}
+  room1: {token_env: AMBIENT_TOKEN_ROOM1, url: "http://127.0.0.1:19160/plugins/ambient"}
+  room2: {token_env: AMBIENT_TOKEN_ROOM2, url: "http://127.0.0.1:19280/plugins/ambient"}
 
-  - id: mobile-user1
-    kind: mobile
-    url: http://mobile:9002
-    token: dev-mobile-user1
-    subject: user1
-    provides: [presence, moving]
-
-  - id: my-room-user1
-    kind: room
-    url: http://my-room:9101
-    token: dev-my-room-user1
-    space: my_room
-    subscribe:
-      - {to: desktop-user1, fields: [meeting_app_active, pc_state]}
-      - {to: mobile-user1, fields: [presence]}
-
-  - id: baby-room-agent        # P1
-    kind: room
-    enabled: false
-    url: http://baby-room:9102
-    token: dev-baby-room-agent
-    space: baby_room
-
-  - id: home-agent
-    kind: home
-    url: http://home:9100
-    token: dev-home-agent
-    spaces: [living_room, entrance]
-    subscribe:
-      - {to: mobile-user1, fields: [presence]}
-
-  - id: dashboard
-    role: operator
-    token: dev-dashboard
+# Dashboards and the simulator: read device states and events, command nothing.
+operators:
+  dashboard: {token_env: DASHBOARD_TOKEN}

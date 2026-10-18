@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "DeviceState": {
+      "properties": {
+        "entity": {
+          "description": "Home Assistant entity id, from config/devices.yaml",
+          "title": "Entity",
+          "type": "string"
+        },
+        "space": {
+          "title": "Space",
+          "type": "string"
+        },
+        "owner": {
+          "description": "the only agent that may command this device",
+          "title": "Owner",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "HA state ('on', 'meeting', ...); null if unknown",
+          "title": "State"
+        },
+        "attributes": {
+          "additionalProperties": true,
+          "description": "HA attributes, e.g. friendly_name, options",
+          "title": "Attributes",
+          "type": "object"
+        },
+        "last_changed": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Changed"
+        }
+      },
+      "required": [
+        "entity",
+        "space",
+        "owner",
+        "state"
+      ],
+      "title": "DeviceState",
+      "type": "object"
+    },
+    "Snapshot": {
+      "description": "Sent first on connect, and again after the Gateway reconnects to Home Assistant.",
+      "properties": {
+        "type": {
+          "const": "snapshot",
+          "default": "snapshot",
+          "title": "Type",
+          "type": "string"
+        },
+        "ha_connected": {
+          "title": "Ha Connected",
+          "type": "boolean"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/DeviceState"
+          },
+          "title": "Devices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ha_connected",
+        "devices"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "StateChanged": {
+      "properties": {
+        "type": {
+          "const": "device.state_changed",
+          "default": "device.state_changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "device": {
+          "$ref": "#/$defs/DeviceState"
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous"
+        }
+      },
+      "required": [
+        "at",
+        "device"
+      ],
+      "title": "StateChanged",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "device.state_changed": "#/$defs/StateChanged",
+      "snapshot": "#/$defs/Snapshot"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Snapshot"
+    },
+    {
+      "$ref": "#/$defs/StateChanged"
+    }
+  ]
+}

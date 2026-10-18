@@ -1,4 +1,4 @@
-"""Typed, cross-checked access to config/*.yaml (WBS W0-3)."""
+"""Typed, cross-checked access to config/*.yaml and the tokens they name."""
 
 from homeconfig.loader import ConfigError, HomeConfig, load_config
 

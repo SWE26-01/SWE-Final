@@ -1,274 +1,192 @@
 import json
-from datetime import datetime, timedelta
-from pathlib import Path
+from collections.abc import Iterator
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+from support import DASHBOARD, DESKTOP, ENV, HOME, ROOM1, bearer
 
 from gateway.main import create_app
-from homeconfig import load_config
+from homeconfig import ConfigError, load_config
 
-CONTRACT = Path(__file__).resolve().parent.parent / "contracts/gateway/events.schema.json"
-AT = "2026-10-17T09:00:00+09:00"
-
-
-def auth(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+MODE = "input_select.room1_light_mode"
+TV = "input_boolean.living_tv"
 
 
-ROOM = auth("dev-my-room-user1")
-HOME = auth("dev-home-agent")
-DASH = auth("dev-dashboard")
-DESKTOP = auth("dev-desktop-user1")
+class FakeHA:
+    """Home Assistant REST API stand-in that records what reached it."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+        self.fail: Exception | None = None
+        self.answer: httpx.Response | None = None
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer t-ha"  # never an agent token
+        if self.fail is not None:
+            raise self.fail
+        self.requests.append(request)
+        if self.answer is not None:
+            return self.answer
+        path = request.url.path
+        if request.method == "GET" and path == "/api/states":
+            return httpx.Response(200, json=[state(MODE, "normal"), state("person.me", "home")])
+        if request.method == "GET":
+            return httpx.Response(200, json=state(path.rsplit("/", 1)[1], "off"))
+        body = json.loads(request.content)
+        return httpx.Response(200, json=[state(e, "on") for e in body["entity_id"]])
+
+
+def state(entity: str, value: str) -> dict:
+    return {
+        "entity_id": entity,
+        "state": value,
+        "attributes": {"friendly_name": entity},
+        "last_changed": "2026-10-18T01:00:00+00:00",
+    }
 
 
 @pytest.fixture
-def client() -> TestClient:
-    # Context manager: one event loop for HTTP and WebSocket, like uvicorn.
-    with TestClient(create_app(load_config())) as c:
+def ha() -> FakeHA:
+    return FakeHA()
+
+
+@pytest.fixture
+def client(ha: FakeHA) -> Iterator[TestClient]:
+    app = create_app(load_config(env=ENV), ha_transport=httpx.MockTransport(ha), stream=False)
+    with TestClient(app) as c:
         yield c
 
 
-def cmd(client: TestClient, headers, device: str, command: str, rid: str = "r1", **params):
-    body = {"request_id": rid, "command": command, "params": params}
-    return client.post(f"/devices/{device}/commands", json=body, headers=headers)
+def call(client: TestClient, headers, service: str, **body) -> httpx.Response:
+    return client.post(f"/api/services/{service}", json=body, headers=headers)
 
 
-def device_state(client: TestClient, device: str) -> dict:
-    devices = client.get("/devices", headers=DASH).json()
-    return next(d["state"] for d in devices if d["id"] == device)
-
-
-def moved(person: str, space: str) -> dict:
-    return {"type": "person.moved", "at": AT, "person": person, "space": space}
-
-
-def assert_matches_contract(event: dict) -> None:
-    """Required keys present, no unknown keys (no jsonschema dependency)."""
-    variants = json.loads(CONTRACT.read_text())["oneOf"]
-    schema = next(v for v in variants if v["title"] == event["type"])
-    assert set(schema["required"]) <= set(event) <= set(schema["properties"])
-    assert datetime.fromisoformat(event["at"]).utcoffset() == timedelta(0)
-
-
-# --- auth --------------------------------------------------------------------------
-
-
-def test_health_is_public(client):
-    assert client.get("/health").json() == {"ok": True}
-
-
-@pytest.mark.parametrize(
-    "headers",
-    [{}, auth("nope"), {"Authorization": "Basic x"}, auth("dev-baby-room-agent")],  # last: disabled
-)
-def test_missing_or_unknown_token_is_401(client, headers):
-    assert client.get("/devices", headers=headers).status_code == 401
-    assert cmd(client, headers, "my_room_light", "TURN_ON").status_code == 401
-    assert client.get("/spaces/my_room", headers=headers).status_code == 401
-
-
-def test_list_devices(client):
-    devices = {d["id"]: d for d in client.get("/devices", headers=ROOM).json()}
-    assert devices["my_room_ac"] == {
-        "id": "my_room_ac",
-        "space": "my_room",
-        "kind": "ac",
-        "owner": "my-room-user1",
-        "state": {"power": "off", "target_temp": "24"},
-    }
-    assert all(d["owner"] for d in devices.values())
-
-
-# --- commands ----------------------------------------------------------------------
-
-
-def test_owner_command_applies(client):
-    r = cmd(client, ROOM, "my_room_light", "SET_MODE", mode="meeting")
+def test_owner_command_is_forwarded_with_the_ha_token(client, ha):
+    r = call(client, ROOM1, "input_select/select_option", entity_id=MODE, option="meeting")
     assert r.status_code == 200
-    assert r.json() == {
-        "request_id": "r1",
-        "device": "my_room_light",
-        "state": {"power": "off", "mode": "meeting"},
-        "applied": True,
-    }
-    assert device_state(client, "my_room_light")["mode"] == "meeting"
+    assert r.json()[0]["entity_id"] == MODE
+    (sent,) = ha.requests
+    assert sent.url.path == "/api/services/input_select/select_option"
+    assert json.loads(sent.content) == {"entity_id": [MODE], "option": "meeting"}
 
 
-@pytest.mark.parametrize("headers", [HOME, DASH, DESKTOP])
-def test_non_owner_is_403(client, headers):
-    r = cmd(client, headers, "my_room_ac", "TURN_ON")
+def test_home_cannot_move_a_room_device(client, ha):
+    r = call(client, HOME, "input_select/select_option", entity_id=MODE, option="meeting")
     assert r.status_code == 403
-    assert "my-room-user1" in r.json()["detail"]
-    assert device_state(client, "my_room_ac")["power"] == "off"
-
-
-def test_unknown_device_is_404(client):
-    assert cmd(client, ROOM, "garage_door", "TURN_ON").status_code == 404
-
-
-def test_repeated_request_id_is_not_applied_again(client):
-    first = cmd(client, HOME, "robot_vacuum", "START", rid="a")
-    assert cmd(client, HOME, "robot_vacuum", "PAUSE", rid="b").json()["state"] == {
-        "status": "paused"
-    }
-    again = cmd(client, HOME, "robot_vacuum", "START", rid="a")
-    assert again.status_code == 200
-    assert again.json() == first.json()
-    assert device_state(client, "robot_vacuum") == {"status": "paused"}
-
-
-def test_request_id_is_scoped_per_caller(client):
-    assert cmd(client, HOME, "living_room_tv", "TURN_ON", rid="x").status_code == 200
-    assert cmd(client, ROOM, "my_room_light", "TURN_ON", rid="x").status_code == 200
-    assert device_state(client, "my_room_light")["power"] == "on"
-
-
-def test_reused_request_id_with_other_command_is_409(client):
-    assert cmd(client, ROOM, "my_room_light", "TURN_ON", rid="x").status_code == 200
-    assert cmd(client, ROOM, "my_room_light", "TURN_OFF", rid="x").status_code == 409
-    assert device_state(client, "my_room_light")["power"] == "on"
+    assert "owned by room1" in r.json()["message"]
+    assert ha.requests == []
 
 
 @pytest.mark.parametrize(
-    ("device", "command", "params"),
+    ("service", "body", "code"),
     [
-        ("my_room_light", "FLY", {}),
-        ("my_room_light", "SET_TEMP", {"target_temp": "22"}),
-        ("my_room_light", "SET_MODE", {}),
-        ("my_room_light", "SET_MODE", {"mode": "party"}),
-        ("my_room_light", "TURN_ON", {"brightness": "80"}),
-        ("my_room_ac", "SET_TEMP", {"target_temp": 22}),
-        ("my_room_ac", "SET_TEMP", {"target_temp": "warm"}),
-        ("my_room_ac", "SET_TEMP", {"target_temp": "-3"}),
+        ("input_boolean/turn_off", {"entity_id": TV}, 403),  # orchestrator's TV
+        ("input_boolean/turn_off", {"entity_id": "input_boolean.room1_light, " + TV}, 403),
+        ("input_boolean/turn_off", {"entity_id": ["input_boolean.room1_light", TV]}, 403),
+        ("input_boolean/turn_off", {"entity_id": "all"}, 403),  # HA would touch every entity
+        ("input_boolean/turn_off", {"entity_id": "input_boolean.not_home"}, 403),
+        ("homeassistant/restart", {}, 403),
+        ("input_boolean/reload", {"entity_id": "input_boolean.room1_light"}, 403),
+        ("homeassistant/turn_off", {"entity_id": "input_boolean.room1_light"}, 403),
+        ("input_boolean/turn_on", {"entity_id": MODE}, 400),  # wrong domain for the entity
+        ("input_boolean/turn_on", {"area_id": "my_room"}, 400),
+        ("input_boolean/turn_on", {"entity_id": "input_boolean.room1_light", "area_id": "x"}, 400),
+        ("input_select/select_option", {"entity_id": MODE}, 400),  # option missing
+        ("input_boolean/turn_on", {"entity_id": []}, 400),
+        ("input_boolean/turn_on", {"entity_id": 7}, 400),
     ],
 )
-def test_bad_command_or_params_is_400(client, device, command, params):
-    before = device_state(client, device)
-    assert cmd(client, ROOM, device, command, **params).status_code == 400
-    assert device_state(client, device) == before
+def test_blocked_before_reaching_ha(client, ha, service, body, code):
+    r = client.post(f"/api/services/{service}", json=body, headers=ROOM1)
+    assert r.status_code == code, r.json()
+    assert ha.requests == []
 
 
-def test_ac_and_tv_commands(client):
-    assert cmd(client, ROOM, "my_room_ac", "SET_TEMP", rid="1", target_temp="22").json()[
-        "state"
-    ] == {"power": "off", "target_temp": "22"}
-    assert cmd(client, HOME, "living_room_tv", "TURN_ON", rid="2").json()["state"] == {
-        "power": "on"
-    }
+@pytest.mark.parametrize("content", [b"[]", b"not json", b""])
+def test_body_must_be_an_object(client, ha, content):
+    r = client.post("/api/services/input_boolean/turn_on", content=content, headers=ROOM1)
+    assert r.status_code == 400
+    assert ha.requests == []
 
 
-def test_vacuum_transitions(client):
-    def go(command: str, rid: str):
-        return cmd(client, HOME, "robot_vacuum", command, rid=rid)
-
-    assert go("PAUSE", "1").status_code == 409
-    assert go("RESUME", "2").status_code == 409
-    assert go("START", "3").json()["state"] == {"status": "cleaning"}
-    assert go("RESUME", "4").status_code == 409
-    assert go("PAUSE", "5").json()["state"] == {"status": "paused"}
-    assert go("RESUME", "6").json()["state"] == {"status": "cleaning"}
-    assert go("DOCK", "7").json()["state"] == {"status": "idle"}
+@pytest.mark.parametrize(
+    ("headers", "code"), [({}, 401), (bearer("nope"), 401), (bearer("t-ha"), 401), (DASHBOARD, 403)]
+)
+def test_only_agents_command(client, ha, headers, code):
+    assert call(client, headers, "input_boolean/turn_on", entity_id=TV).status_code == code
+    assert ha.requests == []
 
 
-# --- spaces and inputs -------------------------------------------------------------
+def test_read_state_of_home_devices_only(client, ha):
+    r = client.get(f"/api/states/{TV}", headers=DESKTOP)  # reading needs no ownership
+    assert r.status_code == 200 and r.json()["state"] == "off"
+    assert client.get(f"/api/states/{TV}", headers=DASHBOARD).status_code == 200
+    hidden = client.get("/api/states/person.me", headers=ROOM1)
+    assert hidden.status_code == 404
+    assert [req.url.path for req in ha.requests] == [f"/api/states/{TV}"] * 2
+    assert client.get(f"/api/states/{TV}").status_code == 401
 
 
-def test_space_read_permissions(client):
-    defaults = {
-        "occupied": False,
-        "temperature": "26",
-        "illuminance": "300",
-        "sleeping": False,
-        "people": [],
-    }
-    assert client.get("/spaces/my_room", headers=ROOM).json() == {"id": "my_room", **defaults}
-    assert client.get("/spaces/my_room", headers=HOME).status_code == 200
-    assert client.get("/spaces/my_room", headers=DASH).status_code == 200
-    assert client.get("/spaces/living_room", headers=HOME).status_code == 200
-    assert client.get("/spaces/living_room", headers=ROOM).status_code == 403
-    assert client.get("/spaces/my_room", headers=DESKTOP).status_code == 403
-    assert client.get("/spaces/attic", headers=DASH).status_code == 404
+def test_ha_errors_pass_through(client, ha):
+    ha.answer = httpx.Response(400, json={"message": "Invalid option: party"})
+    r = call(client, ROOM1, "input_select/select_option", entity_id=MODE, option="party")
+    assert (r.status_code, r.json()) == (400, {"message": "Invalid option: party"})
 
 
-@pytest.mark.parametrize("headers", [ROOM, HOME])
-def test_inputs_are_operator_only(client, headers):
-    r = client.post("/inputs", json=moved("user1", "my_room"), headers=headers)
-    assert r.status_code == 403
-    assert client.get("/spaces/my_room", headers=DASH).json()["occupied"] is False
+def test_ha_down_is_502(client, ha):
+    ha.fail = httpx.ConnectError("refused")
+    r = call(client, ROOM1, "input_boolean/turn_on", entity_id="input_boolean.room1_light")
+    assert r.status_code == 502
 
 
-def test_person_moved_updates_occupancy(client):
-    def space(space_id: str) -> dict:
-        return client.get(f"/spaces/{space_id}", headers=DASH).json()
-
-    r = client.post("/inputs", json=moved("user1", "my_room"), headers=DASH)
-    assert r.status_code == 200
-    assert r.json()["spaces"][0]["people"] == ["user1"]
-    assert space("my_room")["occupied"] is True
-
-    client.post("/inputs", json=moved("grandma", "my_room"), headers=DASH)
-    client.post("/inputs", json=moved("user1", "living_room"), headers=DASH)
-    assert space("my_room")["people"] == ["grandma"]
-    assert space("my_room")["occupied"] is True
-    assert space("living_room")["people"] == ["user1"]
-
-    client.post("/inputs", json=moved("grandma", "outside"), headers=DASH)
-    assert space("my_room")["occupied"] is False
-    assert space("my_room")["people"] == []
-
-    assert client.post("/inputs", json=moved("user1", "attic"), headers=DASH).status_code == 400
+def test_gateway_needs_the_ha_token():
+    env = {k: v for k, v in ENV.items() if k != "HA_TOKEN"}
+    with pytest.raises(ConfigError, match="HA_TOKEN"):
+        create_app(load_config(env=env))
 
 
-def test_sensor_changed(client):
-    def sensor(name: str, value) -> int:
-        body = {"type": "sensor.changed", "at": AT, "space": "my_room", "sensor": name}
-        return client.post("/inputs", json={**body, "value": value}, headers=DASH).status_code
+def test_devices_and_websocket_follow_home_assistant(client):
+    devices = client.app.state.devices
+    listed = client.get("/devices", headers=ROOM1).json()
+    assert len(listed) == 10 and all(d["state"] is None for d in listed)
 
-    assert sensor("temperature", "28") == 200
-    assert sensor("occupied", True) == 200
-    assert sensor("occupied", "yes") == 422
-    assert sensor("temperature", 28) == 422
-    assert sensor("sleeping", True) == 422  # not a sensor in the contract
-    state = client.get("/spaces/my_room", headers=ROOM).json()
-    assert state["temperature"] == "28" and state["occupied"] is True
+    with client.websocket_connect("/ws?token=t-dashboard") as ws:
+        first = ws.receive_json()
+        assert (first["type"], first["ha_connected"]) == ("snapshot", False)
+
+        client.portal.call(devices.reload, [state(MODE, "normal"), state("person.me", "home")])
+        snap = ws.receive_json()
+        assert snap["ha_connected"] is True
+        by_entity = {d["entity"]: d for d in snap["devices"]}
+        assert "person.me" not in by_entity
+        assert by_entity[MODE]["state"] == "normal"
+        assert by_entity[MODE]["owner"] == "room1" and by_entity[MODE]["space"] == "my_room"
+
+        change = {
+            "entity_id": MODE,
+            "old_state": state(MODE, "normal"),
+            "new_state": state(MODE, "meeting"),
+        }
+        client.portal.call(devices.change, change, "2026-10-18T01:00:05+00:00")
+        msg = ws.receive_json()
+        assert msg["type"] == "device.state_changed"
+        assert (msg["device"]["entity"], msg["device"]["state"], msg["previous"]) == (
+            MODE,
+            "meeting",
+            "normal",
+        )
+
+        client.portal.call(devices.disconnected)
+        assert ws.receive_json()["ha_connected"] is False
+
+    assert client.get("/health").json() == {"ok": True, "ha_connected": False}
 
 
-# --- WebSocket -----------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("query", ["", "?token=nope", "?token=dev-my-room-user1"])
+@pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])
 def test_websocket_is_operator_only(client, query):
     with pytest.raises(WebSocketDisconnect) as exc:
-        with client.websocket_connect(f"/ws{query}"):
-            pass
+        with client.websocket_connect(f"/ws{query}") as ws:
+            ws.receive_json()
     assert exc.value.code == 1008
-
-
-def test_websocket_snapshot_and_broadcast(client):
-    with client.websocket_connect("/ws?token=dev-dashboard") as ws:
-        snap = ws.receive_json()
-        assert snap["type"] == "snapshot"
-        assert {d["id"] for d in snap["devices"]} == set(load_config().devices)
-        assert {s["id"] for s in snap["spaces"]} >= {"my_room", "living_room"}
-
-        # Repeats and no-op commands are not broadcast.
-        assert cmd(client, ROOM, "my_room_ac", "TURN_OFF", rid="noop").status_code == 200
-        cmd(client, ROOM, "my_room_light", "TURN_ON", rid="1")
-        cmd(client, ROOM, "my_room_light", "TURN_ON", rid="1")
-        cmd(client, HOME, "living_room_tv", "TURN_ON", rid="1")
-
-        evt = ws.receive_json()
-        assert_matches_contract(evt)
-        assert evt["type"] == "device.state_changed"
-        assert (evt["device"], evt["by"]) == ("my_room_light", "my-room-user1")
-        assert evt["state"] == {"power": "on", "mode": "normal"}
-        assert ws.receive_json()["device"] == "living_room_tv"
-
-        client.post("/inputs", json=moved("user1", "my_room"), headers=DASH)
-        evt = ws.receive_json()
-        assert_matches_contract(evt)
-        assert evt["type"] == "space.state_changed"
-        assert evt["space"] == "my_room"
-        assert evt["state"]["occupied"] is True and evt["state"]["people"] == ["user1"]
