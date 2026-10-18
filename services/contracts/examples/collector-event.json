@@ -1,0 +1,18 @@
+{
+  "type": "event",
+  "event": {
+    "id": 95,
+    "ts": "2026-10-18T07:53:35.546000Z",
+    "agent": "orchestrator",
+    "dir": "out",
+    "to": "room1",
+    "type": "device.control",
+    "request_id": "demo-meeting",
+    "action": {
+      "device": "input_select.room1_light_mode",
+      "command": "SET",
+      "value": "meeting"
+    },
+    "flow": "demo-meeting"
+  }
+}

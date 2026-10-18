@@ -1,0 +1,106 @@
+{
+  "flow": {
+    "flow": "demo-meeting",
+    "first_id": 95,
+    "last_id": 99,
+    "started_at": "2026-10-18T07:53:35.546000Z",
+    "ended_at": "2026-10-18T07:53:35.605000Z",
+    "agents": [
+      "orchestrator",
+      "room1"
+    ],
+    "events": 5,
+    "requester": "desktop",
+    "entry": "orchestrator",
+    "action": {
+      "device": "input_select.room1_light_mode",
+      "command": "SET",
+      "value": "meeting",
+      "macro": null
+    },
+    "accepted": true,
+    "reason_code": "OK"
+  },
+  "events": [
+    {
+      "id": 95,
+      "ts": "2026-10-18T07:53:35.546000Z",
+      "agent": "orchestrator",
+      "dir": "out",
+      "to": "room1",
+      "type": "device.control",
+      "request_id": "demo-meeting",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "meeting"
+      },
+      "flow": "demo-meeting"
+    },
+    {
+      "id": 96,
+      "ts": "2026-10-18T07:53:35.594000Z",
+      "agent": "room1",
+      "dir": "exec",
+      "request_id": "demo-meeting",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "meeting"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=meeting",
+      "flow": "demo-meeting"
+    },
+    {
+      "id": 99,
+      "ts": "2026-10-18T07:53:35.598000Z",
+      "agent": "room1",
+      "dir": "in",
+      "from": "orchestrator",
+      "type": "device.control",
+      "request_id": "demo-meeting",
+      "on_behalf_of": "desktop",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "meeting"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=meeting",
+      "flow": "demo-meeting"
+    },
+    {
+      "id": 97,
+      "ts": "2026-10-18T07:53:35.604000Z",
+      "agent": "orchestrator",
+      "dir": "out-result",
+      "to": "room1",
+      "type": "device.control",
+      "request_id": "demo-meeting",
+      "accepted": true,
+      "reason_code": "OK",
+      "flow": "demo-meeting"
+    },
+    {
+      "id": 98,
+      "ts": "2026-10-18T07:53:35.605000Z",
+      "agent": "orchestrator",
+      "dir": "in",
+      "from": "desktop",
+      "type": "device.control",
+      "request_id": "demo-meeting",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "meeting"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=meeting",
+      "flow": "demo-meeting"
+    }
+  ]
+}

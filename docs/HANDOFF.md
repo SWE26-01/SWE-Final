@@ -14,20 +14,20 @@
 팀 레포 세 개를 커밋 기록째 이 레포(SWE26-01/SWE-Final) 하나로 합쳤다.
 
 **작업 흐름**
-- 에이전트(A2A-agents)와 프론트(SWE-frontend) 팀원은 **원래 레포에서 계속 작업한다.**
-- SWE-Final 관리자가 `tools/sync_upstream.sh`로 새 커밋을 가져온다. 레포마다 `sync/...` 브랜치와 PR을 하나씩 만든다.
+- 에이전트(A2A-agents) 작업은 **원래 레포에서 계속한다.** 프론트는 2026-10-18부터 **SWE-Final에서 바로 작업한다**(SWE-frontend와는 연결을 끊음).
+- SWE-Final 관리자가 `tools/sync_upstream.sh`로 A2A-agents의 새 커밋을 가져온다. `sync/...` 브랜치와 PR을 만든다.
   `--check`로 새 커밋 수만 볼 수 있다.
 - a2a-agentic-home은 더 이상 쓰지 않는다. `services/` 작업은 SWE-Final에서 바로 한다.
-- **원래 레포가 주인인 경로는 SWE-Final에서 직접 고치지 않는다**: 루트의 `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`,
-  그리고 `frontend/`. 고칠 게 있으면 원래 레포에 PR을 올리고 동기화로 가져온다. 여기서 직접 고치면 다음 동기화 때 충돌한다.
-- SWE-Final에서만 고치는 경로: `services/`, `docs/`, `tools/`, `.github/`, 루트 `CLAUDE.md`·`AGENTS.md`.
+- **A2A-agents가 주인인 경로는 SWE-Final에서 직접 고치지 않는다**: 루트의 `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`.
+  고칠 게 있으면 A2A-agents에 PR을 올리고 동기화로 가져온다. 여기서 직접 고치면 다음 동기화 때 충돌한다.
+- SWE-Final에서 고치는 경로: `services/`, `frontend/`, `docs/`, `tools/`, `.github/`, 루트 `CLAUDE.md`·`AGENTS.md`.
   루트 `README.md`·`.gitignore`·`.env.example`은 A2A-agents에서도 바뀌므로, 동기화 때 충돌이 나면 양쪽 내용을 모두 살린다.
 
 | 폴더 | 원래 레포 | 담당 | 내용 |
 | --- | --- | --- | --- |
 | 루트 (`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`) | A2A-agents | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, orchestrator(=Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `ambient-a2a`에 확장 규칙이 들어 있다 |
 | `services/` | a2a-agentic-home | jwsong05, sjounng | Device Gateway(HA 앞 주인 재확인), Event Collector(통신 기록 모음), 연동 확인 |
-| `frontend/` | SWE-frontend | lahee3423 | 시뮬레이터 화면(React). 대시보드 통합도 이쪽에서 한다 |
+| `frontend/` | SWE-frontend (연결 끊음) | lahee3423(원작), 실제 데이터 연결은 SWE-Final 관리자 | 시뮬레이터 화면(React). 실제 데이터 연결 방법: `docs/frontend-integration.md` |
 
 `services/`는 처음에 Python(a2a-sdk) 에이전트를 만들다가, A2A-agents가 같은 시스템을 OpenClaw로 먼저 끝까지 구현해서
 에이전트를 그쪽으로 일원화하고 Gateway·Collector만 남겼다.
@@ -43,7 +43,7 @@
 - **에이전트는 Gateway를 거쳐 HA를 쓰고, 기록을 Collector로 보낸다.** SWE-Final에서는 `scripts/run_all.sh`가 둘을 함께 띄워 기본으로 켜진다
   (`AMBIENT_SERVICES=off`로 끔, A2A-agents#1·#2). 켜면 에이전트는 HA 토큰 대신 자기 토큰을 쓰고, HA 토큰은 Gateway와 설정 스크립트만 쓴다.
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
-- **대시보드는 frontend 쪽에서 합친다.** `services/`는 데이터(Gateway·Collector WebSocket, `services/contracts/`)만 제공한다.
+- **대시보드는 `frontend/`에서 만든다.** 데이터는 `services/`(Gateway·Collector)에서만 읽는다(`docs/frontend-integration.md`).
 
 ## 아직 정할 것
 
@@ -75,5 +75,5 @@
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
   아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
-- frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결과 대시보드 통합은 frontend 쪽에서 한다.
+- frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결은 SWE-Final 브랜치에서 진행 예정(가이드·샘플 준비됨).
 - 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.

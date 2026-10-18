@@ -1,0 +1,89 @@
+[
+  {
+    "flow": "demo-meeting",
+    "first_id": 95,
+    "last_id": 99,
+    "started_at": "2026-10-18T07:53:35.546000Z",
+    "ended_at": "2026-10-18T07:53:35.605000Z",
+    "agents": [
+      "orchestrator",
+      "room1"
+    ],
+    "events": 5,
+    "requester": "desktop",
+    "entry": "orchestrator",
+    "action": {
+      "device": "input_select.room1_light_mode",
+      "command": "SET",
+      "value": "meeting",
+      "macro": null
+    },
+    "accepted": true,
+    "reason_code": "OK"
+  },
+  {
+    "flow": "order-1792309940",
+    "first_id": 90,
+    "last_id": 94,
+    "started_at": "2026-10-18T07:52:20.660000Z",
+    "ended_at": "2026-10-18T07:52:20.711000Z",
+    "agents": [
+      "orchestrator",
+      "room1"
+    ],
+    "events": 5,
+    "requester": "desktop",
+    "entry": "orchestrator",
+    "action": {
+      "device": "input_select.room1_light_mode",
+      "command": "SET",
+      "value": "normal",
+      "macro": null
+    },
+    "accepted": true,
+    "reason_code": "OK"
+  },
+  {
+    "flow": "live-deny",
+    "first_id": 89,
+    "last_id": 89,
+    "started_at": "2026-10-18T06:40:06.750000Z",
+    "ended_at": "2026-10-18T06:40:06.750000Z",
+    "agents": [
+      "orchestrator"
+    ],
+    "events": 1,
+    "requester": "desktop",
+    "entry": "orchestrator",
+    "action": {
+      "device": "input_boolean.room2_ac",
+      "command": "TURN_OFF",
+      "value": null,
+      "macro": null
+    },
+    "accepted": false,
+    "reason_code": "UNAUTHORIZED"
+  },
+  {
+    "flow": "live-1792305587",
+    "first_id": 84,
+    "last_id": 88,
+    "started_at": "2026-10-18T06:39:48.494000Z",
+    "ended_at": "2026-10-18T06:39:48.526000Z",
+    "agents": [
+      "orchestrator",
+      "room1"
+    ],
+    "events": 5,
+    "requester": "desktop",
+    "entry": "orchestrator",
+    "action": {
+      "device": "input_select.room1_light_mode",
+      "command": "SET",
+      "value": "meeting",
+      "macro": null
+    },
+    "accepted": true,
+    "reason_code": "OK"
+  }
+]
