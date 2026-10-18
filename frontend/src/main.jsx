@@ -194,6 +194,16 @@ const formatActivityDate = (value) => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
 }).format(new Date(`${value}T00:00:00`));
 
+const calendarDays = (monthKey) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const lastDay = new Date(year, month, 0).getDate();
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = index - firstWeekday + 1;
+    return day > 0 && day <= lastDay ? `${monthKey}-${String(day).padStart(2, '0')}` : null;
+  });
+};
+
 const simulationScenarios = [
   {
     id: 1, label: 'SIMULATION 1', title: '요리부터 취침까지', duration: 20, confidence: 96,
@@ -387,6 +397,8 @@ function App() {
   const [homeAssistantActivity, setHomeAssistantActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [selectedActivityDate, setSelectedActivityDate] = useState(localDateKey);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => localDateKey().slice(0, 7));
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -429,6 +441,22 @@ function App() {
     const next = new Date(`${selectedActivityDate}T12:00:00`);
     next.setDate(next.getDate() + amount);
     setSelectedActivityDate(localDateKey(next));
+  };
+
+  const moveCalendarMonth = (amount) => {
+    const current = new Date(`${calendarMonth}-01T12:00:00`);
+    current.setMonth(current.getMonth() + amount);
+    setCalendarMonth(localDateKey(current).slice(0, 7));
+  };
+
+  const openCalendar = () => {
+    setCalendarMonth(selectedActivityDate.slice(0, 7));
+    setCalendarOpen((open) => !open);
+  };
+
+  const selectCalendarDate = (day) => {
+    setSelectedActivityDate(day);
+    setCalendarOpen(false);
   };
 
   useEffect(() => () => {
@@ -1056,8 +1084,33 @@ function App() {
                 <div><span>HOME ASSISTANT LOGBOOK</span><h1>Agent Activity Log</h1><p>선택한 날짜 · {formatActivityDate(selectedActivityDate)}</p></div>
                 <div className="activity-date-controls">
                   <button type="button" onClick={() => moveActivityDate(-1)} aria-label="이전 날짜"><ChevronLeft size={16} /></button>
-                  <label><CalendarDays size={15} /><input type="date" max={localDateKey()} value={selectedActivityDate} onChange={(event) => setSelectedActivityDate(event.target.value)} aria-label="로그 날짜 선택" /></label>
+                  <button type="button" className="calendar-trigger" onClick={openCalendar} aria-label="로그 날짜 선택" aria-expanded={calendarOpen}><CalendarDays size={15} /><span>{selectedActivityDate}</span></button>
                   <button type="button" onClick={() => moveActivityDate(1)} disabled={selectedActivityDate >= localDateKey()} aria-label="다음 날짜"><ChevronRight size={16} /></button>
+                  {calendarOpen && (
+                    <>
+                      <button type="button" className="calendar-dismiss" onClick={() => setCalendarOpen(false)} aria-label="달력 닫기" />
+                      <div className="activity-calendar" role="dialog" aria-label="로그 날짜 달력">
+                        <header>
+                          <button type="button" onClick={() => moveCalendarMonth(-1)} aria-label="이전 달"><ChevronLeft size={15} /></button>
+                          <strong>{new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long' }).format(new Date(`${calendarMonth}-01T12:00:00`))}</strong>
+                          <button type="button" onClick={() => moveCalendarMonth(1)} disabled={calendarMonth >= localDateKey().slice(0, 7)} aria-label="다음 달"><ChevronRight size={15} /></button>
+                        </header>
+                        <div className="calendar-weekdays">{['일', '월', '화', '수', '목', '금', '토'].map((day) => <span key={day}>{day}</span>)}</div>
+                        <div className="calendar-grid">
+                          {calendarDays(calendarMonth).map((day, index) => day ? (
+                            <button
+                              type="button"
+                              key={day}
+                              className={`${day === selectedActivityDate ? 'selected' : ''} ${day === localDateKey() ? 'today' : ''}`}
+                              disabled={day > localDateKey()}
+                              onClick={() => selectCalendarDate(day)}
+                              aria-label={formatActivityDate(day)}
+                            >{Number(day.slice(-2))}</button>
+                          ) : <i key={`empty-${index}`} />)}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="activity-stats">
@@ -1072,7 +1125,6 @@ function App() {
                     <div>
                       <span>{event.context_event_type || 'state_changed'}</span>
                       <h3>{event.name} · {activityStateLabel(event.state)}</h3>
-                      <p>{event.entity_id} · {event.context_domain || 'state'}.{event.context_service || 'changed'}</p>
                       <small>{event.description}</small>
                     </div>
                     <em>{event.action_type === 'agent' ? 'Agent Action' : 'User Action'}<small>{event.actor}</small></em>
