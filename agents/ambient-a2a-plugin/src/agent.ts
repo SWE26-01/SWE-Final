@@ -97,9 +97,9 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     }
   }
 
-  async function local(action: Action): Promise<Result> {
+  async function local(action: Action, request_id?: string): Promise<Result> {
     const r = await execute(action);
-    log({ dir: "exec", action, accepted: r.accepted, reason_code: r.reason_code, message: r.message });
+    log({ dir: "exec", request_id, action, accepted: r.accepted, reason_code: r.reason_code, message: r.message });
     return r;
   }
 
@@ -124,13 +124,14 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     results,
   });
 
-  async function energySavingAll(onBehalfOf?: string): Promise<Result> {
+  /** Per-room requests get child ids `<request_id>/<room>`, so the whole job can be traced as one request. */
+  async function energySavingAll(onBehalfOf?: string, request_id: string = randomUUID()): Promise<Result> {
     if (!rooms.size) await discover();
-    const mine = await Promise.all((cfg.energySaving ?? []).map(local));
+    const mine = await Promise.all((cfg.energySaving ?? []).map((a) => local(a, request_id)));
     const remote = await Promise.all(
       [...rooms].map(async (room) => ({
         room,
-        ...(await call(room, { type: "device.control", request_id: randomUUID(), target: room, on_behalf_of: onBehalfOf, action: { command: "ENERGY_SAVING" }, reason_code: "ENERGY_SAVING" })),
+        ...(await call(room, { type: "device.control", request_id: `${request_id}/${room}`, target: room, on_behalf_of: onBehalfOf, action: { command: "ENERGY_SAVING" }, reason_code: "ENERGY_SAVING" })),
       })),
     );
     return aggregate([...mine.map((r) => ({ room: cfg.agentId, ...r })), ...remote], "home energy saving");
@@ -139,13 +140,13 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   /** Execute or delegate. requester === self means the call came from our own rules/LLM. */
   async function control(action: Action, requester = cfg.agentId, request_id: string = randomUUID()): Promise<Result> {
     if (action.command === "ENERGY_SAVING") {
-      if (cfg.role === "home") return energySavingAll(requester);
-      return aggregate(await Promise.all((cfg.energySaving ?? []).map(local)), `${cfg.agentId} energy saving`);
+      if (cfg.role === "home") return energySavingAll(requester, request_id);
+      return aggregate(await Promise.all((cfg.energySaving ?? []).map((a) => local(a, request_id))), `${cfg.agentId} energy saving`);
     }
     if (!action.device) return deny("BAD_REQUEST", "device required");
     if (cfg.role === "home" && !ownership[action.device] && !owned.includes(action.device)) await discover();
     const owner = route(action.device, owned, ownership);
-    if (owner === "self") return local(action);
+    if (owner === "self") return local(action, request_id);
     if (owner && cfg.role === "home") {
       const r = await call(owner, { type: "device.control", request_id, target: owner, on_behalf_of: requester, action });
       return { ...r, delegated_to: owner };
@@ -156,8 +157,9 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   async function runRules(data: Record<string, unknown>) {
     for (const rule of firedRules(cfg.rules ?? [], data)) {
       for (const a of rule.actions) {
-        const r = "macro" in a ? await energySavingAll() : await control(a);
-        log({ dir: "rule", rule: `${rule.field}=${JSON.stringify(rule.equals)}`, action: a, accepted: r.accepted, reason_code: r.reason_code, message: r.message });
+        const request_id = randomUUID(); // one id for the rule and everything it triggers
+        const r = "macro" in a ? await energySavingAll(undefined, request_id) : await control(a, cfg.agentId, request_id);
+        log({ dir: "rule", request_id, rule: `${rule.field}=${JSON.stringify(rule.equals)}`, action: a, accepted: r.accepted, reason_code: r.reason_code, message: r.message });
       }
     }
   }
