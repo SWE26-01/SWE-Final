@@ -150,7 +150,7 @@ def test_gateway_needs_the_ha_token():
 def test_devices_and_websocket_follow_home_assistant(client):
     devices = client.app.state.devices
     listed = client.get("/devices", headers=ROOM1).json()
-    assert len(listed) == 10 and all(d["state"] is None for d in listed)
+    assert len(listed) == 31 and all(d["state"] is None for d in listed)
 
     with client.websocket_connect("/ws?token=t-dashboard") as ws:
         first = ws.receive_json()
@@ -162,7 +162,7 @@ def test_devices_and_websocket_follow_home_assistant(client):
         by_entity = {d["entity"]: d for d in snap["devices"]}
         assert "person.me" not in by_entity
         assert by_entity[MODE]["state"] == "normal"
-        assert by_entity[MODE]["owner"] == "room1" and by_entity[MODE]["space"] == "my_room"
+        assert by_entity[MODE]["owner"] == "room1" and by_entity[MODE]["space"] == "bedroom1"
 
         change = {
             "entity_id": MODE,

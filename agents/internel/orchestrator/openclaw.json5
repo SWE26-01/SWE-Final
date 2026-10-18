@@ -17,8 +17,14 @@
           agentId: "orchestrator",
           publicUrl: "http://127.0.0.1:19040/plugins/ambient",
           role: "home",
-          space: "living_room",
-          owned: ["input_boolean.living_light", "input_boolean.living_tv", "input_boolean.living_tv_muted"],
+          space: "living",
+          owned: [
+            "input_boolean.kitchen_light", "input_boolean.kitchen_stove", "input_boolean.kitchen_air", "input_boolean.kitchen_hood",
+            "input_boolean.dining_light",
+            "input_boolean.living_light", "input_boolean.living_air", "input_boolean.living_cleaner", "input_boolean.living_tv", "input_boolean.living_tv_muted", "input_boolean.living_purifier",
+            "input_boolean.veranda_light", "input_boolean.veranda_washer",
+            "input_boolean.bath1_light", "input_boolean.bath1_air", "input_boolean.bath2_light", "input_boolean.bath2_air",
+          ],
           // Who may ask Home for what (device id, command, or "*"). Checked before any delegation.
           requestAcl: {
             desktop: ["input_boolean.living_tv_muted", "input_select.room1_light_mode"],

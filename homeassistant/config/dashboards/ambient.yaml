@@ -3,15 +3,32 @@ views:
   - title: Home
     cards:
       - type: entities
-        title: "거실 (orchestrator)"
-        entities: [input_boolean.living_light, input_boolean.living_tv, input_boolean.living_tv_muted]
+        title: "주방"
+        entities: [input_boolean.kitchen_light, input_boolean.kitchen_stove, input_boolean.kitchen_air, input_boolean.kitchen_hood]
       - type: entities
-        title: "내 방 (room1)"
-        entities: [input_boolean.room1_light, input_select.room1_light_mode, input_boolean.room1_ac, input_boolean.room1_occupied]
+        title: "다이닝"
+        entities: [input_boolean.dining_light]
       - type: entities
-        title: "보호 방 (room2)"
-        entities: [input_boolean.room2_sleep_mode, input_boolean.room2_light, input_boolean.room2_ac]
+        title: "거실"
+        entities: [input_boolean.living_light, input_boolean.living_air, input_boolean.living_cleaner, input_boolean.living_tv, input_boolean.living_tv_muted, input_boolean.living_purifier]
+      - type: entities
+        title: "베란다"
+        entities: [input_boolean.veranda_light, input_boolean.veranda_washer]
+      - type: entities
+        title: "욕실 1"
+        entities: [input_boolean.bath1_light, input_boolean.bath1_air]
+      - type: entities
+        title: "침실 1"
+        entities: [input_boolean.room1_light, input_select.room1_light_mode, input_boolean.room1_ac, input_boolean.room1_occupied, input_boolean.bedroom1_curtain, input_boolean.bedroom1_humidifier]
+      - type: entities
+        title: "침실 2"
+        entities: [input_boolean.room2_sleep_mode, input_boolean.room2_light, input_boolean.room2_ac, input_boolean.bedroom2_humidifier]
+      - type: entities
+        title: "욕실 2"
+        entities: [input_boolean.bath2_light, input_boolean.bath2_air]
+      - type: entities
+        title: "침실 3"
+        entities: [input_boolean.bedroom3_light, input_boolean.bedroom3_air, input_boolean.bedroom3_humidifier, input_boolean.bedroom3_pc]
       - type: logbook
         title: "최근 변경"
         hours_to_show: 2
-        entities: [input_boolean.living_tv_muted, input_select.room1_light_mode, input_boolean.room1_light, input_boolean.room1_ac, input_boolean.room2_ac, input_boolean.room2_light]

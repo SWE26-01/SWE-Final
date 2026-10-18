@@ -2,18 +2,45 @@
 default_config:
 
 input_boolean:
+  # kitchen — orchestrator (Home)
+  kitchen_light: { name: "조리대 조명", icon: mdi:countertop-outline }
+  kitchen_stove: { name: "화구", icon: mdi:stove }
+  kitchen_air: { name: "환기 시스템", icon: mdi:fan }
+  kitchen_hood: { name: "주방 후드", icon: mdi:air-filter }
+  # dining — orchestrator (Home)
+  dining_light: { name: "식탁 조명", icon: mdi:ceiling-light-multiple-outline }
   # living room — orchestrator (Home)
   living_light: { name: "거실 조명", icon: mdi:ceiling-light }
+  living_air: { name: "거실 에어컨", icon: mdi:air-conditioner }
+  living_cleaner: { name: "로봇 청소기", icon: mdi:robot-vacuum }
   living_tv: { name: "거실 TV", icon: mdi:television }
   living_tv_muted: { name: "거실 TV 음소거", icon: mdi:volume-off }
-  # room1 — My Room
+  living_purifier: { name: "공기청정기", icon: mdi:air-purifier }
+  # veranda — orchestrator (Home)
+  veranda_light: { name: "베란다 조명", icon: mdi:outdoor-lamp }
+  veranda_washer: { name: "세탁기", icon: mdi:washing-machine }
+  # bath 1 — orchestrator (Home)
+  bath1_light: { name: "욕실 1 천장 조명", icon: mdi:ceiling-light }
+  bath1_air: { name: "욕실 1 환풍기", icon: mdi:fan }
+  # bedroom 1 — My Room
   room1_light: { name: "내 방 조명", icon: mdi:lightbulb }
   room1_ac: { name: "내 방 에어컨", icon: mdi:air-conditioner }
   room1_occupied: { name: "내 방 재실", icon: mdi:account }
-  # room2 — protected room (sleep policy)
+  bedroom1_curtain: { name: "침실 1 스마트 커튼", icon: mdi:curtains }
+  bedroom1_humidifier: { name: "침실 1 가습기", icon: mdi:air-humidifier }
+  # bedroom 2 — protected room (sleep policy)
   room2_light: { name: "보호 방 조명", icon: mdi:lightbulb-night }
   room2_ac: { name: "보호 방 에어컨", icon: mdi:air-conditioner }
   room2_sleep_mode: { name: "보호 방 수면 모드", icon: mdi:sleep }
+  bedroom2_humidifier: { name: "침실 2 가습기", icon: mdi:air-humidifier }
+  # bath 2 — orchestrator (Home)
+  bath2_light: { name: "욕실 2 천장 조명", icon: mdi:ceiling-light }
+  bath2_air: { name: "욕실 2 환풍기", icon: mdi:fan }
+  # bedroom 3 — My Room
+  bedroom3_light: { name: "침실 3 메인 조명", icon: mdi:lightbulb }
+  bedroom3_air: { name: "침실 3 에어컨", icon: mdi:air-conditioner }
+  bedroom3_humidifier: { name: "침실 3 가습기", icon: mdi:air-humidifier }
+  bedroom3_pc: { name: "침실 3 데스크톱 PC", icon: mdi:desktop-tower-monitor }
 
 input_select:
   room1_light_mode:

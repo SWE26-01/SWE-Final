@@ -1,17 +1,47 @@
 const SPACE_TO_ROOM = {
+  kitchen: 'kitchen',
+  dining: 'dining',
+  living: 'living',
+  veranda: 'veranda',
+  bath1: 'bath1',
+  bedroom1: 'bedroom1',
+  bedroom2: 'bedroom2',
+  bath2: 'bath2',
+  bedroom3: 'bedroom3',
   living_room: 'living',
   my_room: 'bedroom1',
   protected_room: 'bedroom2',
 };
 
 const ENTITY_TO_DEVICE = {
+  'input_boolean.kitchen_light': { roomId: 'kitchen', deviceId: 'kitchen-light' },
+  'input_boolean.kitchen_stove': { roomId: 'kitchen', deviceId: 'kitchen-stove' },
+  'input_boolean.kitchen_air': { roomId: 'kitchen', deviceId: 'kitchen-air' },
+  'input_boolean.kitchen_hood': { roomId: 'kitchen', deviceId: 'kitchen-hood' },
+  'input_boolean.dining_light': { roomId: 'dining', deviceId: 'dining-light' },
   'input_boolean.living_light': { roomId: 'living', deviceId: 'living-light' },
+  'input_boolean.living_air': { roomId: 'living', deviceId: 'living-air' },
+  'input_boolean.living_cleaner': { roomId: 'living', deviceId: 'living-cleaner' },
   'input_boolean.living_tv': { roomId: 'living', deviceId: 'living-tv' },
+  'input_boolean.living_purifier': { roomId: 'living', deviceId: 'living-purifier' },
+  'input_boolean.veranda_light': { roomId: 'veranda', deviceId: 'veranda-light' },
+  'input_boolean.veranda_washer': { roomId: 'veranda', deviceId: 'veranda-washer' },
+  'input_boolean.bath1_light': { roomId: 'bath1', deviceId: 'bath1-light' },
+  'input_boolean.bath1_air': { roomId: 'bath1', deviceId: 'bath1-air' },
   'input_boolean.room1_light': { roomId: 'bedroom1', deviceId: 'bedroom1-light' },
   'input_select.room1_light_mode': { roomId: 'bedroom1', deviceId: 'bedroom1-light', valueOnly: true },
   'input_boolean.room1_ac': { roomId: 'bedroom1', deviceId: 'bedroom1-air' },
+  'input_boolean.bedroom1_curtain': { roomId: 'bedroom1', deviceId: 'bedroom1-curtain' },
+  'input_boolean.bedroom1_humidifier': { roomId: 'bedroom1', deviceId: 'bedroom1-humidifier' },
   'input_boolean.room2_light': { roomId: 'bedroom2', deviceId: 'bedroom2-light' },
   'input_boolean.room2_ac': { roomId: 'bedroom2', deviceId: 'bedroom2-air' },
+  'input_boolean.bedroom2_humidifier': { roomId: 'bedroom2', deviceId: 'bedroom2-humidifier' },
+  'input_boolean.bath2_light': { roomId: 'bath2', deviceId: 'bath2-light' },
+  'input_boolean.bath2_air': { roomId: 'bath2', deviceId: 'bath2-air' },
+  'input_boolean.bedroom3_light': { roomId: 'bedroom3', deviceId: 'bedroom3-light' },
+  'input_boolean.bedroom3_air': { roomId: 'bedroom3', deviceId: 'bedroom3-air' },
+  'input_boolean.bedroom3_humidifier': { roomId: 'bedroom3', deviceId: 'bedroom3-humidifier' },
+  'input_boolean.bedroom3_pc': { roomId: 'bedroom3', deviceId: 'bedroom3-pc' },
 };
 
 const disconnectedStates = new Set([null, 'unknown', 'unavailable']);
@@ -132,4 +162,3 @@ export const connectHomeAssistant = ({ url, token, onStatus, onSnapshot, onDevic
     socket?.close();
   };
 };
-

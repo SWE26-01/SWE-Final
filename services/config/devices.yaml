@@ -4,16 +4,37 @@
 # Must match ../homeassistant/config/configuration.yaml and each agent's
 # `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
 # The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
-spaces: [living_room, my_room, protected_room]
+spaces: [kitchen, dining, living, veranda, bath1, bedroom1, bedroom2, bath2, bedroom3]
 
 devices:
-  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.room1_light, space: my_room, owner: room1}
-  - {entity: input_select.room1_light_mode, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_ac, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1}
-  - {entity: input_boolean.room2_light, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2}
+  - {entity: input_boolean.kitchen_light, space: kitchen, owner: orchestrator}
+  - {entity: input_boolean.kitchen_stove, space: kitchen, owner: orchestrator}
+  - {entity: input_boolean.kitchen_air, space: kitchen, owner: orchestrator}
+  - {entity: input_boolean.kitchen_hood, space: kitchen, owner: orchestrator}
+  - {entity: input_boolean.dining_light, space: dining, owner: orchestrator}
+  - {entity: input_boolean.living_light, space: living, owner: orchestrator}
+  - {entity: input_boolean.living_air, space: living, owner: orchestrator}
+  - {entity: input_boolean.living_cleaner, space: living, owner: orchestrator}
+  - {entity: input_boolean.living_tv, space: living, owner: orchestrator}
+  - {entity: input_boolean.living_tv_muted, space: living, owner: orchestrator}
+  - {entity: input_boolean.living_purifier, space: living, owner: orchestrator}
+  - {entity: input_boolean.veranda_light, space: veranda, owner: orchestrator}
+  - {entity: input_boolean.veranda_washer, space: veranda, owner: orchestrator}
+  - {entity: input_boolean.bath1_light, space: bath1, owner: orchestrator}
+  - {entity: input_boolean.bath1_air, space: bath1, owner: orchestrator}
+  - {entity: input_boolean.room1_light, space: bedroom1, owner: room1}
+  - {entity: input_select.room1_light_mode, space: bedroom1, owner: room1}
+  - {entity: input_boolean.room1_ac, space: bedroom1, owner: room1}
+  - {entity: input_boolean.room1_occupied, space: bedroom1, owner: room1}
+  - {entity: input_boolean.bedroom1_curtain, space: bedroom1, owner: room1}
+  - {entity: input_boolean.bedroom1_humidifier, space: bedroom1, owner: room1}
+  - {entity: input_boolean.room2_light, space: bedroom2, owner: room2}
+  - {entity: input_boolean.room2_ac, space: bedroom2, owner: room2}
+  - {entity: input_boolean.room2_sleep_mode, space: bedroom2, owner: room2}
+  - {entity: input_boolean.bedroom2_humidifier, space: bedroom2, owner: room2}
+  - {entity: input_boolean.bath2_light, space: bath2, owner: orchestrator}
+  - {entity: input_boolean.bath2_air, space: bath2, owner: orchestrator}
+  - {entity: input_boolean.bedroom3_light, space: bedroom3, owner: room1}
+  - {entity: input_boolean.bedroom3_air, space: bedroom3, owner: room1}
+  - {entity: input_boolean.bedroom3_humidifier, space: bedroom3, owner: room1}
+  - {entity: input_boolean.bedroom3_pc, space: bedroom3, owner: room1}

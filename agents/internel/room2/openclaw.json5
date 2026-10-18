@@ -17,8 +17,8 @@
           agentId: "room2",
           publicUrl: "http://127.0.0.1:19280/plugins/ambient",
           role: "room",
-          space: "protected_room",
-          owned: ["input_boolean.room2_light", "input_boolean.room2_ac", "input_boolean.room2_sleep_mode"],
+          space: "bedroom2",
+          owned: ["input_boolean.room2_light", "input_boolean.room2_ac", "input_boolean.room2_sleep_mode", "input_boolean.bedroom2_humidifier"],
           requestAcl: { orchestrator: ["*"] },
           // Safety rules apply to every requester, including Home.
           policies: [

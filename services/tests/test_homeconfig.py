@@ -37,6 +37,7 @@ def test_repo_config_loads():
         "input_boolean.room2_light",
         "input_boolean.room2_ac",
         "input_boolean.room2_sleep_mode",
+        "input_boolean.bedroom2_humidifier",
     }
     room1 = cfg.caller_by_token("t-room1")
     assert room1 is not None and room1.id == "room1" and room1.role is Role.AGENT
@@ -75,9 +76,9 @@ def test_device_checks(cfg_dir):
     def bad(data):
         data["devices"] += [
             {"entity": "input_boolean.x", "space": "attic", "owner": "room1"},
-            {"entity": "input_boolean.y", "space": "my_room", "owner": "dashboard"},
-            {"entity": "input_boolean.room1_light", "space": "my_room", "owner": "room1"},
-            {"entity": "Not An Entity", "space": "my_room", "owner": "room1"},
+            {"entity": "input_boolean.y", "space": "bedroom1", "owner": "dashboard"},
+            {"entity": "input_boolean.room1_light", "space": "bedroom1", "owner": "room1"},
+            {"entity": "Not An Entity", "space": "bedroom1", "owner": "room1"},
         ]
 
     edit(cfg_dir / "devices.yaml", bad)

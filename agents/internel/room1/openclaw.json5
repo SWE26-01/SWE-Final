@@ -17,8 +17,12 @@
           agentId: "room1",
           publicUrl: "http://127.0.0.1:19160/plugins/ambient",
           role: "room",
-          space: "my_room",
-          owned: ["input_boolean.room1_light", "input_select.room1_light_mode", "input_boolean.room1_ac", "input_boolean.room1_occupied"],
+          space: "bedroom1",
+          owned: [
+            "input_boolean.room1_light", "input_select.room1_light_mode", "input_boolean.room1_ac", "input_boolean.room1_occupied",
+            "input_boolean.bedroom1_curtain", "input_boolean.bedroom1_humidifier",
+            "input_boolean.bedroom3_light", "input_boolean.bedroom3_air", "input_boolean.bedroom3_humidifier", "input_boolean.bedroom3_pc",
+          ],
           requestAcl: { orchestrator: ["*"] },
           subscribeTo: { desktop: ["meeting_app_active", "pc_state"], smartphone: ["presence"] },
           rules: [
