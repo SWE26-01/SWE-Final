@@ -14,6 +14,7 @@ import {
   Pause,
   Play,
   Power,
+  Send,
   ShieldCheck,
   ShowerHead,
   SlidersHorizontal,
@@ -21,9 +22,8 @@ import {
   Sun,
   Droplets,
   RotateCcw,
-  Thermometer,
   Tv,
-  Volume2,
+  UserRound,
   WashingMachine,
   Wifi,
   Wind,
@@ -142,18 +142,6 @@ const initialRooms = [
   },
 ];
 
-const createTestRooms = () => initialRooms.map((room, index) => ({
-  ...room,
-  devices: room.devices.map((device) => ({ ...device })),
-  noise: [38, 42, 36, 31, 44, 32, 35, 46, 33][index],
-}));
-
-const testLimits = {
-  temp: 26,
-  humidity: 60,
-  noise: 55,
-};
-
 const baseLogs = [
   { time: '22:32:08', from: 'Desktop Agent', to: 'Home Agent', text: 'PC 활동 종료·취침 일정 맥락 전달', color: 'purple' },
   { time: '22:32:09', from: 'Home Agent', to: 'My Room Agent', text: '수면 환경 준비 요청', color: 'blue' },
@@ -167,6 +155,18 @@ const agentRoleMap = {
 };
 
 const agentRole = (name) => agentRoleMap[name] || name;
+
+const chatAgents = ['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'];
+
+const initialUserMessages = [
+  {
+    id: 'welcome',
+    role: 'agent',
+    agent: 'Home Agent',
+    text: '안녕하세요. 집 안 기기 상태나 자동화에 대해 무엇이든 말씀해 주세요.',
+    time: '지금',
+  },
+];
 
 const simulationScenarios = [
   {
@@ -334,8 +334,6 @@ function App() {
   const occupantJourneyTimer = useRef(null);
   const [rooms, setRooms] = useState(cloneInitialRooms);
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [testRooms, setTestRooms] = useState(createTestRooms);
-  const [selectedTestRoom, setSelectedTestRoom] = useState(null);
   const [running, setRunning] = useState(true);
   const [logs, setLogs] = useState(baseLogs);
   const [toast, setToast] = useState('');
@@ -357,6 +355,9 @@ function App() {
   const [liveSensor, setLiveSensor] = useState('대기 중');
   const [occupantRoom, setOccupantRoom] = useState(null);
   const [gatewayStatus, setGatewayStatus] = useState('connecting');
+  const [selectedChatAgent, setSelectedChatAgent] = useState('Home Agent');
+  const [chatInput, setChatInput] = useState('');
+  const [userMessages, setUserMessages] = useState(initialUserMessages);
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -446,15 +447,6 @@ function App() {
         humidity: Math.round(rooms.reduce((sum, item) => sum + item.humidity, 0) / rooms.length),
         sensor: '정상',
       };
-  const testRoom = selectedTestRoom ? testRooms.find((item) => item.id === selectedTestRoom) : null;
-  const testEnvironment = testRoom
-    ? { label: testRoom.name, temp: testRoom.temp, humidity: testRoom.humidity, sensor: '테스트' }
-    : {
-        label: '평균',
-        temp: testRooms.reduce((sum, item) => sum + item.temp, 0) / testRooms.length,
-        humidity: Math.round(testRooms.reduce((sum, item) => sum + item.humidity, 0) / testRooms.length),
-        sensor: '테스트',
-      };
   const liveScenario = simulationScenarios.find((scenario) => scenario.id === liveScenarioId) || simulationScenarios[0];
   const occupantRoomName = rooms.find((item) => item.id === occupantRoom)?.name;
   const liveHasExited = liveActivity.some((event) => Object.prototype.hasOwnProperty.call(event, 'occupant') && event.occupant === null);
@@ -464,7 +456,6 @@ function App() {
     presence: liveHasExited ? '외출' : occupantRoom === 'exit' ? '현관' : occupantRoomName || '거실',
   };
   environment.presence = '거실';
-  testEnvironment.presence = '거실';
 
   const setDevicePower = (roomId, deviceId, nextValue) => {
     const targetRoom = rooms.find((item) => item.id === roomId);
@@ -576,12 +567,24 @@ function App() {
     setDecisionMotion((motion) => ({ direction, id: motion.id + 1 }));
   };
 
-  const updateTestEnvironment = (field, value) => {
-    if (!selectedTestRoom) return;
-    setTestRooms((current) => current.map((item) => item.id === selectedTestRoom ? { ...item, [field]: Number(value) } : item));
+  const sendChatMessage = (event) => {
+    event.preventDefault();
+    const text = chatInput.trim();
+    if (!text) return;
+    const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    setUserMessages((current) => [
+      ...current,
+      { id: `${Date.now()}-user`, role: 'user', text, time },
+      {
+        id: `${Date.now()}-agent`,
+        role: 'agent',
+        agent: selectedChatAgent,
+        text: `${selectedChatAgent}가 요청을 확인했습니다. 연결된 기기와 현재 상태를 기준으로 처리할게요.`,
+        time,
+      },
+    ]);
+    setChatInput('');
   };
-
-  const resetTestEnvironment = () => setTestRooms(createTestRooms());
 
   const applyLiveCommands = (commands) => {
     if (!commands.length) return;
@@ -712,7 +715,7 @@ function App() {
             ['home', 'Home'],
             ['model', '3D Model'],
             ['live', 'Live Simulation'],
-            ['test', 'Control Mode'],
+            ['chat', 'Agent Chat'],
             ['activity', 'Agent Activity'],
           ].map(([key, label]) => (
             <button className={activeTab === key ? 'active' : ''} key={key} onClick={() => setActiveTab(key)}>{label}</button>
@@ -926,43 +929,58 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'test' && (
-          <div className="test-tab">
-            <section className="test-model" aria-label="환경 테스트용 3D 스마트홈">
-              <Home3D rooms={testRooms} environment={testEnvironment} selectedRoom={selectedTestRoom} onRoomSelect={setSelectedTestRoom} onBack={() => setSelectedTestRoom(null)} />
+        {activeTab === 'chat' && (
+          <div className="chat-tab">
+            <section className="chat-panel panel" aria-label="에이전트 간 채팅">
+              <header className="chat-panel-heading">
+                <div><span>AGENT NETWORK</span><h1>Agent-to-Agent</h1><p>에이전트가 주고받는 협업 메시지를 실시간으로 확인합니다.</p></div>
+                <div className="live-state"><i /> LIVE</div>
+              </header>
+              <div className="chat-participants" aria-label="연결된 에이전트">
+                {chatAgents.map((agent) => <span key={agent}><Bot size={14} />{agent.replace(' Agent', '')}</span>)}
+              </div>
+              <div className="agent-chat-stream" aria-live="polite">
+                {logs.slice().reverse().map((log, index) => (
+                  <article className="agent-chat-message" key={`${log.time}-${index}`}>
+                    <div className={`chat-avatar ${log.color}`}><Bot size={17} /></div>
+                    <div className="chat-message-body">
+                      <div><b>{log.from}</b><span>{log.time}</span></div>
+                      <p>{log.text}</p>
+                      <small><span>{log.from.replace(' Agent', '')}</span><ChevronRight size={11} /><span>{log.to.replace(' Agent', '')}</span></small>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
-            <aside className="test-control panel">
-              <div className="test-control-heading">
-                <div><span>ENVIRONMENT LAB</span><h2>Room Test Control</h2><p>테스트용 값은 Home 환경과 별도로 관리됩니다.</p></div>
-                <button type="button" onClick={resetTestEnvironment} aria-label="테스트 환경 초기화"><RotateCcw size={14} /></button>
+
+            <section className="chat-panel user-chat-panel panel" aria-label="사용자와 에이전트 채팅">
+              <header className="chat-panel-heading">
+                <div><span>USER CHANNEL</span><h1>User Chat</h1><p>에이전트를 선택해 집 안 상태와 자동화를 요청할 수 있습니다.</p></div>
+                <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
+              </header>
+              <div className="chat-agent-selector" aria-label="대화할 에이전트 선택">
+                {chatAgents.map((agent) => (
+                  <button type="button" className={selectedChatAgent === agent ? 'active' : ''} key={agent} onClick={() => setSelectedChatAgent(agent)}>
+                    <Bot size={13} />{agent.replace(' Agent', '')}
+                  </button>
+                ))}
               </div>
-              <div className="test-room-list" aria-label="테스트할 방 선택">
-                {testRooms.map((item) => <button type="button" className={selectedTestRoom === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedTestRoom(item.id)}>{item.name}</button>)}
+              <div className="user-chat-stream" aria-live="polite">
+                {userMessages.map((message) => (
+                  <article className={`user-chat-message ${message.role}`} key={message.id}>
+                    <div className="chat-avatar">{message.role === 'user' ? <UserRound size={17} /> : <Bot size={17} />}</div>
+                    <div className="chat-message-body">
+                      <div><b>{message.role === 'user' ? '나' : message.agent}</b><span>{message.time}</span></div>
+                      <p>{message.text}</p>
+                    </div>
+                  </article>
+                ))}
               </div>
-              {testRoom ? (
-                <div className="test-sliders">
-                  <div className="test-selected-room"><span>SELECTED ROOM</span><h3>{testRoom.name}</h3><p>{testRoom.description}</p></div>
-                  <label className={`test-slider temperature ${testRoom.temp > testLimits.temp ? 'is-alert' : ''}`}>
-                    <span><i><Thermometer size={16} /></i><b>온도</b><output>{testRoom.temp.toFixed(1)}°C</output></span>
-                    <input type="range" min="16" max="32" step="0.1" value={testRoom.temp} onChange={(event) => updateTestEnvironment('temp', event.target.value)} />
-                    <small><em>16°C</em><em>32°C</em></small>
-                  </label>
-                  <label className={`test-slider humidity ${testRoom.humidity > testLimits.humidity ? 'is-alert' : ''}`}>
-                    <span><i><Droplets size={16} /></i><b>습도</b><output>{testRoom.humidity}%</output></span>
-                    <input type="range" min="20" max="80" step="1" value={testRoom.humidity} onChange={(event) => updateTestEnvironment('humidity', event.target.value)} />
-                    <small><em>20%</em><em>80%</em></small>
-                  </label>
-                  <label className={`test-slider noise ${testRoom.noise > testLimits.noise ? 'is-alert' : ''}`}>
-                    <span><i><Volume2 size={16} /></i><b>소음</b><output>{testRoom.noise} dB</output></span>
-                    <input type="range" min="20" max="90" step="1" value={testRoom.noise} onChange={(event) => updateTestEnvironment('noise', event.target.value)} />
-                    <small><em>20 dB</em><em>90 dB</em></small>
-                  </label>
-                  <div className="test-state-note"><i />이 설정은 Control Mode에서만 적용됩니다.</div>
-                </div>
-              ) : (
-                <div className="test-empty"><SlidersHorizontal size={24} /><h3>방을 선택해 주세요</h3><p>3D 모델이나 위의 방 목록을 선택하면 환경 값을 조정할 수 있습니다.</p></div>
-              )}
-            </aside>
+              <form className="chat-composer" onSubmit={sendChatMessage}>
+                <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={`${selectedChatAgent}에게 메시지 보내기`} aria-label="채팅 메시지" />
+                <button type="submit" disabled={!chatInput.trim()} aria-label="메시지 전송"><Send size={17} /></button>
+              </form>
+            </section>
           </div>
         )}
 
