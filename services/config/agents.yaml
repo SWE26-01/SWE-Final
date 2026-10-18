@@ -1,8 +1,8 @@
 # Who may call the Gateway and the Event Collector. Loaded and checked by homeconfig.load_config().
 #
-# Agent ids and URLs match SWE26-01/A2A-agents (agents/shared.json5 `peers`). Tokens are not
-# stored here: each entry names the environment variable that holds it, so the services can run
-# with that repo's .env (`--env-file ../A2A-agents/.env`).
+# Agent ids and URLs match ../agents/shared.json5 `peers`. Tokens are not stored here: each
+# entry names the environment variable that holds it, so the services run with the root .env
+# (`--env-file ../.env`).
 agents:
   desktop: {token_env: AMBIENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/ambient"}
   smartphone: {token_env: AMBIENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/ambient"}

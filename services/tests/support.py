@@ -1,4 +1,4 @@
-"""Shared test values: the environment the services would get from A2A-agents' .env."""
+"""Shared test values: the environment the services would get from the root .env."""
 
 ENV = {
     "AMBIENT_TOKEN_DESKTOP": "t-desktop",

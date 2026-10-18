@@ -20,7 +20,7 @@ class _Cfg(BaseModel):
 
 
 class Role(StrEnum):
-    AGENT = "agent"  # an A2A-agents agent: commands the devices it owns, reports events
+    AGENT = "agent"  # an agent in ../agents: commands the devices it owns, reports events
     OPERATOR = "operator"  # dashboard or simulator: reads everything, commands nothing
 
 

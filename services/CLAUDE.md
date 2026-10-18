@@ -1,18 +1,14 @@
-Read `docs/HANDOFF.md` first for project context and decisions.
+# Rules for `services/` (Device Gateway, Event Collector)
 
-# Rules for AI coding tools (Claude Code, Copilot, Cursor …)
-
-This repo is the Device Gateway and the Event Collector for the agents in SWE26-01/A2A-agents
-(OpenClaw). Do not add agent logic here; agents, the Ambient-A2A spec and Home Assistant config
-live in that repo. See `docs/integration.md`.
+The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`.
 
 - Agent IDs (`desktop`, `smartphone`, `orchestrator`, `room1`, `room2`) and device IDs (Home Assistant
-  entity ids) follow A2A-agents. A device change touches A2A-agents' HA config and `owned` lists and
-  this repo's `config/devices.yaml` together.
+  entity ids) follow `../agents` and `../homeassistant`. A device change touches the HA config, the
+  agents' `owned` lists and `config/devices.yaml` together.
 - Read config only through `homeconfig.load_config()`. Tokens are never written in `config/`; each
-  entry names an environment variable (A2A-agents' `.env`).
-- The Gateway is the only Home Assistant client that holds the HA token. It forwards a service call
-  only when every target entity is owned by the calling agent and the service is in `SERVICES`
+  entry names an environment variable (the root `.env`).
+- The Gateway is the only Home Assistant client that should hold the HA token. It forwards a service
+  call only when every target entity is owned by the calling agent and the service is in `SERVICES`
   (`gateway/main.py`); everything else is refused before it reaches HA. Never add a pass-through.
 - The Gateway shows dashboards and agents only entities listed in `config/devices.yaml`
   (other HA entities, such as people and zones, may hold personal data).

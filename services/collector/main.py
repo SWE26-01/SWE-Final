@@ -1,9 +1,9 @@
 """Event Collector (WBS W8-4): one audit log of every agent's A2A traffic and decisions.
 
-A2A-agents' agents POST each event-log line here with their own token. Dashboards read the log
+The agents (../agents) POST each event-log line here with their own token. Dashboards read the log
 with GET /events or live over WebSocket /ws.
 
-Run: uvicorn collector.main:build --factory --port 8200 --env-file ../A2A-agents/.env
+Run: uvicorn collector.main:build --factory --port 8200 --env-file ../.env
      (database file: env COLLECTOR_DB, default collector.sqlite)
 """
 

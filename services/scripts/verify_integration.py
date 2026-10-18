@@ -1,9 +1,9 @@
-"""Check the running system: A2A-agents' agents + this repo's Gateway and Event Collector.
+"""Check the running system: the agents + the Device Gateway and the Event Collector.
 
-Start A2A-agents (scripts/run_all.sh) with its agents pointed at the Gateway, start the Gateway
-and the Collector, run A2A-agents' scripts/scenario.sh, then:
+Start the agents (../scripts/run_all.sh) pointed at the Gateway, start the Gateway and the
+Collector, run ../scripts/scenario.sh, then:
 
-    python scripts/verify_integration.py --env-file ../A2A-agents/.env
+    python scripts/verify_integration.py --env-file ../.env
 
 Checks (plan 8.3, "each Room Agent directly controls only its own devices", plus the log):
   1. every Agent Card's `owned_devices` matches config/devices.yaml
@@ -109,7 +109,7 @@ def collector(config: HomeConfig, url: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--env-file", help="A2A-agents .env with the agent tokens")
+    parser.add_argument("--env-file", help="the root .env with the agent tokens")
     parser.add_argument("--gateway", default="http://127.0.0.1:8100")
     parser.add_argument("--collector", default="http://127.0.0.1:8200")
     args = parser.parse_args()
