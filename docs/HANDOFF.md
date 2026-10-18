@@ -40,8 +40,8 @@
 - **분산 제어**: 각 기기는 담당 에이전트가 하나다. Home도 방 기기는 주인 에이전트에게 넘기기만 한다(`on_behalf_of`).
 - **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
   Collector는 정해진 필드만 저장하며, Gateway는 `services/config/devices.yaml`에 있는 엔티티만 보여 준다.
-- **HA 토큰은 Gateway만 가진다**(목표). 에이전트는 자기 토큰으로 Gateway를 부르고, 기록은 에이전트가 Collector로 보낸다.
-  에이전트 쪽 변경은 `docs/integration.md`에 있고 아직 적용 전이다. 에이전트 코드라서 A2A-agents에 PR로 올린 뒤 동기화한다(담당자 합의 필요).
+- **에이전트는 Gateway를 거쳐 HA를 쓰고, 기록을 Collector로 보낸다.** 루트 `.env`의 `AMBIENT_GATEWAY_URL`·`AMBIENT_COLLECTOR_URL`로 켜고,
+  비우면 예전처럼 HA를 직접 쓴다(A2A-agents#1). 켜면 에이전트는 HA 토큰 대신 자기 토큰을 쓰고, HA 토큰은 Gateway와 설정 스크립트만 쓴다.
 - **대시보드는 frontend 쪽에서 합친다.** `services/`는 데이터(Gateway·Collector WebSocket, `services/contracts/`)만 제공한다.
 
 ## 아직 정할 것
@@ -58,7 +58,9 @@
   `input_select.select_option`, `input_number.set_value`뿐이다. `entity_id`의 쉼표 목록과 `all`도 하나씩 검사한다.
 - Gateway는 HA WebSocket(`state_changed`)을 구독한다. 다시 연결되면 전체 상태를 다시 읽어 대시보드에 `snapshot`을 다시 보낸다.
 - 테스트는 가짜 HA(`httpx.MockTransport`, 가짜 WebSocket)로 돌아서 CI에 HA가 필요 없다.
-  가짜 HA 서버로 실제 프로세스 확인을 했다(2026-10-18). 실제 HA와 에이전트를 붙인 확인은 에이전트 쪽 변경 후에 한다.
+- 실제 환경 확인(2026-10-18, 로컬): HA + 에이전트 5개 + `services/docker-compose.yml`로 띄운 Gateway·Collector에서
+  `scripts/scenario.sh` 결과가 그대로이고, `services/scripts/verify_integration.py` 세 항목이 모두 통과했다.
+- `scripts/setup.sh`는 HA 초기 설정이 끝난 뒤 다시 돌리면 `/api/onboarding`(초기 설정 후 404)을 기다리며 멈춘다. 한 번만 돌린다.
 
 ## 사전 실험에서 확인한 것 (A2A v1.0, a2a-sdk 1.2.2)
 
@@ -70,6 +72,6 @@
 ## 현재 상태
 
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
-- services: Gateway·Collector·연동 확인 스크립트 완료. 에이전트와 연결은 아직이다.
+- services: Gateway·Collector·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과).
 - frontend: 가짜 데이터로 동작하는 화면. 실제 데이터 연결과 대시보드 통합은 frontend 쪽에서 한다.
-- 다음: 에이전트 쪽 연동 변경(A2A-agents에 PR) 합의 → 실제 시스템으로 `verify_integration.py` 통과 → 사용자 승인 등 범위 결정.
+- 다음(services): 검증 결과 보고서(#6)와 아키텍처 문서(#5)의 services 부분, 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤).
