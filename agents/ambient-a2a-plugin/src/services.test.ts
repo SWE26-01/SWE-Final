@@ -25,12 +25,13 @@ beforeEach(() => {
 
 describe("optional services", () => {
   it("without them, devices go straight to Home Assistant with the HA token", async () => {
-    expect((await room1().control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
+    // shared.json5 turns an unset env var into "", which must mean "off" just like undefined
+    expect((await room1({ gatewayUrl: "", collectorUrl: "" }).control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
     expect(calls).toEqual([{ url: "http://ha/api/services/input_boolean/turn_on", auth: "Bearer ha-token", body: { entity_id: LIGHT } }]);
   });
 
   it("with gatewayUrl, devices go through the Gateway with the agent's own token", async () => {
-    expect((await room1({ gatewayUrl: "http://gateway" }).control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
+    expect((await room1({ gatewayUrl: "http://gateway/" }).control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
     expect(calls).toEqual([{ url: "http://gateway/api/services/input_boolean/turn_on", auth: "Bearer t-1", body: { entity_id: LIGHT } }]);
   });
 

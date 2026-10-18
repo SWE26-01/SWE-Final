@@ -39,7 +39,9 @@ type Result = Decision & Record<string, unknown>;
 export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m: string): void } = console) {
   const owned = cfg.owned ?? [];
   const myToken = cfg.tokens[cfg.agentId];
-  const ha = cfg.ha ? haClient(cfg.gatewayUrl || cfg.ha.url, cfg.gatewayUrl ? myToken : cfg.ha.token, owned) : null;
+  const gatewayUrl = cfg.gatewayUrl?.replace(/\/+$/, "");
+  const collectorUrl = cfg.collectorUrl?.replace(/\/+$/, "");
+  const ha = cfg.ha ? haClient(gatewayUrl || cfg.ha.url, gatewayUrl ? myToken : cfg.ha.token, owned) : null;
   const store = new ContextStore();
   const pub = new Publisher(cfg.agentId, cfg.subject ?? "user1", cfg.provides ?? [], cfg.fieldAcl ?? {});
   const ownership: Record<string, string> = {}; // device -> owning agent (home only, filled from Agent Cards)
@@ -49,8 +51,8 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   const log = (e: Record<string, unknown>) => {
     const line = { ts: new Date().toISOString(), agent: cfg.agentId, ...e };
     logger.info(`[ambient] ${JSON.stringify(line)}`);
-    if (cfg.collectorUrl)
-      void fetch(`${cfg.collectorUrl}/events`, {
+    if (collectorUrl)
+      void fetch(`${collectorUrl}/events`, {
         method: "POST",
         headers: { authorization: `Bearer ${myToken}`, "content-type": "application/json" },
         body: JSON.stringify(line),
