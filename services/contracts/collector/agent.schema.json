@@ -1,0 +1,92 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "online": {
+      "description": "its Agent Card answered at the last check",
+      "title": "Online",
+      "type": "boolean"
+    },
+    "checked_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "last check; null before the first",
+      "title": "Checked At"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "external, home or room (from the card)",
+      "title": "Role"
+    },
+    "space": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Space"
+    },
+    "owned_devices": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Owned Devices",
+      "type": "array"
+    },
+    "provided_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Provided Fields",
+      "type": "array"
+    },
+    "last_event_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "`ts` of its latest event in the Collector",
+      "title": "Last Event At"
+    },
+    "events": {
+      "default": 0,
+      "description": "events it has reported",
+      "title": "Events",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "online"
+  ],
+  "title": "AgentStatus",
+  "type": "object"
+}

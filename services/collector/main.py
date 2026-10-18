@@ -8,6 +8,8 @@ Run: uvicorn collector.main:build --factory --port 8200 --env-file ../.env
      (database file: env COLLECTOR_DB, default collector.sqlite)
 """
 
+import asyncio
+import contextlib
 import json
 import os
 import sqlite3
@@ -15,14 +17,17 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query, WebSocket, status
 from starlette.websockets import WebSocketDisconnect
 
+from collector.agents import AgentStatus, AgentWatcher
 from collector.events import AgentEvent
 from collector.flows import Flow, StoredEvent, flow_of, in_time_order, summarize
 from common.auth import make_auth, ws_caller
 from common.cors import allow_dashboards
 from common.hub import Hub, push
+from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
 from homeconfig.models import Role
 
@@ -83,6 +88,20 @@ class EventStore:
         )
         return [_row(*r) for r in rows]
 
+    def activity(self) -> dict[str, tuple[str, int]]:
+        """agent id -> (`ts` of its latest event, number of events)."""
+        rows = self._db.execute(
+            "SELECT json_extract(json, '$.agent'), MAX(id), COUNT(*) FROM events GROUP BY 1"
+        ).fetchall()
+        latest = dict(
+            self._db.execute(
+                f"SELECT id, json_extract(json, '$.ts') FROM events WHERE id IN "
+                f"({','.join('?' * len(rows))})",
+                [r[1] for r in rows],
+            ).fetchall()
+        ) if rows else {}
+        return {agent: (latest[last_id], count) for agent, last_id, count in rows}
+
     def recent_flows(self, limit: int) -> list[str]:
         """Flows with the most recent activity first."""
         rows = self._db.execute(
@@ -106,21 +125,53 @@ def _row(event_id: int | None, raw: str, flow: str | None) -> StoredEvent:
     return row
 
 
-def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> FastAPI:
-    """Build the collector. The database is opened at startup and closed at shutdown."""
+def create_app(
+    config: HomeConfig,
+    db_path: str,
+    hub: Hub | None = None,
+    *,
+    watch_agents: bool = True,
+    agent_transport: httpx.AsyncBaseTransport | None = None,
+) -> FastAPI:
+    """Build the collector. The database is opened at startup and closed at shutdown, and the
+    agents' cards are checked in the background (`watch_agents=False` skips that, for tests)."""
     store = EventStore(db_path)
     hub = hub or Hub()
+
+    def agent_statuses() -> list[AgentStatus]:
+        activity = store.activity()
+        statuses = []
+        for agent in watcher.statuses.values():
+            last_event_at, events = activity.get(agent.id, (None, 0))
+            update = {"last_event_at": last_event_at, "events": events}
+            statuses.append(AgentStatus.model_validate(agent.model_dump() | update))
+        return statuses
+
+    def agents_message() -> list[dict]:
+        return [s.model_dump(mode="json") for s in agent_statuses()]
+
+    watcher = AgentWatcher(
+        config.agents(),
+        on_change=lambda: hub.publish({"type": "agents", "agents": agents_message()}),
+        transport=agent_transport,
+    )
     auth = make_auth(config)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         store.open()
+        task = asyncio.create_task(watcher.run()) if watch_agents else None
         try:
             yield
         finally:
+            if task is not None:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
             store.close()
 
     app = FastAPI(title="Event Collector", lifespan=lifespan)
+    hide_tokens_in_server_logs()
     allow_dashboards(app, config)
 
     @app.get("/health")
@@ -143,6 +194,11 @@ def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> Fast
         limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
     ) -> list[StoredEvent]:
         return store.after(after_id, limit)
+
+    @app.get("/agents")
+    async def list_agents(_: auth.operator) -> list[AgentStatus]:
+        """Every configured agent: up or down (Agent Card check) and its latest activity."""
+        return agent_statuses()
 
     @app.get("/flows")
     async def list_flows(
@@ -167,8 +223,8 @@ def create_app(config: HomeConfig, db_path: str, hub: Hub | None = None) -> Fast
         queue = hub.subscribe()
         try:
             # No await between subscribing and reading the snapshot, so nothing is missed.
-            snapshot = store.latest(SNAPSHOT_SIZE)
-            await websocket.send_json({"type": "snapshot", "events": snapshot})
+            snapshot = {"type": "snapshot", "events": store.latest(SNAPSHOT_SIZE)}
+            await websocket.send_json(snapshot | {"agents": agents_message()})
             await push(websocket, queue)
         except WebSocketDisconnect:
             pass

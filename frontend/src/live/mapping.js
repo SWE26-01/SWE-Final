@@ -174,4 +174,23 @@ export function liveOccupantRoom(devices) {
   return devices[OCCUPIED]?.state === 'on' ? 'bedroom3' : null;
 }
 
+const ROLE_TEXT = { external: '외부 기기', home: '공용 공간', room: '방' };
+const SPACE_TEXT = { living_room: '거실', my_room: '내 방', protected_room: '보호 방' };
+
+/** Agent card from a Collector agent status (GET /agents item). */
+export function toAgentCard(status) {
+  const where = [ROLE_TEXT[status.role], SPACE_TEXT[status.space]].filter(Boolean).join(' · ');
+  const last = status.last_event_at ? `마지막 활동 ${timeOf(status.last_event_at)}` : '활동 기록 없음';
+  return {
+    id: status.id,
+    name: agentName(status.id),
+    online: status.online,
+    checked: Boolean(status.checked_at),
+    detail: [where, last].filter(Boolean).join(' · '),
+  };
+}
+
+// Agent nodes drawn on the Home tab, by label.
+export const NODE_AGENT = { Home: 'orchestrator', 'My Room': 'room1', Desktop: 'desktop', Mobile: 'smartphone' };
+
 export const socketLabel = (status) => ({ open: 'CONNECTED', connecting: 'CONNECTING', closed: 'RECONNECTING', off: 'OFF' }[status] || status);
