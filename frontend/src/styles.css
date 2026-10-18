@@ -325,6 +325,8 @@ button { font: inherit; }
 .timeline-item p { margin:0; }.timeline-item b { display:block; font-size:11px; }.timeline-item small { display:block; color:#89938f; font-size:8px; margin-top:5px; }
 .event-tag { grid-column:3; justify-self:start; font-size:7px; color:#477aa8; background:#edf5fa; padding:3px 5px; margin-top:8px; border-radius:4px; }.event-tag.purple { color:#715dc5; background:#f2f0ff; }.event-tag.green { color:#167c5d; background:#eaf7f2; }
 .socket-state { color:#168260; background:#ecf8f3; padding:5px 7px; border-radius:30px; }
+.socket-state.offline { color:#7d8983; background:#eef0ef; }
+.home-assistant-state { flex:0 0 auto; white-space:nowrap; }
 .agent-network { height:74px; position:relative; display:flex; justify-content:space-around; align-items:center; background:#f7f9f7; border-radius:11px; margin-bottom:10px; overflow:hidden; }
 .agent-network > .agent-connection-map { position:absolute; left:8%; width:84%; height:64px; }.agent-connection-map path { fill:none; stroke:#c5d7d0; stroke-width:1.2; stroke-dasharray:4 3; }.agent-connection-map circle { fill:#28a87f; }
 .agent-node { z-index:2; width:56px; height:47px; background:#fff; border:1px solid #dce5df; border-radius:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#33846a; box-shadow:0 4px 13px rgba(22,42,34,.06); }.agent-node span { font-size:7px; font-weight:700; margin-top:2px; color:#62716b; }

@@ -30,7 +30,20 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
+import { connectHomeAssistant, mergeHomeAssistantDevices } from './homeAssistant';
 import './styles.css';
+
+const gatewayUrl = import.meta.env.VITE_GATEWAY_WS_URL || 'ws://127.0.0.1:8100/ws';
+const dashboardToken = import.meta.env.VITE_DASHBOARD_TOKEN || '';
+
+const gatewayLabels = {
+  connected: 'HOME ASSISTANT',
+  connecting: 'CONNECTING',
+  reconnecting: 'RECONNECTING',
+  ha_disconnected: 'HA OFFLINE',
+  configuration_required: 'SET TOKEN',
+  invalid_message: 'STREAM ERROR',
+};
 
 const initialRooms = [
   {
@@ -335,10 +348,19 @@ function App() {
   const [livePhase, setLivePhase] = useState('READY');
   const [liveSensor, setLiveSensor] = useState('대기 중');
   const [occupantRoom, setOccupantRoom] = useState(null);
+  const [gatewayStatus, setGatewayStatus] = useState('connecting');
 
   useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+
+  useEffect(() => connectHomeAssistant({
+    url: gatewayUrl,
+    token: dashboardToken,
+    onStatus: setGatewayStatus,
+    onSnapshot: (devices) => setRooms((current) => mergeHomeAssistantDevices(current, devices)),
+    onDevice: (device) => setRooms((current) => mergeHomeAssistantDevices(current, [device])),
+  }), []);
 
   useEffect(() => () => {
     if (environmentAnimationFrame.current) window.cancelAnimationFrame(environmentAnimationFrame.current);
@@ -664,6 +686,7 @@ function App() {
               </div>
               <div className="panel-heading-actions">
                 <p>공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.</p>
+                <div className={`socket-state home-assistant-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
                 <div className="simulation-control">
                   <button onClick={toggleSimulation} className={running ? 'pause' : ''}>
                     {running ? <CircleDot size={17} /> : <Play size={17} />}
@@ -758,7 +781,7 @@ function App() {
             <section className="a2a-card panel">
               <div className="panel-heading compact">
                 <div><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
+                <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
               </div>
               <div className="agent-network">
                 {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -838,7 +861,7 @@ function App() {
               <section className="a2a-card panel">
                 <div className="panel-heading compact">
                   <div><h2>A2A Communication</h2></div>
-                  <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
+                  <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
                 </div>
                 <div className="agent-network">
                   {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${liveRunId ? 'active' : ''}`}><Bot size={17} /><span>{agent}</span></div>)}
@@ -931,7 +954,7 @@ function App() {
             <section className="a2a-detail panel">
               <div className="activity-page-heading compact-heading">
                 <div><span>AGENT TO AGENT</span><h2>A2A Communication</h2></div>
-                <div className="socket-state"><Wifi size={13} /> CONNECTED</div>
+                <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
               </div>
               <div className="expanded-network">
                 {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
