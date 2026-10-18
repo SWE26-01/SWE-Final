@@ -71,6 +71,8 @@ scripts/setup.sh    # 최초 1회. 다시 실행해도 안전함
 
 (선택) 폰 입력: `scripts/oc.sh smartphone channels add --channel telegram --token <bot-token>`
 
+(선택) Device Gateway·Event Collector(SWE-Final `services/`): `.env`에 `AMBIENT_GATEWAY_URL`(예: `http://127.0.0.1:8100`), `AMBIENT_COLLECTOR_URL`(예: `http://127.0.0.1:8200`)을 넣으면 에이전트가 HA 대신 Gateway를 자기 토큰으로 부르고, 이벤트 로그를 Collector로도 보낸다. 비워 두면 지금처럼 HA를 직접 쓴다.
+
 > OpenClaw의 파일 보안 검사가 한글(NFD) 경로를 거부한다. 그래서 `scripts/oc.sh`가 `agents/`를 `~/.ambient-a2a/app`으로 미러링해서 실행하고, 게이트웨이 state도 `~/.ambient-a2a/state/<agent>`에 둔다. 수정은 항상 레포에서 하면 된다. 다음 실행 때 자동으로 동기화된다.
 
 ## 실행
