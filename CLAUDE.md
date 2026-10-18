@@ -5,7 +5,7 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 Monorepo: `agents/` (OpenClaw agents + the `ambient-a2a` plugin, TypeScript), `spec/` (Ambient-A2A
 extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, checks), `services/`
 (Device Gateway + Event Collector, Python; its own rules are in `services/CLAUDE.md`),
-`frontend/` (simulator UI, React; owned by the frontend team).
+`frontend/` (simulator UI, React; developed here, see `docs/frontend-integration.md`).
 
 - A2A **v1.0 only**. Do not write v0.3 code:
   - methods are `SendMessage`, `GetTask` … (not `message/send`, `tasks/get`)
@@ -22,7 +22,9 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
   and `services/config/devices.yaml`.
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).
 - Keep repo paths ASCII: OpenClaw rejects non-ASCII (NFD) paths (see `scripts/oc.sh`).
-- Upstream-owned paths are synced in from the original repos with `tools/sync_upstream.sh` and are
-  not edited here: `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md` (SWE26-01/A2A-agents)
-  and `frontend/` (SWE26-01/SWE-frontend). Propose such changes as a PR to the original repo.
-  Edit freely: `services/`, `docs/`, `tools/`, `.github/`, root `CLAUDE.md`/`AGENTS.md`.
+- Upstream-owned paths are synced in from SWE26-01/A2A-agents with `tools/sync_upstream.sh` and are
+  not edited here: `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`. Propose such changes
+  as a PR to A2A-agents. Edit freely: `services/`, `frontend/`, `docs/`, `tools/`, `.github/`, root
+  `CLAUDE.md`/`AGENTS.md`. (`frontend/` came from SWE26-01/SWE-frontend but is no longer synced.)
+- The frontend reads live data only through the services (`docs/frontend-integration.md`); the
+  dashboard token is read-only, so the UI never commands devices directly.

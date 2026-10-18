@@ -1,0 +1,131 @@
+{
+  "type": "snapshot",
+  "ha_connected": true,
+  "devices": [
+    {
+      "entity": "input_boolean.living_light",
+      "space": "living_room",
+      "owner": "orchestrator",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:ceiling-light",
+        "friendly_name": "거실 조명"
+      },
+      "last_changed": "2026-10-18T04:37:55.274175Z"
+    },
+    {
+      "entity": "input_boolean.living_tv",
+      "space": "living_room",
+      "owner": "orchestrator",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:television",
+        "friendly_name": "거실 TV"
+      },
+      "last_changed": "2026-10-18T04:37:55.274209Z"
+    },
+    {
+      "entity": "input_boolean.living_tv_muted",
+      "space": "living_room",
+      "owner": "orchestrator",
+      "state": "on",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:volume-off",
+        "friendly_name": "거실 TV 음소거"
+      },
+      "last_changed": "2026-10-18T05:58:14.839402Z"
+    },
+    {
+      "entity": "input_boolean.room1_light",
+      "space": "my_room",
+      "owner": "room1",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:lightbulb",
+        "friendly_name": "내 방 조명"
+      },
+      "last_changed": "2026-10-18T05:57:35.906223Z"
+    },
+    {
+      "entity": "input_select.room1_light_mode",
+      "space": "my_room",
+      "owner": "room1",
+      "state": "normal",
+      "attributes": {
+        "options": [
+          "normal",
+          "meeting",
+          "eco"
+        ],
+        "editable": false,
+        "icon": "mdi:lightbulb-auto",
+        "friendly_name": "내 방 조명 모드"
+      },
+      "last_changed": "2026-10-18T07:52:20.696635Z"
+    },
+    {
+      "entity": "input_boolean.room1_ac",
+      "space": "my_room",
+      "owner": "room1",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:air-conditioner",
+        "friendly_name": "내 방 에어컨"
+      },
+      "last_changed": "2026-10-18T05:57:35.913468Z"
+    },
+    {
+      "entity": "input_boolean.room1_occupied",
+      "space": "my_room",
+      "owner": "room1",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:account",
+        "friendly_name": "내 방 재실"
+      },
+      "last_changed": "2026-10-18T04:37:55.274313Z"
+    },
+    {
+      "entity": "input_boolean.room2_light",
+      "space": "protected_room",
+      "owner": "room2",
+      "state": "off",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:lightbulb-night",
+        "friendly_name": "보호 방 조명"
+      },
+      "last_changed": "2026-10-18T04:37:55.274334Z"
+    },
+    {
+      "entity": "input_boolean.room2_ac",
+      "space": "protected_room",
+      "owner": "room2",
+      "state": "on",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:air-conditioner",
+        "friendly_name": "보호 방 에어컨"
+      },
+      "last_changed": "2026-10-18T05:00:02.472259Z"
+    },
+    {
+      "entity": "input_boolean.room2_sleep_mode",
+      "space": "protected_room",
+      "owner": "room2",
+      "state": "on",
+      "attributes": {
+        "editable": false,
+        "icon": "mdi:sleep",
+        "friendly_name": "보호 방 수면 모드"
+      },
+      "last_changed": "2026-10-18T05:00:02.461522Z"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "type": "snapshot",
+  "events": [
+    {
+      "id": 89,
+      "ts": "2026-10-18T06:40:06.750000Z",
+      "agent": "orchestrator",
+      "dir": "in",
+      "from": "desktop",
+      "type": "device.control",
+      "request_id": "live-deny",
+      "action": {
+        "device": "input_boolean.room2_ac",
+        "command": "TURN_OFF"
+      },
+      "accepted": false,
+      "reason_code": "UNAUTHORIZED",
+      "message": "desktop may not request TURN_OFF input_boolean.room2_ac",
+      "flow": "live-deny"
+    },
+    {
+      "id": 90,
+      "ts": "2026-10-18T07:52:20.660000Z",
+      "agent": "orchestrator",
+      "dir": "out",
+      "to": "room1",
+      "type": "device.control",
+      "request_id": "order-1792309940",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "normal"
+      },
+      "flow": "order-1792309940"
+    },
+    {
+      "id": 91,
+      "ts": "2026-10-18T07:52:20.702000Z",
+      "agent": "room1",
+      "dir": "exec",
+      "request_id": "order-1792309940",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "normal"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=normal",
+      "flow": "order-1792309940"
+    },
+    {
+      "id": 92,
+      "ts": "2026-10-18T07:52:20.705000Z",
+      "agent": "room1",
+      "dir": "in",
+      "from": "orchestrator",
+      "type": "device.control",
+      "request_id": "order-1792309940",
+      "on_behalf_of": "desktop",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "normal"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=normal",
+      "flow": "order-1792309940"
+    },
+    {
+      "id": 93,
+      "ts": "2026-10-18T07:52:20.711000Z",
+      "agent": "orchestrator",
+      "dir": "in",
+      "from": "desktop",
+      "type": "device.control",
+      "request_id": "order-1792309940",
+      "action": {
+        "device": "input_select.room1_light_mode",
+        "command": "SET",
+        "value": "normal"
+      },
+      "accepted": true,
+      "reason_code": "OK",
+      "message": "SET input_select.room1_light_mode=normal",
+      "flow": "order-1792309940"
+    },
+    {
+      "id": 94,
+      "ts": "2026-10-18T07:52:20.710000Z",
+      "agent": "orchestrator",
+      "dir": "out-result",
+      "to": "room1",
+      "type": "device.control",
+      "request_id": "order-1792309940",
+      "accepted": true,
+      "reason_code": "OK",
+      "flow": "order-1792309940"
+    }
+  ]
+}
