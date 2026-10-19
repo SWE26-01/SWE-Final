@@ -368,7 +368,7 @@ button { font: inherit; }
 @media (max-width: 420px) { .panel-heading-actions > p { font-size:7.7px; }.simulation-control button { padding:7px 8px; }.simulation-control button svg { width:13px; }.home-3d { height:430px; }.css-house { width:88%; }.css-room-name { left:5px;bottom:5px; }.css-room-name b { font-size:8px; }.css-room-temp { display:none; }.css-device-pin { width:24px;height:24px; }.room-atmosphere { display:none; } }
 
 /* Home Assistant palette: amber · slate · blue · pale blue · white · gray */
-:root { --canvas:#FFFFFF; --mist:#E2F2FB; --cornflower:#4498C2; --pear:#F6C244; --model-accent:#E2F2FB; --black:#4F719A; --ink:var(--black); --muted:#5E5E5E; --line:var(--mist); --mint:var(--pear); --mint-dark:var(--cornflower); --navy:#4F719A; --purple:var(--cornflower); }
+:root { --canvas:#FFFFFF; --mist:#E2F2FB; --cornflower:#4498C2; --pear:#E2F2FB; --model-accent:#E2F2FB; --black:#5E5E5E; --ink:var(--black); --muted:#5E5E5E; --line:var(--mist); --mint:var(--mist); --mint-dark:var(--cornflower); --navy:#5E5E5E; --purple:var(--cornflower); --device-active:#F6C244; --device-inactive:#4F719A; }
 body { background:#F3F3F3; color:var(--black); }
 .topbar { background:rgba(255,255,255,.94); border-bottom:1px solid var(--mist); }.panel { background:#fff; border-color:var(--mist); }
 .simulation-control button,.dark-card,.toast { background:var(--black); }.simulation-control button.pause svg,.mint-icon,.action-plan > div > span,.toast svg { color:var(--pear); }
@@ -485,11 +485,11 @@ body { background:#F3F3F3; color:var(--black); }
 @media (max-width:420px) { .three-zoom input { width:68px; }.three-zoom { right:4px; padding:0 6px; gap:4px; }.three-zoom span { display:none; } }
 
 /* Cornflower emphasis instead of high-contrast black */
-.simulation-control button { color:#fff; background:var(--cornflower); box-shadow:0 5px 16px rgba(68,152,194,.2); }
-.simulation-control button.pause svg { color:#fff; }
+.simulation-control button { color:var(--muted); background:var(--mist); box-shadow:0 5px 16px rgba(68,152,194,.12); }
+.simulation-control button.pause svg { color:var(--cornflower); }
 .dark-card { color:var(--black); background:#fff; border-color:var(--mist); box-shadow:0 8px 26px rgba(0,0,0,.06); }
 .dark-card .micro-label,.dark-card .action-plan small { color:var(--muted); }
-.dark-card .mint-icon,.dark-card .action-plan > div > span { color:var(--black); background:rgba(246,194,68,.22); }
+.dark-card .mint-icon,.dark-card .action-plan > div > span { color:var(--cornflower); background:var(--mist); }
 .dark-card .confidence { color:var(--cornflower); background:rgba(226,242,251,.75); }
 .dark-card .confidence-bar { background:var(--mist); }
 .dark-card .confidence-bar span { background:var(--cornflower); }
@@ -626,4 +626,36 @@ h1,h2,h3,b,strong { font-weight:600; }
   .activity-tab .a2a-log-heading,.activity-tab .expanded-log { grid-template-columns:minmax(88px,.55fr) minmax(170px,.9fr) minmax(150px,1.55fr); gap:9px; }
   .activity-tab .a2a-log-heading { display:grid; padding:0 10px 9px; }
   .activity-tab .expanded-log { padding:14px 10px; }
+}
+
+/* Role-based color rules */
+.main-tabs button.active,
+.activity-date-controls > button,
+.live-mode-controls button.active,
+.chat-composer button {
+  color:var(--muted);
+  background:var(--mist);
+}
+.live-mode-controls button.active svg,
+.chat-composer button svg { color:var(--cornflower); }
+
+.css-device-pin,
+.device-icon,
+.active-device-list .device-icon,
+.device-control-icon,
+.active-manager-icon,
+.power-button {
+  color:var(--device-inactive);
+}
+.css-device-pin.active,
+.device-card.active .device-icon,
+.device-card.active .power-button {
+  color:var(--muted);
+  background:var(--device-active);
+  border-color:var(--device-active);
+}
+.device-card.active,
+.room-side-devices .device-card.active {
+  background:var(--mist);
+  border-color:var(--device-active);
 }
