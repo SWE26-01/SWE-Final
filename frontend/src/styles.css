@@ -442,7 +442,7 @@ body { background:#F3F3F3; color:var(--black); }
 /* Refined 3D material system */
 .house-base { inset:-1.2%; border-radius:10px; background:#e9eef1; transform:translateZ(-10px); box-shadow:20px 28px 45px rgba(52,73,88,.12),0 0 0 1px rgba(106,166,218,.18); }
 .css-room { border-width:1px; border-color:rgba(106,166,218,.28); background:rgba(251,251,248,.98); box-shadow:inset 0 0 28px rgba(219,227,233,.16); }
-.css-room:hover { background:rgba(247,249,240,.98); border-color:rgba(106,166,218,.65); }
+.css-room:hover { background:rgba(226,242,251,.72); border-color:rgba(79,113,154,.45); }
 .css-room.room-selected { background:rgba(226,242,251,.94); border-color:rgba(79,113,154,.58); }
 .room-walls { inset:-1px; }
 .wall-3d { border-width:1px; border-color:rgba(106,166,218,.45); background:linear-gradient(180deg,rgba(188,211,230,.64),rgba(219,227,233,.54)); box-shadow:inset 0 1px rgba(255,255,255,.88),0 2px 5px rgba(70,105,130,.05); }
