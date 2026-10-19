@@ -368,7 +368,7 @@ button { font: inherit; }
 @media (max-width: 420px) { .panel-heading-actions > p { font-size:7.7px; }.simulation-control button { padding:7px 8px; }.simulation-control button svg { width:13px; }.home-3d { height:430px; }.css-house { width:88%; }.css-room-name { left:5px;bottom:5px; }.css-room-name b { font-size:8px; }.css-room-temp { display:none; }.css-device-pin { width:24px;height:24px; }.room-atmosphere { display:none; } }
 
 /* Home Assistant palette: amber · slate · blue · pale blue · white · gray */
-:root { --canvas:#FFFFFF; --mist:#E2F2FB; --cornflower:#4498C2; --pear:#E2F2FB; --model-accent:#E2F2FB; --black:#5E5E5E; --ink:var(--black); --muted:#5E5E5E; --line:var(--mist); --mint:var(--mist); --mint-dark:var(--cornflower); --navy:#5E5E5E; --purple:var(--cornflower); --device-active:#F6C244; --device-inactive:#4F719A; }
+:root { --canvas:#FFFFFF; --mist:#E2F2FB; --cornflower:#4498C2; --pear:#E2F2FB; --model-accent:#E2F2FB; --black:#141414; --ink:var(--black); --muted:#141414; --line:var(--mist); --mint:var(--mist); --mint-dark:var(--cornflower); --navy:#141414; --purple:var(--cornflower); --device-active:#F6C244; --device-inactive:#4F719A; }
 body { background:#F3F3F3; color:var(--black); }
 .topbar { background:rgba(255,255,255,.94); border-bottom:1px solid var(--mist); }.panel { background:#fff; border-color:var(--mist); }
 .simulation-control button,.dark-card,.toast { background:var(--black); }.simulation-control button.pause svg,.mint-icon,.action-plan > div > span,.toast svg { color:var(--pear); }
@@ -659,3 +659,13 @@ h1,h2,h3,b,strong { font-weight:600; }
   background:var(--mist);
   border-color:var(--device-active);
 }
+.three-topview,
+.three-topview:hover,
+.chat-avatar.green,
+.live-state {
+  color:var(--black);
+  background:var(--mist);
+  border-color:var(--mist);
+}
+.chat-avatar.green svg { color:var(--cornflower); }
+.live-state i { background:var(--cornflower); }
