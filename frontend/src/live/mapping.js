@@ -225,6 +225,18 @@ export const SUGGESTIONS = {
   room2: ['보호 방 수면 모드 켜줘', '보호 방 에어컨 꺼줘', '보호 방 상태 알려줘'],
 };
 
+/**
+ * Requests that started at or after `since` (ms): what one scenario set off. Requests an agent asked
+ * for come first, then the automation rules they triggered (`rule: true`).
+ */
+export function scenarioSteps(flows, events, since, devices) {
+  const ruleFlows = new Set(events.filter((event) => event.dir === 'rule').map((event) => event.flow));
+  return flows
+    .filter((flow) => Date.parse(flow.started_at) >= since)
+    .map((flow) => ({ ...toFlowCard(flow, devices), rule: ruleFlows.has(flow.flow), startedAt: flow.started_at }))
+    .sort((a, b) => a.rule - b.rule || (a.startedAt < b.startedAt ? -1 : 1));
+}
+
 /** "거실 조명 꺼짐" style chips for the devices an agent owns. */
 export function ownedDeviceChips(status, devices) {
   return (status?.owned_devices || []).map((entity) => {

@@ -1,12 +1,12 @@
 // Agents tab: scenario buttons, a live map of messages between agents, a chat with each agent's LLM
-// and a status board per agent. Talking to agents goes through the dev server (agent-console-plugin.js).
+// and a status board per agent. The Home tab shows the scenario buttons too (HomeScenarioBar).
+// Talking to agents goes through the dev server (agent-console-plugin.js, useAgentChat).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, Loader2, MessageSquare, Play, Send } from 'lucide-react';
+import { Bot, ChevronRight, Loader2, MessageSquare, Play, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { askAgent } from './console';
 import {
-  AGENT_ORDER, AGENT_ROLE, SCENARIOS, SUGGESTIONS, agentName, ownedDeviceChips, recentDoings, timeOf, toFlowCard,
+  AGENT_ORDER, AGENT_ROLE, SCENARIOS, SUGGESTIONS, agentName, ownedDeviceChips, recentDoings, scenarioSteps, timeOf, toFlowCard,
 } from './mapping';
 import './console.css';
 
@@ -16,6 +16,69 @@ const POS = {
 const EDGES = [['desktop', 'orchestrator'], ['smartphone', 'orchestrator'], ['orchestrator', 'room1'], ['orchestrator', 'room2'], ['desktop', 'room1'], ['smartphone', 'room1']];
 const PULSE_MS = 1400;
 const shortName = (id) => agentName(id).replace(' Agent', '');
+
+function AgentReply({ message }) {
+  return (
+    <>
+      {message.role === 'agent'
+        ? <div className="console-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown></div>
+        : <p>{message.text}</p>}
+      {message.meta && <small>{message.meta}</small>}
+    </>
+  );
+}
+
+export function ScenarioButtons({ pending, onRun }) {
+  return (
+    <div className="console-scenario-buttons">
+      {SCENARIOS.map((s) => (
+        <button type="button" key={s.id} disabled={pending[s.agent]} onClick={() => onRun(s)} title={`${agentName(s.agent)}에게: "${s.message}"`}>
+          {pending[s.agent] ? <Loader2 size={13} className="spin" /> : <Play size={13} />}<b>{s.label}</b><small>→ {shortName(s.agent)}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Home tab, under the house: run a scenario and see the agent's answer and the requests it set off. */
+export function HomeScenarioBar({ chat, flows, events, devices, onOpenChat }) {
+  const run = chat.lastRun;
+  const steps = useMemo(() => (run ? scenarioSteps(flows, events, run.startedAt - 1000, devices) : []), [run, flows, events, devices]);
+  const waiting = run && !run.answer;
+  return (
+    <section className="home-scenarios">
+      <div className="home-scenarios-head">
+        <h3>에이전트 시나리오</h3>
+        <span>누르면 그 에이전트에게 말을 걸어요. 집과 오른쪽 기록이 바로 바뀌어요.</span>
+      </div>
+      <ScenarioButtons pending={chat.pending} onRun={chat.runScenario} />
+      {run && (
+        <div className="home-scenario-result">
+          <div className={`home-scenario-reply ${run.answer?.role === 'error' ? 'error' : ''}`}>
+            <span className="home-scenario-label">{agentName(run.agent)}에게 “{run.message}”</span>
+            {waiting
+              ? <p className="home-scenario-wait"><Loader2 size={12} className="spin" /> {shortName(run.agent)}에서 처리하는 중… 몇 초 걸려요</p>
+              : <AgentReply message={run.answer} />}
+            <button type="button" className="home-scenario-more" onClick={() => onOpenChat(run.agent)}>대화 이어 하기 <ChevronRight size={12} /></button>
+          </div>
+          <div className="home-scenario-steps">
+            <span className="home-scenario-label">이번에 오간 요청</span>
+            {steps.length ? (
+              <ol>
+                {steps.map((step) => (
+                  <li key={step.key}>
+                    <div><b>{step.title}</b><small>{step.rule ? `${step.path[0]} · 자동 규칙` : step.path.join(' → ')}</small></div>
+                    <em className={step.accepted ? 'ok' : 'no'}>{step.result}</em>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="home-scenario-none">{waiting ? '요청이 오가면 여기에 나타나요.' : '기기를 바꾸는 요청은 없었어요.'}</p>}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function useAnimations(events) {
   const lastId = useRef(null);
@@ -103,10 +166,7 @@ function Chat({ selected, onSelect, chats, pending, onSend, statuses }) {
       <div className="console-chat-log" ref={listRef}>
         {history.length ? history.map((m, index) => (
           <div key={index} className={`console-bubble ${m.role}`}>
-            {m.role === 'agent'
-              ? <div className="console-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown></div>
-              : <p>{m.text}</p>}
-            {m.meta && <small>{m.meta}</small>}
+            <AgentReply message={m} />
           </div>
         )) : <div className="console-chat-empty"><MessageSquare size={16} /><span>{agentName(selected)}에게 말을 걸어 보세요. {AGENT_ROLE[selected]}.</span></div>}
         {pending[selected] && <div className="console-bubble agent pending"><p><Loader2 size={12} className="spin" /> {agentName(selected)}가 생각하는 중…</p></div>}
@@ -148,32 +208,10 @@ function AgentBoard({ statuses, events, devices }) {
   );
 }
 
-export default function AgentConsole({ live, liveData, events }) {
-  const [selected, setSelected] = useState('desktop');
-  const [chats, setChats] = useState({});
-  const [pending, setPending] = useState({});
+export default function AgentConsole({ live, liveData, events, chat }) {
   const devices = liveData.gateway.devices;
   const statuses = useMemo(() => Object.fromEntries(liveData.agents.map((s) => [s.id, s])), [liveData.agents]);
   const latestFlow = liveData.flows[0] ? toFlowCard(liveData.flows[0], devices) : null;
-
-  const append = (agent, message) => setChats((current) => ({ ...current, [agent]: [...(current[agent] || []), message] }));
-  const send = async (agent, message) => {
-    append(agent, { role: 'user', text: message });
-    setPending((current) => ({ ...current, [agent]: true }));
-    try {
-      const { reply, durationMs, costUsd } = await askAgent(agent, message);
-      const meta = [`${(durationMs / 1000).toFixed(1)}초`, costUsd != null ? `$${costUsd.toFixed(3)}` : null].filter(Boolean).join(' · ');
-      append(agent, { role: 'agent', text: reply || '(빈 답)', meta });
-    } catch (error) {
-      append(agent, { role: 'error', text: `보내지 못했어요: ${error.message}` });
-    } finally {
-      setPending((current) => ({ ...current, [agent]: false }));
-    }
-  };
-  const runScenario = (scenario) => {
-    setSelected(scenario.agent);
-    if (!pending[scenario.agent]) send(scenario.agent, scenario.message);
-  };
 
   if (!live) {
     return <div className="console-tab"><p className="live-banner">Agents 탭은 LIVE 모드에서 쓸 수 있어요. 오른쪽 위에서 LIVE를 켜 주세요.</p></div>;
@@ -182,17 +220,11 @@ export default function AgentConsole({ live, liveData, events }) {
     <div className="console-tab">
       <section className="console-scenarios panel">
         <div><h2>시나리오</h2><span className="console-hint">누르면 해당 에이전트에게 말을 걸어요. 결과는 아래 지도·대화창·현황판에 바로 나타나요.</span></div>
-        <div className="console-scenario-buttons">
-          {SCENARIOS.map((s) => (
-            <button type="button" key={s.id} disabled={pending[s.agent]} onClick={() => runScenario(s)} title={`${agentName(s.agent)}에게: "${s.message}"`}>
-              {pending[s.agent] ? <Loader2 size={13} className="spin" /> : <Play size={13} />}<b>{s.label}</b><small>→ {shortName(s.agent)}</small>
-            </button>
-          ))}
-        </div>
+        <ScenarioButtons pending={chat.pending} onRun={chat.runScenario} />
       </section>
       <div className="console-grid">
         <AgentMap events={events} statuses={statuses} latestFlow={latestFlow} />
-        <Chat selected={selected} onSelect={setSelected} chats={chats} pending={pending} onSend={send} statuses={statuses} />
+        <Chat selected={chat.selected} onSelect={chat.setSelected} chats={chat.chats} pending={chat.pending} onSend={chat.send} statuses={statuses} />
       </div>
       <AgentBoard statuses={statuses} events={events} devices={devices} />
     </div>

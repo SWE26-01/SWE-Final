@@ -32,8 +32,9 @@ import {
 import Home3D from './Home3D';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
+import { useAgentChat } from './live/useAgentChat';
 import { NODE_AGENT, applyLiveDevices, liveOccupantRoom, toActivity, toAgentCard, toFlowCard, toLogRow } from './live/mapping';
-import AgentConsole from './live/AgentConsole';
+import AgentConsole, { HomeScenarioBar } from './live/AgentConsole';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
@@ -344,6 +345,7 @@ function App() {
   const [dataMode, setDataMode] = useState(LIVE_AVAILABLE ? 'live' : 'mock');
   const live = dataMode === 'live';
   const liveData = useLiveHome(live);
+  const agentChat = useAgentChat();
   const liveDevices = liveData.gateway.devices;
   const liveOnline = liveData.gateway.status === 'open' && liveData.gateway.haConnected;
   const shownRooms = useMemo(
@@ -713,7 +715,15 @@ function App() {
             </div>
 
             <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
-
+            {live && (
+              <HomeScenarioBar
+                chat={agentChat}
+                flows={liveData.flows}
+                events={liveEvents}
+                devices={liveDevices}
+                onOpenChat={(agent) => { agentChat.setSelected(agent); setActiveTab('agents'); }}
+              />
+            )}
           </section>
 
           <aside className="side-column" ref={sideColumnRef}>
@@ -1002,7 +1012,7 @@ function App() {
             </section>
           </div>
         )}
-        {activeTab === 'agents' && <AgentConsole live={live} liveData={liveData} events={liveEvents} />}
+        {activeTab === 'agents' && <AgentConsole live={live} liveData={liveData} events={liveEvents} chat={agentChat} />}
       </main>
 
       {selectedGroup && (
