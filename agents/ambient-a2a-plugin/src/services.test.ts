@@ -12,12 +12,15 @@ const room1 = (extra: Partial<Config> = {}) => createAgent({ ...base, ...extra }
 
 let calls: { url: string; auth: string; body: any }[];
 let collectorDown = false;
+let peerDown = false;
 
 beforeEach(() => {
   calls = [];
   collectorDown = false;
+  peerDown = false;
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
     if (collectorDown && url.startsWith("http://collector")) throw new TypeError("fetch failed");
+    if (peerDown && url.startsWith("http://orchestrator")) throw new TypeError("fetch failed");
     calls.push({ url, auth: String((init?.headers as any)?.authorization), body: init?.body ? JSON.parse(String(init.body)) : undefined });
     return new Response(JSON.stringify(url.includes("/api/states/") ? { state: "off" } : []), { status: 200 });
   });
@@ -47,5 +50,15 @@ describe("optional services", () => {
     collectorDown = true;
     const r = await room1({ collectorUrl: "http://collector" }).control({ device: LIGHT, command: "TURN_ON" });
     expect(r.accepted).toBe(true);
+  });
+
+  it("a request that never reached its peer is logged with what it asked for", async () => {
+    peerDown = true;
+    const agent = room1({ collectorUrl: "http://collector", peers: { orchestrator: "http://orchestrator" } });
+    const action = { device: "input_boolean.living_tv_muted", command: "TURN_ON" };
+    const r = await agent.call("orchestrator", { type: "device.control", request_id: "r1", action });
+    expect(r.reason_code).toBe("PEER_UNREACHABLE");
+    const failed = calls.find((c) => c.url === "http://collector/events" && c.body.dir === "out-error");
+    expect(failed?.body).toMatchObject({ to: "orchestrator", type: "device.control", request_id: "r1", action });
   });
 });

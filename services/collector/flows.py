@@ -13,7 +13,8 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from collector.events import Action
 
-StoredEvent = dict[str, Any]  # {"id": int, "flow"?: str, **event as the agent logged it}
+# {"id": int, "flow"?: str, "received_at"?: str, **event as the agent logged it}
+StoredEvent = dict[str, Any]
 
 
 def flow_of(request_id: str | None) -> str | None:

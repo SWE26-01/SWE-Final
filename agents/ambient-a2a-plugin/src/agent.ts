@@ -76,7 +76,8 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
       log({ dir: "out-result", to: peer, type: data.type, request_id: data.request_id, accepted: r?.accepted, reason_code: r?.reason_code });
       return r;
     } catch (err) {
-      log({ dir: "out-error", to: peer, type: data.type, request_id: data.request_id, error: String(err) });
+      // What failed to arrive, so a dashboard can name it without the matching `out` line.
+      log({ dir: "out-error", to: peer, type: data.type, request_id: data.request_id, action: data.action, fields: data.fields, error: String(err) });
       return deny("PEER_UNREACHABLE", `${peer}: ${err}`);
     }
   }

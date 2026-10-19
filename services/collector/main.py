@@ -15,6 +15,7 @@ import os
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Annotated
 
 import httpx
@@ -48,7 +49,7 @@ class EventStore:
         with self._conn:
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS events "
-                "(id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT, flow TEXT)"
+                "(id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT, flow TEXT, received_at TEXT)"
             )
             columns = [c[1] for c in self._conn.execute("PRAGMA table_info(events)")]
             if "flow" not in columns:  # database from before flows: add and fill the column
@@ -56,6 +57,8 @@ class EventStore:
                 for event_id, raw in self._conn.execute("SELECT id, json FROM events").fetchall():
                     flow = flow_of(json.loads(raw).get("request_id"))
                     self._conn.execute("UPDATE events SET flow = ? WHERE id = ?", (flow, event_id))
+            if "received_at" not in columns:  # older events keep no arrival time
+                self._conn.execute("ALTER TABLE events ADD COLUMN received_at TEXT")
             self._conn.execute("CREATE INDEX IF NOT EXISTS events_flow ON events (flow)")
 
     def close(self) -> None:
@@ -65,26 +68,30 @@ class EventStore:
 
     def add(self, event: AgentEvent) -> StoredEvent:
         raw, flow = event.stored(), flow_of(event.request_id)
+        # The Collector's own clock, shared with the Runner: dashboards match events to runs with it
+        # (an agent's `ts` comes from the host, which can drift from the Docker VM's clock).
+        received_at = datetime.now(UTC).isoformat()
         with self._db:
-            cur = self._db.execute("INSERT INTO events (json, flow) VALUES (?, ?)", (raw, flow))
-        return _row(cur.lastrowid, raw, flow)
+            cur = self._db.execute(
+                "INSERT INTO events (json, flow, received_at) VALUES (?, ?, ?)",
+                (raw, flow, received_at),
+            )
+        return _row(cur.lastrowid, raw, flow, received_at)
 
     def after(self, after_id: int, limit: int) -> list[StoredEvent]:
         rows = self._db.execute(
-            "SELECT id, json, flow FROM events WHERE id > ? ORDER BY id LIMIT ?", (after_id, limit)
+            f"SELECT {_COLUMNS} FROM events WHERE id > ? ORDER BY id LIMIT ?", (after_id, limit)
         )
         return [_row(*r) for r in rows]
 
     def latest(self, n: int) -> list[StoredEvent]:
         """The last `n` events, oldest first."""
-        rows = self._db.execute(
-            "SELECT id, json, flow FROM events ORDER BY id DESC LIMIT ?", (n,)
-        )
+        rows = self._db.execute(f"SELECT {_COLUMNS} FROM events ORDER BY id DESC LIMIT ?", (n,))
         return [_row(*r) for r in rows][::-1]
 
     def flow_events(self, flow: str) -> list[StoredEvent]:
         rows = self._db.execute(
-            "SELECT id, json, flow FROM events WHERE flow = ? ORDER BY id", (flow,)
+            f"SELECT {_COLUMNS} FROM events WHERE flow = ? ORDER BY id", (flow,)
         )
         return [_row(*r) for r in rows]
 
@@ -118,10 +125,15 @@ class EventStore:
         return self._conn
 
 
-def _row(event_id: int | None, raw: str, flow: str | None) -> StoredEvent:
+_COLUMNS = "id, json, flow, received_at"
+
+
+def _row(event_id: int | None, raw: str, flow: str | None, received_at: str | None) -> StoredEvent:
     row = {"id": event_id, **json.loads(raw)}
     if flow is not None:
         row["flow"] = flow
+    if received_at is not None:
+        row["received_at"] = received_at
     return row
 
 

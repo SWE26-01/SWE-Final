@@ -10,12 +10,18 @@ consuming team reviewing.
 | `collector/agent.schema.json` | Event Collector → dashboards (`GET /agents`, WebSocket `snapshot.agents` and `{type: "agents"}`): each agent up or down and its latest activity | `collector/agents.py` |
 | `collector/flow.schema.json` | Event Collector → dashboards (`GET /flows`, `GET /flows/{flow}`): one request followed across agents | `collector/flows.py` |
 | `collector/event.schema.json` | agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
+| `runner/scenario.schema.json` | Runner → dashboards (`GET /scenarios`): Live Simulation scenarios | `homeconfig/models.py`, data in `config/scenarios.yaml` |
+| `runner/run.schema.json` | Runner → dashboards (`POST /runs` answer, `GET /runs`, `GET /runs/{id}`): one run and its steps | `runner/stream.py` |
+| `runner/stream.schema.json` | Runner → dashboards (WebSocket `/ws`): `snapshot` (recent runs), `run.updated` (the whole run after each change) | `runner/stream.py` |
 
 `examples/` holds real messages captured on 2026-10-18 (see `docs/frontend-integration.md`).
 
 Agents call the Gateway with Home Assistant's own REST API shape (`GET /api/states/<entity>`,
 `POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Stored events come
-back with `id` and, when they carry a `request_id`, `flow` (its part before the first `/`).
+back with `id`, `received_at` (when the Collector received it, by the Collector's clock; absent on
+events stored before 2026-10-19) and, when they carry a `request_id`, `flow` (its part before the first `/`).
 `id` is arrival order; `ts` is when the event happened. Agents post concurrently, so the two can
-differ: `GET /events` and the WebSocket follow `id`, while `/flows` orders each request by `ts`. Agent-to-agent
+differ: `GET /events` and the WebSocket follow `id`, while `/flows` orders each request by `ts`.
+`ts` comes from the agent's host clock; compare `received_at`, not `ts`, with times from the Runner
+(same clock as the Collector). Agent-to-agent
 messages are `../spec/ambient-a2a.md`. Device and agent ids: `config/devices.yaml`.
