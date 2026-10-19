@@ -671,9 +671,9 @@ h1,h2,h3,b,strong { font-weight:600; }
 }
 .css-device-pin.active {
   color:var(--device-active);
-  background:rgba(246,194,68,.1);
-  border-color:rgba(246,194,68,.28);
-  box-shadow:0 0 0 3px rgba(246,194,68,.1),0 0 16px rgba(246,194,68,.24),0 3px 9px rgba(58,84,102,.08);
+  background:rgba(255,253,247,.96);
+  border-color:rgba(246,194,68,.34);
+  box-shadow:0 0 0 3px rgba(246,194,68,.08),0 0 15px rgba(246,194,68,.2),0 3px 9px rgba(58,84,102,.09);
 }
 .three-topview,
 .three-topview:hover,
