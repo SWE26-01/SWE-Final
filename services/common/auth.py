@@ -22,6 +22,8 @@ class Auth:
     caller: Any  # any known token
     agent: Any  # agents only
     operator: Any  # operators only
+    simulator: Any  # simulators only
+    dashboard: Any  # operators or simulators (screens, never agents)
 
 
 def make_auth(config: HomeConfig) -> Auth:
@@ -35,10 +37,10 @@ def make_auth(config: HomeConfig) -> Auth:
             )
         return found
 
-    def role(required: Role):
+    def role(*allowed: Role):
         def check(found: Annotated[Caller, Depends(caller)]) -> Caller:
-            if found.role is not required:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, f"{required} only")
+            if found.role not in allowed:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, f"{' or '.join(allowed)} only")
             return found
 
         return check
@@ -47,6 +49,8 @@ def make_auth(config: HomeConfig) -> Auth:
         caller=Annotated[Caller, Depends(caller)],
         agent=Annotated[Caller, Depends(role(Role.AGENT))],
         operator=Annotated[Caller, Depends(role(Role.OPERATOR))],
+        simulator=Annotated[Caller, Depends(role(Role.SIMULATOR))],
+        dashboard=Annotated[Caller, Depends(role(Role.OPERATOR, Role.SIMULATOR))],
     )
 
 

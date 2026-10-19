@@ -13,3 +13,9 @@ agents:
 # Dashboards and the simulator: read device states and events, command nothing.
 operators:
   dashboard: {token_env: DASHBOARD_TOKEN}
+
+# Live Simulation: may ask the Runner to say things to agents (config/scenarios.yaml or free text).
+# Agents still decide and their policies apply; this token commands no devices. Optional: without
+# SIMULATOR_TOKEN in the environment the Runner does not start and the screen stays read-only.
+simulators:
+  simulator: {token_env: SIMULATOR_TOKEN}

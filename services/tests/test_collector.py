@@ -1,6 +1,7 @@
 import json
 import sqlite3
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -58,8 +59,11 @@ def test_requires_token(client):
 
 
 def test_stores_the_agents_own_log_line(client):
+    before = datetime.now(UTC)
     assert post(client, ROOM1, received()).json() == {"id": 1}
     (stored,) = events(client)
+    received_at = datetime.fromisoformat(stored.pop("received_at"))  # the Collector's own clock
+    assert before <= received_at <= datetime.now(UTC)
     assert stored == {"id": 1, "flow": "scn-A1", **received(ts="2026-10-18T01:00:00.123000Z")}
 
 
@@ -285,6 +289,10 @@ def test_old_database_gets_flows(tmp_path):
     with TestClient(create_app(load_config(env=ENV), str(db), watch_agents=False)) as c:
         (flow,) = c.get("/flows", headers=DASHBOARD).json()
         assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 5, "desktop")
+        old = events(c)
+        assert all("received_at" not in e for e in old)  # arrival time was never recorded
+        assert post(c, ROOM1, received()).status_code == 201
+        assert "received_at" in events(c)[-1]
 
 
 def test_flow_follows_event_time_not_arrival(client):

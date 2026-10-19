@@ -69,6 +69,28 @@ python services/scripts/verify_integration.py --env-file .env
   GET만 허용하고, 비워 두면 허용하지 않는다. WebSocket은 CORS와 상관없이 붙는다. 에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지
   이어 주기 때문에 가능하다(`spec/ambient-a2a.md`).
 
+## Runner (Live Simulation)
+
+시뮬레이터 화면의 Live Simulation이 실제 LLM으로 돌게 하는 세 번째 서비스다(`services/runner`, 포트 8300, `run_all.sh`가 함께 띄움).
+
+```
+화면 ──POST /runs (Vite 프록시가 SIMULATOR_TOKEN을 붙임)──▶ Runner ──POST /v1/chat/completions (OPENCLAW_GATEWAY_TOKEN)──▶ 에이전트의 OpenClaw
+  ▲                                      │                                                         │ LLM이 판단 → ambient_* tool
+  └──WebSocket 실행 진행·답변──────────────┘                     에이전트 ──A2A·기기 명령──▶ Gateway, 기록 ──▶ Collector ──▶ 화면
+```
+
+- Runner는 사용자가 채팅하듯 에이전트의 LLM에 말만 건다. Gateway·HA를 부르지 않고 에이전트 토큰도 없어서 기기를 직접 움직일 수 없다.
+- 시나리오는 `services/config/scenarios.yaml`. 준비 단계(`setup: true`)는 그 기기의 주인 에이전트에게 말로 시킨다.
+- **필요한 것**
+  - 루트 `.env`의 `SIMULATOR_TOKEN`(새 `.env`는 `setup.sh`가 채움. 기존 `.env`에는 직접 추가)과 `OPENCLAW_GATEWAY_TOKEN`(이미 있음).
+    없거나 다른 토큰과 같으면 Runner만 이유를 남기고 뜨지 않고, Gateway·Collector는 그대로다.
+    화면 개발 서버(`frontend/vite.config.js`)도 루트 `.env`에서 `SIMULATOR_TOKEN`을 읽어 `/runner` 프록시에 붙인다. 브라우저에는 가지 않는다.
+  - 에이전트 OpenClaw 게이트웨이의 chat 엔드포인트: `agents/gateway.json5`의
+    `http: { endpoints: { chatCompletions: { enabled: true } } }`로 켜져 있다(`scripts/say.sh`와 같이 씀).
+- 확인(2026-10-18~19, 로컬): OpenClaw 2026.10.4에서 엔드포인트 동작, 토큰 없으면 401, 답변 한 번에 약 12~20초·토큰 약 4만.
+  응답에는 최종 답변만 있고 에이전트 안의 tool 호출은 없다. 그래서 화면은 에이전트가 한 일을 Collector 기록으로 보여 준다.
+  Docker 안의 Runner → 호스트 desktop 에이전트 → LLM 답변까지 확인했다.
+
 ## ID
 
 에이전트 ID(`desktop`, `smartphone`, `orchestrator`, `room1`, `room2`)와 기기 ID(HA 엔티티 ID)는 세 곳이 같아야 한다:

@@ -40,6 +40,9 @@
   (`AMBIENT_SERVICES=off`로 끔, A2A-agents#1·#2). 켜면 에이전트는 HA 토큰 대신 자기 토큰을 쓰고, HA 토큰은 Gateway와 설정 스크립트만 쓴다.
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
 - **대시보드는 `frontend/`에서 만든다.** 데이터는 `services/`(Gateway·Collector)에서만 읽는다(`docs/frontend-integration.md`).
+- **Live Simulation은 실제 LLM으로 돈다(2026-10-19).** 화면은 `services/runner`에 시나리오나 자유 입력을 보내고, Runner가 사용자처럼
+  에이전트의 LLM(OpenClaw chat 엔드포인트)에 말을 건다. Runner는 기기를 직접 움직이지 않는다. 실행은 시뮬레이터 토큰(`SIMULATOR_TOKEN`)으로만
+  하고 대시보드 토큰은 읽기 전용 그대로다. 시나리오 준비도 주인 에이전트에게 말로 시킨다(`services/config/scenarios.yaml`).
 
 ## 아직 정할 것
 
@@ -74,5 +77,10 @@
 - 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다(tool 직접 노출, 프롬프트 축소, 추론 끔, `scripts/say.sh`). 측정과 바꾼 설정은 `docs/performance.md`.
 - frontend: LIVE/MOCK 전환. LIVE에서 Home·3D Model·Agent Activity 탭이 Gateway·Collector의 실제 데이터를 보여 준다(`frontend/src/live/`).
   에이전트 카드는 Collector가 5초마다 Agent Card를 확인한 실제 상태다(`GET /agents`, WebSocket `agents`).
-  Live Simulation·Control Mode 탭은 데모용 가짜 데이터. 화면에서 기기 조작은 막혀 있다(대시보드 토큰은 읽기 전용).
+  Live Simulation 탭은 LIVE에서 Runner로 실제 LLM을 돌리고(MOCK은 가짜 시나리오 그대로), Control Mode 탭은 데모용 가짜 데이터.
+  화면에서 기기 조작은 막혀 있다(대시보드 토큰은 읽기 전용).
 - 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.
+- Runner(`services/runner`, 2026-10-19): 시나리오 5개, 자유 입력, 한 번에 실행 하나, WebSocket 진행 상황. 단위 테스트는 가짜 OpenClaw,
+  실제로는 Docker 안 Runner → desktop 에이전트 → LLM 답변까지 확인. Live Simulation 탭 LIVE 모드도 Runner에 연결함(`docs/frontend-integration.md` 8).
+  에이전트의 chat 엔드포인트는 `agents/gateway.json5`에 켜져 있다(`scripts/say.sh`와 같이 씀).
+  남은 것: 시나리오 전체를 에이전트 5개로 돌려 보기(RAM 8GB PC로는 부족).
