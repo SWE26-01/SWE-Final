@@ -41,6 +41,8 @@ agents)
   set -a; . "$ROOT/.env"; set +a
   export AMBIENT_ENV_LOADED=1 AMBIENT_MODEL=lab/$M
   export AMBIENT_GATEWAY_URL=${AMBIENT_GATEWAY_URL:-http://127.0.0.1:8100} AMBIENT_COLLECTOR_URL=${AMBIENT_COLLECTOR_URL:-http://127.0.0.1:8200}
+  # A fresh checkout/worktree has no plugin deps; the mirror sync would then load a broken plugin (cards 404).
+  [ -d "$ROOT/agents/ambient-a2a-plugin/node_modules" ] || (cd "$ROOT/agents/ambient-a2a-plugin" && pnpm install --frozen-lockfile --silent)
   "$ROOT/scripts/oc.sh" desktop --version >/dev/null   # sync agents/ into the ASCII mirror
   app=$HOMEDIR/app/agents
   cp "$ROOT/training/lab-models.json5" "$app/lab-models.json5"
@@ -52,7 +54,9 @@ agents)
     AMBIENT_SKIP_SYNC=1 nohup "$ROOT/scripts/oc.sh" "$id" gateway > "$ROOT/logs/$id.log" 2>&1 &
   done
   for p in 18800 18920 19040 19160 19280; do
-    for _ in $(seq 1 90); do curl -fs -o /dev/null "http://127.0.0.1:$p/plugins/ambient/.well-known/agent-card.json" && break; sleep 1; done
+    up=""
+    for _ in $(seq 1 90); do curl -fs -o /dev/null "http://127.0.0.1:$p/plugins/ambient/.well-known/agent-card.json" && up=1 && break; sleep 1; done
+    [ -n "$up" ] || { echo "agent on :$p has no Ambient-A2A card; see $ROOT/logs/*.log (grep 'plugin failed')" >&2; exit 1; }
   done
   grep -h "agent model" "$ROOT/logs/desktop.log" | sed 's/\x1b\[[0-9;]*m//g' | tail -1 | grep -o 'agent model: [^ ]*'
   ;;
