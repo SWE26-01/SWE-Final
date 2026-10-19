@@ -16,7 +16,7 @@ const PHONE = 'smartphone';
 const SPOT = LIVE_PLAN.agents;
 const ROOM = LIVE_PLAN.agentRoom;
 // Desktop and My Room stand close together, so their bubbles lean apart.
-const BUBBLE_SHIFT = { desktop: '-38%', room1: '38%' };
+const BUBBLE_SHIFT = { desktop: '38%', room1: '-38%' };
 const REPLY_MS = 8000;
 const shortName = (id) => agentName(id).replace(' Agent', '');
 const plain = (text) => text.replace(/[*_`#>|]/g, '').replace(/^\s*[-•]\s*/gm, '').replace(/\s+/g, ' ').trim();

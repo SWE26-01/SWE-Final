@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Appliance3D, Furniture3D } from './Furniture3D';
 import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, Moon, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
 
 const layout = {
@@ -28,36 +29,13 @@ const occupantRoutes = {
   'living>exit': [[24, 59], [31, 60], [38, 62], [42, 65], [47, 66], [50, 69], [51, 73], [51, 78], [50, 84], [50, 90], [50, 97]],
 };
 
-function Furniture({ type }) {
-  if (type === 'none') return null;
-  if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /><div className="furniture desk-3d bedroom-desk-3d" /><div className="furniture chair-3d bedroom-chair-3d" /></>;
-  if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /></>;
-  if (type === 'desk') return <><div className="furniture desk-3d"><span /></div><div className="furniture chair-3d" /></>;
-  if (type === 'sofa') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d" /><div className="plant-3d"><i /><span /></div></>;
-  if (type === 'counter') return <><div className="furniture counter-3d"><i /><i /><i /><i /></div><div className="furniture island-3d" /><div className="furniture tower-3d fridge-3d" /></>;
-  if (type === 'dining') return <><div className="furniture dining-3d"><i /><i /><i /><i /></div><div className="furniture dining-sideboard-3d" /></>;
-  if (type === 'veranda') return <><div className="veranda-grid-3d" /><div className="plant-3d veranda-plant-a"><i /><span /></div><div className="plant-3d veranda-plant-b"><i /><span /></div></>;
-  return <><div className="furniture tub-3d"><span /></div><div className="furniture sink-3d" /></>;
-}
+// Demo apartment rooms without an `appliances` list in their plan entry.
+const DEMO_APPLIANCES = { kitchen: ['hood'], living: ['tv', 'purifier'], veranda: ['washer'], bedroom3: ['humidifier', 'computer'] };
 
-const APPLIANCE = {
-  tv: <div className="appliance-3d television-3d"><i /></div>,
-  purifier: <div className="appliance-3d purifier-3d"><i /><i /><i /></div>,
-  computer: <div className="appliance-3d computer-3d"><i /><span /></div>,
-  humidifier: <div className="appliance-3d humidifier-3d"><i /></div>,
-  washer: <div className="appliance-3d washer-3d"><i /></div>,
-  hood: <div className="appliance-3d hood-3d"><i /><i /><i /></div>,
-};
-
-// `kinds` (a plan's room `appliances`) picks them; without it the demo apartment's rooms are used.
+// `kinds` (a plan room's `appliances`) picks them; without it the demo apartment's rooms are used.
 function RoomAppliances({ roomId, kinds }) {
-  if (kinds) return kinds.map((kind) => <React.Fragment key={kind}>{APPLIANCE[kind]}</React.Fragment>);
-  if (roomId === 'kitchen') return <div className="appliance-3d hood-3d"><i /><i /><i /></div>;
-  if (roomId === 'living') return <><div className="appliance-3d television-3d"><i /></div><div className="appliance-3d purifier-3d"><i /><i /><i /></div></>;
-  if (roomId === 'veranda') return <div className="appliance-3d washer-3d"><i /></div>;
-  if (roomId === 'bedroom3') return <><div className="appliance-3d humidifier-3d bedroom3-humidifier-3d"><i /></div><div className="appliance-3d computer-3d"><i /><span /></div></>;
-  if (roomId.startsWith('bedroom')) return <div className="appliance-3d humidifier-3d"><i /></div>;
-  return null;
+  const list = kinds || DEMO_APPLIANCES[roomId] || (roomId.startsWith('bedroom') ? ['humidifier'] : []);
+  return list.map((kind) => <Appliance3D key={kind} kind={kind} />);
 }
 
 function WallOpenings({ side, windows = [], door }) {
@@ -307,8 +285,8 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
               <React.Fragment key={room.id}>
               <button className={roomClass} style={rectStyle(roomLayout)} onClick={select} {...hover} aria-label={`${room.name} 입장`}>
                 <RoomWalls walls={roomLayout.walls} windows={roomLayout.windows} doors={roomLayout.doors} />
-                <Furniture type={roomLayout.furniture} />
-                <RoomAppliances roomId={room.id} kinds={roomLayout.appliances} />
+                <Furniture3D type={roomLayout.furniture} items={roomLayout.items} />
+                {!roomLayout.items && <RoomAppliances roomId={room.id} kinds={roomLayout.appliances} />}
                 <span className="css-room-name"><b>{room.name}</b><small>{room.en}</small></span>
                 {room.temp != null && (
                   <span className={`css-room-temp ${active ? 'active' : ''}`}>
@@ -324,8 +302,8 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
               {parts.map(([partId, part]) => (
                 <button type="button" key={partId} className={`${roomClass} css-room-part`} style={rectStyle(part)} onClick={select} {...hover} tabIndex={-1} aria-hidden="true">
                   <RoomWalls walls={part.walls} windows={part.windows} doors={part.doors} />
-                  <Furniture type={part.furniture} />
-                  <RoomAppliances roomId={room.id} kinds={part.appliances} />
+                  <Furniture3D type={part.furniture} items={part.items} />
+                  {!part.items && <RoomAppliances roomId={room.id} kinds={part.appliances} />}
                 </button>
               ))}
               </React.Fragment>
