@@ -820,9 +820,16 @@ h1,h2,h3,b,strong { font-weight:600; }
 }
 .css-device-pin.active {
   color:var(--device-active);
-  background:rgba(255,253,247,.96);
-  border-color:rgba(246,194,68,.34);
-  box-shadow:0 0 0 3px rgba(246,194,68,.08),0 0 15px rgba(246,194,68,.2),0 3px 9px rgba(58,84,102,.09);
+  background:rgba(255,250,232,.98);
+  border-color:rgba(246,194,68,.68);
+  box-shadow:0 0 0 4px rgba(246,194,68,.14),0 0 20px rgba(246,194,68,.36),0 4px 10px rgba(58,84,102,.12);
+}
+.css-device-pin.active svg {
+  width:11px;
+  height:11px;
+  stroke-width:2.3;
+  filter:drop-shadow(0 0 3px rgba(246,194,68,.72));
+  transform:scale(1.08);
 }
 .three-topview,
 .three-topview:hover,
