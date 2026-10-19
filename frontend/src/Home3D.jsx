@@ -114,6 +114,27 @@ const DEMO_PLAN = { topRotation: -90, rooms: layout, hall: { left: 42, top: 22, 
 /** A room's box on a house plan, in % of the house. */
 export const roomRect = (plan, roomId) => plan.rooms[roomId];
 
+// A room can have more rectangles: plan entries with `partOf: <room id>` (e.g. an L-shaped hallway).
+const partsOf = (plan, roomId) => Object.entries(plan.rooms).filter(([, part]) => part.partOf === roomId);
+
+/** The box around a room and its parts, in % of the house. */
+function roomBox(plan, roomId) {
+  const boxes = [plan.rooms[roomId], ...partsOf(plan, roomId).map(([, part]) => part)].filter(Boolean);
+  if (!boxes.length) return null;
+  const left = Math.min(...boxes.map((box) => box.left));
+  const top = Math.min(...boxes.map((box) => box.top));
+  const right = Math.max(...boxes.map((box) => box.left + box.width));
+  const bottom = Math.max(...boxes.map((box) => box.top + box.height));
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+// `join` lists the sides where a rectangle meets another rectangle of the same room: no outline there.
+const BORDER = { north: 'borderTopColor', south: 'borderBottomColor', west: 'borderLeftColor', east: 'borderRightColor' };
+const rectStyle = (box) => ({
+  left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`,
+  ...Object.fromEntries((box.join || []).map((side) => [BORDER[side], 'transparent'])),
+});
+
 /** Where a device's pin stands, in % of the house plan, or null. */
 export function devicePinSpot(plan, rooms, deviceId) {
   for (const room of rooms) {
@@ -136,6 +157,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
   const [tilt, setTilt] = useState(55);
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
+  const [hoveredRoom, setHoveredRoom] = useState(null); // a room with parts lights up as a whole
   const drag = useRef(null);
   const dragFrame = useRef(null);
   const pendingDrag = useRef(null);
@@ -229,7 +251,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
   };
   const topView = () => { setRotation(plan.topRotation ?? -90); setTilt(0); };
   const adjustZoom = (amount) => setZoom((current) => Math.min(1.5, Math.max(.5, Number((current + amount).toFixed(2)))));
-  const selectedLayout = selectedRoom ? plan.rooms[selectedRoom] : null;
+  const selectedLayout = selectedRoom ? roomBox(plan, selectedRoom) : null;
   const center = selectedLayout ? [selectedLayout.left + selectedLayout.width / 2, selectedLayout.top + selectedLayout.height / 2] : [50, 50];
   const focus = selectedLayout ? [`${(50 - center[0]) * 1.05}%`, `${(50 - center[1]) * 1.05}%`] : null;
   const selectedScale = selectedLayout ? Math.min(2.8, Math.max(2.08, 58 / Math.max(selectedLayout.width, selectedLayout.height))) : 1;
@@ -277,9 +299,13 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
             const active = room.devices.some((device) => device.on);
             const highTemp = room.temp > environmentLimits.temp;
             const highHumidity = room.humidity > environmentLimits.humidity;
-            const roomStyle = { left: `${roomLayout.left}%`, top: `${roomLayout.top}%`, width: `${roomLayout.width}%`, height: `${roomLayout.height}%` };
+            const parts = partsOf(plan, room.id);
+            const roomClass = `css-room css-room-${room.id} ${selectedRoom && selectedRoom !== room.id ? 'room-muted' : ''} ${selectedRoom === room.id ? 'room-selected' : ''} ${parts.length && hoveredRoom === room.id ? 'group-hover' : ''}`;
+            const select = () => { if (!wasDragged.current) onRoomSelect(room.id); };
+            const hover = parts.length ? { onMouseEnter: () => setHoveredRoom(room.id), onMouseLeave: () => setHoveredRoom(null) } : {};
             return (
-              <button className={`css-room css-room-${room.id} ${selectedRoom && selectedRoom !== room.id ? 'room-muted' : ''} ${selectedRoom === room.id ? 'room-selected' : ''}`} style={roomStyle} key={room.id} onClick={() => { if (!wasDragged.current) onRoomSelect(room.id); }} aria-label={`${room.name} 입장`}>
+              <React.Fragment key={room.id}>
+              <button className={roomClass} style={rectStyle(roomLayout)} onClick={select} {...hover} aria-label={`${room.name} 입장`}>
                 <RoomWalls walls={roomLayout.walls} windows={roomLayout.windows} doors={roomLayout.doors} />
                 <Furniture type={roomLayout.furniture} />
                 <RoomAppliances roomId={room.id} kinds={roomLayout.appliances} />
@@ -295,6 +321,14 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
                   return <Pin key={device.id} device={device} style={{ left: `${left}%`, top: `${top}%` }} />;
                 })}
               </button>
+              {parts.map(([partId, part]) => (
+                <button type="button" key={partId} className={`${roomClass} css-room-part`} style={rectStyle(part)} onClick={select} {...hover} tabIndex={-1} aria-hidden="true">
+                  <RoomWalls walls={part.walls} windows={part.windows} doors={part.doors} />
+                  <Furniture type={part.furniture} />
+                  <RoomAppliances roomId={room.id} kinds={part.appliances} />
+                </button>
+              ))}
+              </React.Fragment>
             );
           })}
           {occupantPosition && <span className={`occupant-marker ${occupantVisible ? 'visible' : ''} ${occupantMoving ? 'moving' : ''} ${selectedRoom && selectedRoom !== occupantRoom ? 'room-muted' : ''}`} style={{ left: `${occupantPosition[0]}%`, top: `${occupantPosition[1]}%` }} role="img" aria-label={`사용자 위치 · ${rooms.find((item) => item.id === occupantRoom)?.name || '이동 중'}`}><UserRound size={11} /></span>}

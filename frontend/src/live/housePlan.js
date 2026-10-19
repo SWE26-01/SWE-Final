@@ -11,7 +11,8 @@ import './house.css';
  * My Room), the living room and bedroom 2 (protected room) with its balcony and the AC unit room.
  * The outline is not a rectangle, so house.css hides the floor slab and only rooms are drawn. Rooms
  * that are open to each other (hallway, kitchen, living room, entrance) draw no wall between them;
- * where a door is in a shared wall, only the room with the door draws that wall.
+ * where a door is in a shared wall, only the room with the door draws that wall. The kitchen (with its
+ * counter nook) and the L-shaped hallway are rooms of two rectangles (`partOf`).
  */
 export const LIVE_PLAN = {
   className: 'plan-live',
@@ -19,13 +20,13 @@ export const LIVE_PLAN = {
   rooms: {
     bedroom3: { left: 0.5, top: 8, width: 31, height: 30, furniture: 'bed', appliances: [], windows: { north: ['center'], west: ['center'] }, doors: { south: 'right' } },
     veranda2: { left: 31.5, top: 1.5, width: 15.5, height: 17.5, furniture: 'veranda', appliances: ['washer'], windows: { north: ['center'] }, doors: { south: 'center' } },
-    kitchen2: { left: 47, top: 0.5, width: 20, height: 18.5, furniture: 'counter', appliances: ['hood'], walls: { south: false, west: false }, windows: { north: ['center'] } },
-    kitchen: { left: 31.5, top: 19, width: 35.5, height: 30, furniture: 'dining', appliances: [], walls: { north: false, south: false, west: false } },
+    kitchen: { left: 31.5, top: 19, width: 35.5, height: 30, furniture: 'dining', appliances: [], walls: { north: false, south: false, west: false }, join: ['north'] },
+    'kitchen-nook': { partOf: 'kitchen', left: 47, top: 0.5, width: 20, height: 18.5, furniture: 'counter', appliances: ['hood'], walls: { south: false, west: false }, windows: { north: ['center'] }, join: ['south'] },
     entrance: { left: 67, top: 29, width: 15, height: 20, furniture: 'none', appliances: [], walls: { south: false, west: false, east: false }, doors: { north: 'center' } },
     bath1: { left: 82, top: 34, width: 17.5, height: 23, furniture: 'bath', appliances: [], doors: { west: 'bottom' } },
     bath2: { left: 2, top: 38, width: 15, height: 19, furniture: 'bath', appliances: [], doors: { south: 'center' } },
-    hall: { left: 17, top: 38, width: 14.5, height: 19, furniture: 'none', appliances: [], walls: { north: false, east: false, west: false }, doors: { south: 'center' } },
-    hall2: { left: 31.5, top: 49, width: 50.5, height: 8, furniture: 'none', appliances: [], walls: { north: false, south: false, east: false, west: false } },
+    hall: { left: 31.5, top: 49, width: 50.5, height: 8, furniture: 'none', appliances: [], walls: { north: false, south: false, east: false, west: false }, join: ['west'] },
+    'hall-west': { partOf: 'hall', left: 17, top: 38, width: 14.5, height: 19, furniture: 'none', appliances: [], walls: { north: false, east: false, west: false }, doors: { south: 'center' }, join: ['east'] },
     myroom: { left: 2, top: 57, width: 34, height: 42.5, furniture: 'bed-desk', appliances: ['computer'], walls: { north: false }, windows: { west: ['center'], south: ['center'] } },
     living: { left: 36, top: 57, width: 36, height: 42.5, furniture: 'sofa', appliances: ['tv'], walls: { north: false, west: false }, windows: { south: ['wide'] } },
     protected: { left: 72, top: 57, width: 26, height: 25, furniture: 'bed', appliances: ['humidifier'], windows: { east: ['center'] }, doors: { north: 'left', south: 'center' } },
@@ -77,12 +78,10 @@ export const LIVE_ROOMS = [
   },
   { id: 'bedroom3', name: '침실3', en: 'Bedroom 3', className: 'room-bedroom3', icon: BedDouble, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'kitchen', name: '주방·식당', en: 'Kitchen', className: 'room-kitchen', icon: CookingPot, agent: null, description: '에이전트·기기 없음', devices: [] },
-  { id: 'kitchen2', name: '주방', en: 'Kitchen', className: 'room-kitchen', icon: CookingPot, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'entrance', name: '현관', en: 'Entrance', className: 'room-entrance', icon: DoorOpen, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'bath1', name: '공용욕실', en: 'Bath', className: 'room-bath1', icon: ShowerHead, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'bath2', name: '부부욕실', en: 'Bath 2', className: 'room-bath2', icon: ShowerHead, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'hall', name: '복도', en: 'Hall', className: 'room-hall', icon: DoorOpen, agent: null, description: '에이전트·기기 없음', devices: [] },
-  { id: 'hall2', name: '복도', en: 'Hall', className: 'room-hall', icon: DoorOpen, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'veranda', name: '발코니', en: 'Balcony', className: 'room-veranda', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'veranda2', name: '발코니 (다용도)', en: 'Utility balcony', className: 'room-veranda', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'outdoor', name: '실외기실', en: 'AC unit', className: 'room-outdoor', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
