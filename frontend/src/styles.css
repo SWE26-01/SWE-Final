@@ -671,9 +671,9 @@ h1,h2,h3,b,strong { font-weight:600; }
 }
 .css-device-pin.active {
   color:var(--device-active);
-  background:var(--canvas);
-  border-color:var(--mist);
-  box-shadow:0 0 0 2px rgba(246,194,68,.18),0 3px 9px rgba(58,84,102,.1);
+  background:rgba(246,194,68,.1);
+  border-color:rgba(246,194,68,.28);
+  box-shadow:0 0 0 3px rgba(246,194,68,.1),0 0 16px rgba(246,194,68,.24),0 3px 9px rgba(58,84,102,.08);
 }
 .three-topview,
 .three-topview:hover,
