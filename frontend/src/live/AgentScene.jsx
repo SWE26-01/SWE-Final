@@ -16,6 +16,10 @@ const SPOT = {
   desktop: [62, 91], // the PC in My Room
   smartphone: [49, 52], // the hall, with the person
 };
+// Room each agent stands in: zoomed into a room (Home3D), only that room's agents are shown.
+const ROOM = { orchestrator: 'living', room1: 'bedroom3', room2: 'bedroom2', desktop: 'bedroom3', smartphone: null };
+// Desktop and My Room stand close together, so their bubbles lean apart.
+const BUBBLE_SHIFT = { desktop: '-38%', room1: '38%' };
 const REPLY_MS = 8000;
 const shortName = (id) => agentName(id).replace(' Agent', '');
 const plain = (text) => text.replace(/[*_`#>|]/g, '').replace(/^\s*[-•]\s*/gm, '').replace(/\s+/g, ' ').trim();
@@ -29,20 +33,21 @@ function Billboard({ x, y, className = '', children }) {
   );
 }
 
-export default function AgentScene({ events, devices, rooms, chat, offline }) {
+export default function AgentScene({ events, devices, rooms, chat, offline, focusRoom = null }) {
   const { shown, now } = useAgentScene(events);
+  const visible = (id) => !focusRoom || ROOM[id] === focusRoom;
 
   const lines = {};
   shown.forEach((event) => {
     const line = sceneLine(event, devices);
     if (line) (lines[event.agent] ||= []).push({ key: event.id, ...line });
   });
-  const pulses = shown.filter((event) => event.dir === 'out' && SPOT[event.agent] && SPOT[event.to]);
+  const pulses = shown.filter((event) => event.dir === 'out' && SPOT[event.agent] && SPOT[event.to] && visible(event.agent) && visible(event.to));
   const flashes = new Map(); // pin -> latest change
   shown.filter((event) => event.dir === 'exec').forEach((event) => {
     const flash = sceneFlash(event, devices);
     const spot = flash && devicePinSpot(rooms, flash.pin);
-    if (spot) flashes.set(flash.pin, { key: event.id, ...flash, ...spot });
+    if (spot && (!focusRoom || spot.room === focusRoom)) flashes.set(flash.pin, { key: event.id, ...flash, ...spot });
   });
   const run = chat.lastRun;
   const llm = {};
@@ -73,7 +78,7 @@ export default function AgentScene({ events, devices, rooms, chat, offline }) {
           <Billboard x={flash.x} y={flash.y} className="scene-flash"><span className={`scene-tag ${flash.ok ? 'ok' : 'no'}`}>{flash.text}</span></Billboard>
         </React.Fragment>
       ))}
-      {AGENT_ORDER.map((id) => {
+      {AGENT_ORDER.filter(visible).map((id) => {
         const [x, y] = SPOT[id];
         const said = lines[id]?.slice(-3) || [];
         const mind = llm[id];
@@ -83,7 +88,7 @@ export default function AgentScene({ events, devices, rooms, chat, offline }) {
             <i className="scene-base" style={{ left: `${x}%`, top: `${y}%` }} />
             <Billboard x={x} y={y}>
               {speaking && (
-                <div className="scene-bubble">
+                <div className="scene-bubble" style={BUBBLE_SHIFT[id] ? { '--shift': BUBBLE_SHIFT[id] } : undefined}>
                   {mind?.thinking && (
                     <>
                       {mind.said && <p className="said">“{mind.said}”</p>}

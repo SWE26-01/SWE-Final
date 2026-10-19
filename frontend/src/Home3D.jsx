@@ -216,7 +216,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
   const selectedScale = selectedLayout ? Math.min(2.8, Math.max(2.08, 58 / Math.max(selectedLayout.width, selectedLayout.height))) : 1;
   const houseTransform = `${focus ? `translate(${focus[0]}, ${focus[1]})` : ''} scale(${selectedScale * modelBaseScale * zoom}) rotateX(${tilt}deg) rotateZ(${rotation}deg)`;
   const isTopView = tilt < 1;
-  const houseStyle = { transform: houseTransform, transformOrigin: `${center[0]}% ${center[1]}%`, '--counter-rotation': `${-rotation}deg`, '--counter-tilt': `${-tilt}deg` };
+  const houseStyle = { transform: houseTransform, transformOrigin: `${center[0]}% ${center[1]}%`, '--counter-rotation': `${-rotation}deg`, '--counter-tilt': `${-tilt}deg`, '--label-scale': 1 / selectedScale };
 
   return (
     <div
@@ -270,7 +270,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
           {occupantPosition && <span className={`occupant-marker ${occupantVisible ? 'visible' : ''} ${occupantMoving ? 'moving' : ''} ${selectedRoom && selectedRoom !== occupantRoom ? 'room-muted' : ''}`} style={{ left: `${occupantPosition[0]}%`, top: `${occupantPosition[1]}%` }} role="img" aria-label={`사용자 위치 · ${rooms.find((item) => item.id === occupantRoom)?.name || '이동 중'}`}><UserRound size={11} /></span>}
         </div>
         {/* same transform as the house, but its own layer, so walls never hide the overlay */}
-        {overlay && <div className={`css-house css-house-overlay ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
+        {overlay && <div className={`css-house css-house-overlay ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
       </div>
       <div className="three-zoom" onPointerDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => adjustZoom(-.05)} aria-label="3D 모델 축소"><Minus size={12} /></button>

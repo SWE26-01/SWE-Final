@@ -2,18 +2,18 @@
    house's rotation (--counter-rotation, --counter-tilt set by Home3D) so its label faces the viewer. */
 .agent-scene { position:absolute; inset:0; transform-style:preserve-3d; pointer-events:none; }
 .scene-anchor { position:absolute; width:0; height:0; transform-style:preserve-3d; }
-.scene-billboard { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:4px; transform-origin:0 0; transform:translateZ(var(--lift, 2px)) rotateZ(var(--counter-rotation)) rotateX(var(--counter-tilt)) translate(-50%, -100%); }
+.scene-billboard { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:4px; transform-origin:0 0; transform:translateZ(var(--lift, 2px)) rotateZ(var(--counter-rotation)) rotateX(var(--counter-tilt)) scale(var(--label-scale, 1)) translate(-50%, -100%); }
 /* the stick from the floor spot up to the label, so it is clear where an agent or a device is */
 .scene-stem { width:2px; height:var(--stem, 38px); margin-top:-4px; border-radius:1px; background:linear-gradient(rgba(47,77,95,.7), rgba(47,77,95,.15)); }
 .scene-flash .scene-billboard { --lift:34px; --stem:12px; }
 
-.scene-base { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:rgba(77,131,170,.22); border:1px solid rgba(77,131,170,.55); transform:translateZ(2px); }
+.scene-base { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:rgba(77,131,170,.22); border:1px solid rgba(77,131,170,.55); transform:translateZ(2px) scale(var(--label-scale, 1)); }
 .scene-chip { display:flex; align-items:center; gap:3px; padding:3px 7px; border-radius:999px; background:#fff; border:1px solid rgba(106,166,218,.6); color:#2f4d5f; font-size:8px; font-weight:700; white-space:nowrap; box-shadow:0 3px 8px rgba(58,84,102,.18); transition:background .2s, color .2s; }
 .scene-chip.speaking { background:#2f4d5f; border-color:#2f4d5f; color:#fff; }
 .scene-chip.offline { opacity:.45; filter:grayscale(1); }
 
-.scene-bubble { position:relative; display:grid; gap:3px; width:max-content; max-width:140px; padding:6px 8px; border-radius:10px; background:#fff; border:1px solid rgba(106,166,218,.5); box-shadow:0 6px 14px rgba(58,84,102,.2); color:#1d2b27; font-size:7.5px; line-height:1.45; animation:scene-pop .25s ease-out; }
-.scene-bubble::after { content:''; position:absolute; left:50%; bottom:-5px; width:8px; height:8px; margin-left:-4px; background:#fff; border-right:1px solid rgba(106,166,218,.5); border-bottom:1px solid rgba(106,166,218,.5); transform:rotate(45deg); }
+.scene-bubble { position:relative; display:grid; gap:3px; width:max-content; max-width:140px; padding:6px 8px; border-radius:10px; background:#fff; border:1px solid rgba(106,166,218,.5); box-shadow:0 6px 14px rgba(58,84,102,.2); color:#1d2b27; font-size:7.5px; line-height:1.45; transform:translateX(var(--shift, 0)); animation:scene-pop .25s ease-out; }
+.scene-bubble::after { content:''; position:absolute; left:calc(50% - var(--shift, 0%)); bottom:-5px; width:8px; height:8px; margin-left:-4px; background:#fff; border-right:1px solid rgba(106,166,218,.5); border-bottom:1px solid rgba(106,166,218,.5); transform:rotate(45deg); }
 .scene-bubble p { margin:0; animation:scene-pop .25s ease-out; }
 .scene-bubble p.no { color:#9a4d36; font-weight:700; }
 .scene-bubble p.said { color:rgba(0,0,0,.5); }
@@ -39,7 +39,7 @@
 .scene-tag.no { background:#f3c9b6; color:#4a1d10; }
 
 @keyframes scene-travel { from { left:var(--x1); top:var(--y1); opacity:1; } 85% { opacity:1; } to { left:var(--x2); top:var(--y2); opacity:0; } }
-@keyframes scene-ring { from { transform:translateZ(36px) scale(.7); opacity:1; } to { transform:translateZ(36px) scale(1.7); opacity:0; } }
+@keyframes scene-ring { from { transform:translateZ(36px) scale(calc(.7 * var(--label-scale, 1))); opacity:1; } to { transform:translateZ(36px) scale(calc(1.7 * var(--label-scale, 1))); opacity:0; } }
 @keyframes scene-glow { from { opacity:.45; } to { opacity:1; } }
 @keyframes scene-pop { from { opacity:0; } to { opacity:1; } }
 

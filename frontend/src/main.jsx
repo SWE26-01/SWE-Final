@@ -364,7 +364,7 @@ function App() {
   const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
   const liveAgents = useMemo(() => liveData.agents.map(toAgentCard), [liveData.agents]);
   const offlineAgents = new Set(liveAgents.filter((agent) => agent.checked && !agent.online).map((agent) => agent.id));
-  const agentScene = live ? <AgentScene events={liveEvents} devices={liveDevices} rooms={shownRooms} chat={agentChat} offline={offlineAgents} /> : null;
+  const agentScene = live ? <AgentScene events={liveEvents} devices={liveDevices} rooms={shownRooms} chat={agentChat} offline={offlineAgents} focusRoom={selectedRoom} /> : null;
 
   useEffect(() => {
     roomsRef.current = rooms;
