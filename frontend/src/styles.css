@@ -628,6 +628,105 @@ h1,h2,h3,b,strong { font-weight:600; }
   .activity-tab .expanded-log { padding:14px 10px; }
 }
 
+/* Architectural and furniture detail pass */
+.wall-3d {
+  border-color:rgba(79,113,154,.38);
+  background:linear-gradient(180deg,#f9fcfe 0 10%,#dbeaf3 11% 72%,#c8dce8 100%);
+  box-shadow:inset 0 3px rgba(255,255,255,.95),inset 0 -2px rgba(79,113,154,.1),0 4px 9px rgba(79,113,154,.13);
+}
+.wall-3d::before {
+  content:'';
+  position:absolute;
+  inset:3px 3px auto;
+  height:3px;
+  border-radius:999px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 1px rgba(79,113,154,.12);
+}
+.wall-north,.wall-south { height:52px; }
+.wall-south { height:28px; opacity:.78; }
+.wall-west,.wall-east { width:52px; }
+.wall-east { opacity:.82; }
+
+.window-3d {
+  overflow:hidden;
+  border:3px solid #fff;
+  background:linear-gradient(145deg,rgba(255,255,255,.96) 0 35%,rgba(185,220,240,.72) 36% 100%);
+  box-shadow:0 0 0 2px rgba(68,152,194,.48),inset 0 0 0 1px rgba(79,113,154,.14),inset 0 0 10px rgba(68,152,194,.16);
+}
+.window-3d::before {
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  top:48%;
+  height:2px;
+  background:#fff;
+  box-shadow:0 1px rgba(79,113,154,.18);
+}
+.window-3d::after {
+  left:48%;
+  width:2px;
+  background:#fff;
+  box-shadow:1px 0 rgba(79,113,154,.18);
+}
+.door-gap {
+  background:rgba(255,255,255,.98);
+  box-shadow:inset 3px 0 rgba(79,113,154,.38),inset 0 -2px rgba(79,113,154,.16);
+}
+.door-gap::before {
+  content:'';
+  position:absolute;
+  z-index:2;
+  width:4px;
+  height:4px;
+  right:13%;
+  bottom:7px;
+  border-radius:50%;
+  background:#4F719A;
+  box-shadow:0 0 0 2px rgba(255,255,255,.7);
+}
+.door-gap::after { height:2px; background:rgba(79,113,154,.72); }
+.door-east,.door-west { box-shadow:inset 0 3px rgba(79,113,154,.38),inset -2px 0 rgba(79,113,154,.16); }
+.door-east::before,.door-west::before { right:7px; bottom:13%; }
+
+.furniture {
+  border:1px solid rgba(79,113,154,.18);
+  background:linear-gradient(145deg,#f8fbfd,#dfeaf0);
+  box-shadow:5px 6px 0 rgba(79,113,154,.16),0 2px 5px rgba(79,113,154,.1);
+}
+.furniture::before,.furniture::after { background:linear-gradient(180deg,#c9dbe5,#b9ceda); }
+.bed-3d { border-color:#c7d9e4; background:#f4f8fa; }
+.bed-3d i { border:1px solid rgba(79,113,154,.1); box-shadow:0 2px 3px rgba(79,113,154,.08); }
+.bed-3d span { border:1px solid rgba(79,113,154,.12); background:repeating-linear-gradient(90deg,#E2F2FB 0 7px,#d8edf8 7px 9px); }
+.sofa-3d { border-color:#c4d8e3; background:#eaf3f8; }
+.sofa-3d span { background:#bed3df; box-shadow:inset 0 2px rgba(255,255,255,.65); }
+.sofa-3d i { background:rgba(79,113,154,.24); }
+.table-3d { background:radial-gradient(circle at 38% 32%,#fff,#dceaf1 72%); border-color:#bfd3de; }
+.table-detail { position:absolute; inset:21%; border:1px solid rgba(79,113,154,.18); border-radius:50%; background:rgba(255,255,255,.45); }
+.wardrobe-3d { background:linear-gradient(90deg,#eaf1f5 0 49%,#cadbe4 49% 51%,#eaf1f5 51%); }
+.wardrobe-detail { position:absolute; inset:8%; border:1px solid rgba(79,113,154,.18); background:linear-gradient(90deg,transparent 49%,rgba(79,113,154,.22) 49% 51%,transparent 51%); }
+.wardrobe-detail::before,.wardrobe-detail::after { content:''; position:absolute; top:47%; width:3px; height:3px; border-radius:50%; background:#4F719A; }
+.wardrobe-detail::before { left:43%; }.wardrobe-detail::after { right:43%; }
+.desk-3d { border-top:3px solid #fff; }
+.desk-3d span { border:2px solid #4F719A; background:linear-gradient(145deg,#4F719A,#27435f); box-shadow:0 3px 0 #aebfca; }
+.chair-3d { border:2px solid #c4d6df; background:linear-gradient(180deg,#edf4f7,#cfdee6); box-shadow:inset 0 -4px rgba(79,113,154,.08); }
+.counter-3d { border-top:4px solid #fff; background:linear-gradient(90deg,#e5eef2 0 32%,#d5e3ea 32% 34%,#e5eef2 34% 66%,#d5e3ea 66% 68%,#e5eef2 68%); }
+.counter-3d i { border:2px solid #718695; background:radial-gradient(circle,#263945 0 35%,#5c707d 37% 58%,#263945 60%); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+.island-3d { border-top:4px solid #fff; }
+.island-detail { position:absolute; inset:18% 16%; border:2px solid rgba(79,113,154,.28); border-radius:45%; background:rgba(226,242,251,.8); }
+.fridge-3d { background:linear-gradient(90deg,#f8fafb,#d6e1e7); }
+.fridge-detail { position:absolute; inset:8% 10%; border-bottom:2px solid rgba(79,113,154,.24); background:linear-gradient(90deg,transparent 88%,rgba(79,113,154,.3) 88% 92%,transparent 92%); }
+.dining-3d { border:2px solid #c8d9e2; background:linear-gradient(145deg,#f9fbfc,#d9e7ed); box-shadow:5px 6px 0 rgba(79,113,154,.14); }
+.dining-detail { position:absolute; inset:13%; border:1px solid rgba(79,113,154,.18); border-radius:6px; box-shadow:inset 0 0 0 3px rgba(255,255,255,.45); }
+.dining-3d > i { border:1px solid rgba(79,113,154,.18); background:#d9e9f0; box-shadow:2px 2px 0 rgba(79,113,154,.12); }
+.dining-sideboard-3d { background:repeating-linear-gradient(90deg,#e4eef3 0 31%,#c6d8e1 31% 33%); }
+.sideboard-detail { position:absolute; left:12%; right:12%; top:12%; height:6%; border-radius:999px; background:rgba(79,113,154,.28); }
+.tub-3d { border-color:#bfd6e1; background:#f7fbfc; box-shadow:inset 0 0 0 2px #fff,5px 6px 0 rgba(79,113,154,.12); }
+.tub-3d span { border:1px solid rgba(68,152,194,.18); background:radial-gradient(ellipse at 50% 35%,#f8fdff,#d9f0fa); }
+.sink-3d { border:3px solid #c2d6df; background:#f7fbfc; }
+.sink-detail { position:absolute; inset:24% 19%; border:2px solid rgba(79,113,154,.28); border-radius:50%; background:#E2F2FB; }
+
 /* Role-based color rules */
 .main-tabs button.active,
 .activity-date-controls > button,

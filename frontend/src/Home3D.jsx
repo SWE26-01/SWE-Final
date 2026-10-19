@@ -30,14 +30,14 @@ const occupantRoutes = {
 };
 
 function Furniture({ type }) {
-  if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /><div className="furniture desk-3d bedroom-desk-3d" /><div className="furniture chair-3d bedroom-chair-3d" /></>;
-  if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /></>;
+  if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d"><i className="wardrobe-detail" /></div><div className="furniture desk-3d bedroom-desk-3d"><span /></div><div className="furniture chair-3d bedroom-chair-3d" /></>;
+  if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d"><i className="wardrobe-detail" /></div></>;
   if (type === 'desk') return <><div className="furniture desk-3d"><span /></div><div className="furniture chair-3d" /></>;
-  if (type === 'sofa') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d" /><div className="plant-3d"><i /><span /></div></>;
-  if (type === 'counter') return <><div className="furniture counter-3d"><i /><i /><i /><i /></div><div className="furniture island-3d" /><div className="furniture tower-3d fridge-3d" /></>;
-  if (type === 'dining') return <><div className="furniture dining-3d"><i /><i /><i /><i /></div><div className="furniture dining-sideboard-3d" /></>;
+  if (type === 'sofa') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d"><i className="table-detail" /></div><div className="plant-3d"><i /><span /></div></>;
+  if (type === 'counter') return <><div className="furniture counter-3d"><i /><i /><i /><i /></div><div className="furniture island-3d"><i className="island-detail" /></div><div className="furniture tower-3d fridge-3d"><i className="fridge-detail" /></div></>;
+  if (type === 'dining') return <><div className="furniture dining-3d"><i /><i /><i /><i /><span className="dining-detail" /></div><div className="furniture dining-sideboard-3d"><i className="sideboard-detail" /></div></>;
   if (type === 'veranda') return <><div className="veranda-grid-3d" /><div className="plant-3d veranda-plant-a"><i /><span /></div><div className="plant-3d veranda-plant-b"><i /><span /></div></>;
-  return <><div className="furniture tub-3d"><span /></div><div className="furniture sink-3d" /></>;
+  return <><div className="furniture tub-3d"><span /></div><div className="furniture sink-3d"><i className="sink-detail" /></div></>;
 }
 
 function RoomAppliances({ roomId }) {
