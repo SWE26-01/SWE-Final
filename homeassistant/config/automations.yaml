@@ -1,0 +1,43 @@
+- id: ambient_simulation_1
+  alias: "시뮬레이션 1 실행"
+  description: "프론트엔드 요청으로 요리부터 취침까지 시뮬레이션을 실행합니다."
+  trigger:
+    - platform: state
+      entity_id: input_button.ambient_simulation_1
+  action:
+    - service: script.turn_on
+      target: { entity_id: script.ambient_simulation_1 }
+  mode: restart
+
+- id: ambient_simulation_2
+  alias: "시뮬레이션 2 실행"
+  description: "프론트엔드 요청으로 외출 환경 관리 시뮬레이션을 실행합니다."
+  trigger:
+    - platform: state
+      entity_id: input_button.ambient_simulation_2
+  action:
+    - service: script.turn_on
+      target: { entity_id: script.ambient_simulation_2 }
+  mode: restart
+
+- id: ambient_simulation_3
+  alias: "시뮬레이션 3 실행"
+  description: "프론트엔드 요청으로 조리 방치 대응 시뮬레이션을 실행합니다."
+  trigger:
+    - platform: state
+      entity_id: input_button.ambient_simulation_3
+  action:
+    - service: script.turn_on
+      target: { entity_id: script.ambient_simulation_3 }
+  mode: restart
+
+- id: ambient_simulation_4
+  alias: "시뮬레이션 4 실행"
+  description: "프론트엔드 요청으로 환경 최적화 시뮬레이션을 실행합니다."
+  trigger:
+    - platform: state
+      entity_id: input_button.ambient_simulation_4
+  action:
+    - service: script.turn_on
+      target: { entity_id: script.ambient_simulation_4 }
+  mode: restart

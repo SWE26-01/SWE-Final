@@ -40,6 +40,7 @@ import {
   connectHomeAssistant,
   fetchHomeAssistantActivity,
   mergeHomeAssistantDevices,
+  runHomeAssistantSimulation,
   setHomeAssistantPower,
   syncHomeAssistantDevices,
 } from './homeAssistant';
@@ -773,6 +774,14 @@ function App() {
     liveExecutedSteps.current = new Set();
     setLiveRunId((value) => value + 1);
     setLivePlaying(true);
+    runHomeAssistantSimulation({
+      url: gatewayUrl,
+      token: dashboardToken,
+      scenarioId,
+    }).catch(() => {
+      setToast('Home Assistant 시뮬레이션 실행에 실패했습니다');
+      window.setTimeout(() => setToast(''), 2200);
+    });
   };
 
   const handleScenarioButton = (scenarioId) => {

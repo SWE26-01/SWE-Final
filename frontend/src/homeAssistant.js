@@ -169,6 +169,19 @@ export const setHomeAssistantPower = async ({ url, token, entity, on }) => {
   if (!response.ok) throw new Error(`Home Assistant control failed (${response.status})`);
 };
 
+export const runHomeAssistantSimulation = async ({ url, token, scenarioId }) => {
+  if (!url || !token || !scenarioId) throw new Error('Home Assistant simulation is not configured');
+  const endpoint = new URL(url, window.location.href);
+  endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
+  endpoint.pathname = `/dashboard/simulations/${encodeURIComponent(scenarioId)}`;
+  endpoint.search = '';
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Home Assistant simulation failed (${response.status})`);
+};
+
 const gatewayHttpUrl = (url, path) => {
   const endpoint = new URL(url, window.location.href);
   endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';

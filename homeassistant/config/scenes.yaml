@@ -1,0 +1,128 @@
+- id: ambient_baseline
+  name: "Ambient · 기본 상태"
+  entities:
+    input_boolean.kitchen_light: "off"
+    input_boolean.kitchen_stove: "off"
+    input_boolean.kitchen_air: "off"
+    input_boolean.kitchen_hood: "off"
+    input_boolean.dining_light: "off"
+    input_boolean.living_light: "off"
+    input_boolean.living_air: "off"
+    input_boolean.living_cleaner: "off"
+    input_boolean.living_tv: "off"
+    input_boolean.living_purifier: "off"
+    input_boolean.bath1_air: "off"
+    input_boolean.room1_light: "off"
+    input_boolean.room1_ac: "off"
+    input_boolean.bedroom1_humidifier: "off"
+    input_boolean.bath2_air: "off"
+
+- id: ambient_cooking
+  name: "Ambient · 조리 중"
+  entities:
+    input_boolean.kitchen_light: "on"
+    input_boolean.kitchen_stove: "on"
+    input_boolean.kitchen_air: "on"
+    input_boolean.kitchen_hood: "on"
+
+- id: ambient_living_rest
+  name: "Ambient · 거실 휴식"
+  entities:
+    input_boolean.kitchen_stove: "off"
+    input_boolean.kitchen_air: "on"
+    input_boolean.kitchen_hood: "on"
+    input_boolean.living_light: "on"
+    input_boolean.living_air: "on"
+    input_boolean.living_purifier: "on"
+
+- id: ambient_sleep_ready
+  name: "Ambient · 수면 준비"
+  entities:
+    input_boolean.kitchen_light: "off"
+    input_boolean.kitchen_air: "off"
+    input_boolean.kitchen_hood: "off"
+    input_boolean.living_light: "off"
+    input_boolean.living_air: "off"
+    input_boolean.living_tv: "off"
+    input_boolean.room1_light: "on"
+    input_boolean.room1_ac: "on"
+    input_boolean.bedroom1_humidifier: "on"
+
+- id: ambient_away
+  name: "Ambient · 외출"
+  entities:
+    input_boolean.kitchen_light: "off"
+    input_boolean.kitchen_stove: "off"
+    input_boolean.living_light: "off"
+    input_boolean.living_air: "off"
+    input_boolean.living_tv: "off"
+    input_boolean.room1_light: "off"
+    input_boolean.room1_ac: "off"
+    input_boolean.living_cleaner: "on"
+
+- id: ambient_away_climate
+  name: "Ambient · 무인 환경 최적화"
+  entities:
+    input_boolean.living_cleaner: "on"
+    input_boolean.living_air: "on"
+    input_boolean.living_purifier: "on"
+    input_boolean.kitchen_air: "on"
+    input_boolean.bath2_air: "on"
+
+- id: ambient_away_complete
+  name: "Ambient · 외출 환경 안정"
+  entities:
+    input_boolean.living_cleaner: "off"
+    input_boolean.living_air: "off"
+    input_boolean.living_purifier: "on"
+    input_boolean.kitchen_air: "off"
+    input_boolean.bath2_air: "off"
+
+- id: ambient_stove_cooking
+  name: "Ambient · 화구 사용"
+  entities:
+    input_boolean.kitchen_light: "on"
+    input_boolean.kitchen_stove: "on"
+    input_boolean.kitchen_hood: "on"
+    input_boolean.bath1_air: "on"
+
+- id: ambient_stove_warning
+  name: "Ambient · 조리 방치 경고"
+  entities:
+    input_boolean.kitchen_stove: "on"
+    input_boolean.kitchen_hood: "on"
+    input_boolean.living_light: "on"
+    input_boolean.living_tv: "on"
+
+- id: ambient_stove_safe
+  name: "Ambient · 조리 위험 해제"
+  entities:
+    input_boolean.kitchen_stove: "off"
+    input_boolean.kitchen_hood: "off"
+    input_boolean.living_light: "on"
+    input_boolean.living_tv: "off"
+    input_boolean.bath1_air: "off"
+
+- id: ambient_environment_alert
+  name: "Ambient · 환경 이상"
+  entities:
+    input_boolean.living_air: "off"
+    input_boolean.living_purifier: "off"
+    input_boolean.kitchen_air: "off"
+    input_boolean.bath2_air: "off"
+
+- id: ambient_environment_recovery
+  name: "Ambient · 환경 회복"
+  entities:
+    input_boolean.living_air: "on"
+    input_boolean.living_purifier: "on"
+    input_boolean.kitchen_air: "on"
+    input_boolean.bath2_air: "on"
+
+- id: ambient_environment_complete
+  name: "Ambient · 환경 정상"
+  entities:
+    input_boolean.living_air: "off"
+    input_boolean.living_purifier: "on"
+    input_boolean.kitchen_air: "off"
+    input_boolean.bath2_air: "off"

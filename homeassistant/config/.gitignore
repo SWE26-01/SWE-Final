@@ -2,5 +2,8 @@
 *
 !.gitignore
 !configuration.yaml
+!automations.yaml
+!scripts.yaml
+!scenes.yaml
 !dashboards/
 !dashboards/*.yaml

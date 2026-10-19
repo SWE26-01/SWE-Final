@@ -145,7 +145,7 @@ class AgentActions:
     def __init__(self) -> None:
         self._items: list[dict[str, Any]] = []
 
-    def add(self, agent_id: str, entities: list[str], domain: str, service: str) -> None:
+    def add(self, agent_id: str, entities: list[str], domain: str, service: str | None) -> None:
         now = datetime.now(UTC)
         self._items = [item for item in self._items if now - item["at"] < timedelta(hours=24)]
         self._items.extend(
@@ -169,7 +169,7 @@ class AgentActions:
             if item["entity_id"] == row.get("entity_id")
             and item["domain"] == row.get("context_domain")
             and item["service"] == row.get("context_service")
-            and abs((when - item["at"]).total_seconds()) <= 15
+            and abs((when - item["at"]).total_seconds()) <= 20
         )
         match = next(matches, None)
         return match["agent_id"] if match else None
@@ -350,6 +350,26 @@ def create_app(
             return _message(status.HTTP_403_FORBIDDEN, "entity is not a controllable device")
         domain, service_name = service
         return await _forward(ha.call_service(domain, service_name, {"entity_id": entity_id}))
+
+    @app.post("/dashboard/simulations/{scenario_id}")
+    async def dashboard_simulation(
+        scenario_id: int,
+        _: auth.operator,
+    ) -> JSONResponse:
+        if scenario_id not in {1, 2, 3, 4}:
+            return _message(status.HTTP_404_NOT_FOUND, "simulation scenario not found")
+        try:
+            response = await ha.call_service(
+                "input_button",
+                "press",
+                {"entity_id": f"input_button.ambient_simulation_{scenario_id}"},
+            )
+        except httpx.HTTPError as e:
+            log.warning("Home Assistant request failed: %r", e)
+            return _message(status.HTTP_502_BAD_GATEWAY, "Home Assistant is unreachable")
+        if response.is_success:
+            agent_actions.add("orchestrator", list(config.devices), "automation", None)
+        return _ha_response(response)
 
     @app.get("/dashboard/activity")
     async def dashboard_activity(

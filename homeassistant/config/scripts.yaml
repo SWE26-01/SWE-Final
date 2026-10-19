@@ -1,0 +1,63 @@
+ambient_simulation_1:
+  alias: "시뮬레이션 1 · 요리부터 취침까지"
+  mode: restart
+  sequence:
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_gibon_sangtae }
+    - delay: "00:00:01"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_jori_jung }
+    - delay: "00:00:05"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_geosil_hyusig }
+    - delay: "00:00:07"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_sumyeon_junbi }
+
+ambient_simulation_2:
+  alias: "시뮬레이션 2 · 외출 환경 관리"
+  mode: restart
+  sequence:
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_gibon_sangtae }
+    - delay: "00:00:01"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_oecul }
+    - delay: "00:00:07"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_muin_hwangyeong_coejeoghwa }
+    - delay: "00:00:06"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_oecul_hwangyeong_anjeong }
+
+ambient_simulation_3:
+  alias: "시뮬레이션 3 · 조리 방치 대응"
+  mode: restart
+  sequence:
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_gibon_sangtae }
+    - delay: "00:00:01"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_hwagu_sayong }
+    - delay: "00:00:08"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_jori_bangci_gyeonggo }
+    - delay: "00:00:07"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_jori_wiheom_haeje }
+
+ambient_simulation_4:
+  alias: "시뮬레이션 4 · 환경 최적화"
+  mode: restart
+  sequence:
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_gibon_sangtae }
+    - delay: "00:00:01"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_hwangyeong_isang }
+    - delay: "00:00:06"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_hwangyeong_hoebog }
+    - delay: "00:00:07"
+    - service: scene.turn_on
+      target: { entity_id: scene.ambient_hwangyeong_jeongsang }

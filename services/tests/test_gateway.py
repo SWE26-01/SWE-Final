@@ -226,6 +226,30 @@ def test_dashboard_can_control_visible_devices_only(client, ha):
     assert client.post(f"/dashboard/devices/{device}/turn_on", headers=ROOM1).status_code == 403
 
 
+def test_dashboard_can_start_allowlisted_home_assistant_simulation(client, ha):
+    response = client.post("/dashboard/simulations/3", headers=DASHBOARD)
+    assert response.status_code == 200
+    assert ha.requests[-1].url.path == "/api/services/input_button/press"
+    assert json.loads(ha.requests[-1].content) == {
+        "entity_id": "input_button.ambient_simulation_3",
+    }
+
+    now = datetime.now(UTC).isoformat()
+    ha.answer = httpx.Response(200, json=[{
+        "state": "on",
+        "entity_id": "input_boolean.kitchen_stove",
+        "name": "화구",
+        "when": now,
+        "context_domain": "automation",
+    }])
+    activity = client.get("/dashboard/activity", headers=DASHBOARD).json()
+    assert activity[0]["action_type"] == "agent"
+    assert activity[0]["actor"] == "Home Agent"
+
+    assert client.post("/dashboard/simulations/5", headers=DASHBOARD).status_code == 404
+    assert client.post("/dashboard/simulations/1", headers=ROOM1).status_code == 403
+
+
 def test_dashboard_activity_keeps_ha_shape_and_labels_agent_and_user(client, ha):
     devices = client.app.state.devices
     device = "input_boolean.kitchen_stove"
