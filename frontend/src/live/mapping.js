@@ -1,22 +1,14 @@
 // Turns live data into the shapes the screens already use (rooms/devices, log rows, timeline items).
 // Mapping and wording follow docs/frontend-integration.md section 4.
+import { LIVE_ROOMS } from './housePlan';
 
-// Home Assistant entity -> screen room/device. Rooms not listed here have no real devices.
-export const DEVICE_MAP = {
-  'input_boolean.living_light': { roomId: 'living', deviceId: 'living-light' },
-  'input_boolean.living_tv': { roomId: 'living', deviceId: 'living-tv' },
-  'input_boolean.room1_light': { roomId: 'bedroom3', deviceId: 'bedroom3-light' },
-  'input_boolean.room1_ac': { roomId: 'bedroom3', deviceId: 'bedroom3-air' },
-  'input_boolean.room2_light': { roomId: 'bedroom2', deviceId: 'bedroom2-light' },
-  'input_boolean.room2_ac': { roomId: 'bedroom2', deviceId: 'bedroom2-air' },
-};
+// Home Assistant entity -> screen room/device of the real house (live/housePlan.js).
+export const DEVICE_MAP = Object.fromEntries(LIVE_ROOMS.flatMap((room) => room.devices.map((device) => [device.entity, { roomId: room.id, deviceId: device.id }])));
 // Entities shown as an extra on another device or room instead of a device of their own.
 const TV_MUTED = 'input_boolean.living_tv_muted';
 const LIGHT_MODE = 'input_select.room1_light_mode';
 const OCCUPIED = 'input_boolean.room1_occupied';
 const SLEEP_MODE = 'input_boolean.room2_sleep_mode';
-
-export const LIVE_ROOM_AGENT = { living: 'Home Agent', bedroom3: 'My Room Agent', bedroom2: '보호 방 Agent' };
 
 export const AGENTS = {
   desktop: { name: 'Desktop Agent', color: 'purple' },
@@ -147,25 +139,24 @@ const ON_OFF_TEXT = { on: '켜짐', off: '꺼짐' };
 const powerText = (state) => ON_OFF_TEXT[state] || '상태 없음';
 const stateText = (state) => ON_OFF_TEXT[state] || valueText(state); // on/off, or an option like meeting
 
-/** Rooms with live device states. Devices without a real counterpart show as not connected. */
-export function applyLiveDevices(rooms, devices, online) {
-  const byDevice = Object.fromEntries(Object.entries(DEVICE_MAP).map(([entity, target]) => [target.deviceId, entity]));
+/** The real house's rooms (live/housePlan.js) with live device states. No temperature sensors: temp is null. */
+export function liveRooms(devices, online) {
   const state = (entity) => devices[entity]?.state;
-  return rooms.map((room) => {
+  return LIVE_ROOMS.map((room) => {
     const extras = [];
-    if (room.id === 'bedroom2' && state(SLEEP_MODE)) extras.push(`수면 모드 ${powerText(state(SLEEP_MODE))}`);
-    if (room.id === 'bedroom3' && state(OCCUPIED)) extras.push(state(OCCUPIED) === 'on' ? '재실' : '비어 있음');
+    if (room.id === 'protected' && state(SLEEP_MODE)) extras.push(`수면 모드 ${powerText(state(SLEEP_MODE))}`);
+    if (room.id === 'myroom' && state(OCCUPIED)) extras.push(state(OCCUPIED) === 'on' ? '재실' : '비어 있음');
     return {
       ...room,
+      temp: null,
+      humidity: null,
       description: extras.length ? `${room.description} · ${extras.join(' · ')}` : room.description,
       devices: room.devices.map((device) => {
-        const entity = byDevice[device.id];
-        if (!entity) return { ...device, on: false, connected: false, value: '시뮬레이션 전용' };
-        const value = state(entity);
+        const value = state(device.entity);
         const connected = online && value != null;
         let text = connected ? powerText(value) : '연결 안 됨';
-        if (connected && device.id === 'living-tv' && state(TV_MUTED) === 'on') text += ' · 음소거';
-        if (connected && device.id === 'bedroom3-light' && state(LIGHT_MODE)) text += ` · ${valueText(state(LIGHT_MODE))}`;
+        if (connected && device.entity === 'input_boolean.living_tv' && state(TV_MUTED) === 'on') text += ' · 음소거';
+        if (connected && device.entity === 'input_boolean.room1_light' && state(LIGHT_MODE)) text += ` · ${valueText(state(LIGHT_MODE))}`;
         return { ...device, on: connected && value === 'on', connected, value: text };
       }),
     };
@@ -174,7 +165,20 @@ export function applyLiveDevices(rooms, devices, online) {
 
 /** Room the occupant marker should show (My Room is occupied), or null. */
 export function liveOccupantRoom(devices) {
-  return devices[OCCUPIED]?.state === 'on' ? 'bedroom3' : null;
+  return devices[OCCUPIED]?.state === 'on' ? 'myroom' : null;
+}
+
+/** The 3D view's environment card in LIVE: real states (the house has no temperature sensors). */
+export function liveEnvironmentCard(devices, room) {
+  const state = (entity) => devices[entity]?.state;
+  return {
+    label: room ? room.name : '평균',
+    rows: [
+      { icon: 'presence', text: state(OCCUPIED) === 'on' ? '내 방 재실' : '내 방 비어 있음' },
+      { icon: 'light', text: `내 방 조명 · ${state(LIGHT_MODE) ? valueText(state(LIGHT_MODE)) : '—'}` },
+      { icon: 'sleep', text: `보호 방 수면 모드 ${powerText(state(SLEEP_MODE))}` },
+    ],
+  };
 }
 
 const ROLE_TEXT = { external: '외부 기기', home: '공용 공간', room: '방' };
@@ -336,7 +340,7 @@ export function recentDoings(agentId, events, devices, limit = 3) {
 // Reasons Home gives itself; any other refusal of a passed-on request comes from the room.
 const HOME_REASONS = new Set(['UNAUTHORIZED', 'NOT_OWNER', 'UNKNOWN_PEER', 'BAD_REQUEST']);
 // Entities without a pin of their own flash on the pin they belong to.
-const FLASH_PIN = { [TV_MUTED]: 'living-tv', [LIGHT_MODE]: 'bedroom3-light', [SLEEP_MODE]: 'bedroom2-light' };
+const FLASH_PIN = { [TV_MUTED]: 'living-tv', [LIGHT_MODE]: 'myroom-light', [SLEEP_MODE]: 'protected-light' };
 const FIELD_TEXT = { meeting_app_active: '회의 여부', pc_state: 'PC 상태', presence: '외출·귀가' };
 const shortAgent = (id) => agentName(id).replace(' Agent', '');
 

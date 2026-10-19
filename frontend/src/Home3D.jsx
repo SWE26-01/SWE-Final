@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, Moon, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
 
 const layout = {
   kitchen: { left: 1, top: 1, width: 41, height: 25, furniture: 'counter', pin: [18, 11], walls: { south: false }, windows: { north: ['left'] }, doors: { north: 'right' } },
@@ -29,6 +29,7 @@ const occupantRoutes = {
 };
 
 function Furniture({ type }) {
+  if (type === 'living-dining') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d" /><div className="plant-3d"><i /><span /></div><div className="furniture dining-3d"><i /><i /><i /><i /></div></>;
   if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /><div className="furniture desk-3d bedroom-desk-3d" /><div className="furniture chair-3d bedroom-chair-3d" /></>;
   if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /></>;
   if (type === 'desk') return <><div className="furniture desk-3d"><span /></div><div className="furniture chair-3d" /></>;
@@ -39,7 +40,17 @@ function Furniture({ type }) {
   return <><div className="furniture tub-3d"><span /></div><div className="furniture sink-3d" /></>;
 }
 
-function RoomAppliances({ roomId }) {
+const APPLIANCE = {
+  tv: <div className="appliance-3d television-3d"><i /></div>,
+  purifier: <div className="appliance-3d purifier-3d"><i /><i /><i /></div>,
+  computer: <div className="appliance-3d computer-3d"><i /><span /></div>,
+  humidifier: <div className="appliance-3d humidifier-3d"><i /></div>,
+  washer: <div className="appliance-3d washer-3d"><i /></div>,
+};
+
+// `kinds` (a plan's room `appliances`) picks them; without it the demo apartment's rooms are used.
+function RoomAppliances({ roomId, kinds }) {
+  if (kinds) return kinds.map((kind) => <React.Fragment key={kind}>{APPLIANCE[kind]}</React.Fragment>);
   if (roomId === 'kitchen') return <div className="appliance-3d hood-3d"><i /><i /><i /></div>;
   if (roomId === 'living') return <><div className="appliance-3d television-3d"><i /></div><div className="appliance-3d purifier-3d"><i /><i /><i /></div></>;
   if (roomId === 'veranda') return <div className="appliance-3d washer-3d"><i /></div>;
@@ -96,23 +107,30 @@ function getDevicePinPosition(index, count, roomId) {
   return position;
 }
 
-/** A room's box on the house plan, in % of the house. */
-export const roomRect = (roomId) => layout[roomId];
+// The demo apartment (MOCK). LIVE passes the real house (live/housePlan.js) as `plan`.
+const DEMO_PLAN = { rooms: layout, hall: { left: 42, top: 22, width: 14, height: 77, stairs: true }, anchors: occupantAnchors, routes: occupantRoutes };
+
+/** A room's box on a house plan, in % of the house. */
+export const roomRect = (plan, roomId) => plan.rooms[roomId];
 
 /** Where a device's pin stands, in % of the house plan, or null. */
-export function devicePinSpot(rooms, deviceId) {
+export function devicePinSpot(plan, rooms, deviceId) {
   for (const room of rooms) {
     const index = room.devices.findIndex((device) => device.id === deviceId);
     if (index < 0) continue;
     const [left, top] = getDevicePinPosition(index, room.devices.length, room.id);
-    const box = layout[room.id];
+    const box = plan.rooms[room.id];
     return { room: room.id, x: box.left + (box.width * left) / 100, y: box.top + (box.height * top) / 100 };
   }
   return null;
 }
 
-// `overlay` is drawn on the house plan, above the house (LIVE: agents and their messages, live/AgentScene.jsx).
-export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null, overlay = null }) {
+// `plan` is the floor plan (default: the demo apartment). `overlay` is drawn on the plan, above the house
+// (LIVE: agents and their messages, live/AgentScene.jsx). `environment.rows` replaces temperature and
+// humidity in the environment card (LIVE has no such sensors).
+const ENV_ICON = { presence: UserRound, light: Lightbulb, sleep: Moon };
+
+export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null, overlay = null, plan = DEMO_PLAN }) {
   const [rotation, setRotation] = useState(-33);
   const [tilt, setTilt] = useState(55);
   const [zoom, setZoom] = useState(1);
@@ -137,9 +155,9 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
       previousOccupantRoom.current = null;
       return undefined;
     }
-    const destination = occupantAnchors[occupantRoom];
+    const destination = plan.anchors[occupantRoom];
     if (!destination) return undefined;
-    const route = occupantRoutes[`${previousRoom}>${occupantRoom}`];
+    const route = plan.routes[`${previousRoom}>${occupantRoom}`];
     if (!previousRoom || !route || !occupantPositionRef.current) {
       setOccupantPosition(destination);
       occupantPositionRef.current = destination;
@@ -210,7 +228,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
   };
   const topView = () => { setRotation(-90); setTilt(0); };
   const adjustZoom = (amount) => setZoom((current) => Math.min(1.5, Math.max(.5, Number((current + amount).toFixed(2)))));
-  const selectedLayout = selectedRoom ? layout[selectedRoom] : null;
+  const selectedLayout = selectedRoom ? plan.rooms[selectedRoom] : null;
   const center = selectedLayout ? [selectedLayout.left + selectedLayout.width / 2, selectedLayout.top + selectedLayout.height / 2] : [50, 50];
   const focus = selectedLayout ? [`${(50 - center[0]) * 1.05}%`, `${(50 - center[1]) * 1.05}%`] : null;
   const selectedScale = selectedLayout ? Math.min(2.8, Math.max(2.08, 58 / Math.max(selectedLayout.width, selectedLayout.height))) : 1;
@@ -230,10 +248,15 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
     >
       <div className="model-environment" aria-label={environment.label === '평균' ? 'Environment' : `Environment - ${environment.label}`}>
         <strong>Environment{environment.label !== '평균' && <span> - {environment.label}</span>}</strong>
-        <span><Thermometer size={13} /><b>{environment.temp.toFixed(1)}°C</b></span>
-        <span><Droplets size={13} /><b>{Math.round(environment.humidity)}%</b></span>
-        <span><Activity size={13} /><b>센서 {environment.sensor}</b></span>
-        <span><UserRound size={13} /><b>{environment.presence || '거실'}</b></span>
+        {environment.rows ? environment.rows.map((row) => {
+          const Icon = ENV_ICON[row.icon] || Activity;
+          return <span key={row.icon}><Icon size={13} /><b>{row.text}</b></span>;
+        }) : (<>
+          <span><Thermometer size={13} /><b>{environment.temp.toFixed(1)}°C</b></span>
+          <span><Droplets size={13} /><b>{Math.round(environment.humidity)}%</b></span>
+          <span><Activity size={13} /><b>센서 {environment.sensor}</b></span>
+          <span><UserRound size={13} /><b>{environment.presence || '거실'}</b></span>
+        </>)}
       </div>
       {selectedRoom && (
         <button className="three-back" onPointerDown={(event) => event.stopPropagation()} onClick={onBack}>
@@ -241,11 +264,15 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
         </button>
       )}
       <div className="css-3d-stage">
-        <div className={`css-house ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={houseStyle}>
+        <div className={`css-house ${plan.className || ''} ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={houseStyle}>
           <div className="house-base" />
-          <div className={`hall-3d ${selectedRoom ? 'room-muted' : ''}`}><span className="stairs-3d"><i /><i /><i /><i /></span></div>
+          {plan.hall && (
+            <div className={`hall-3d ${selectedRoom ? 'room-muted' : ''}`} style={{ left: `${plan.hall.left}%`, top: `${plan.hall.top}%`, width: `${plan.hall.width}%`, height: `${plan.hall.height}%` }}>
+              {plan.hall.stairs && <span className="stairs-3d"><i /><i /><i /><i /></span>}
+            </div>
+          )}
           {rooms.map((room) => {
-            const roomLayout = layout[room.id];
+            const roomLayout = plan.rooms[room.id];
             const active = room.devices.some((device) => device.on);
             const highTemp = room.temp > environmentLimits.temp;
             const highHumidity = room.humidity > environmentLimits.humidity;
@@ -254,12 +281,14 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
               <button className={`css-room css-room-${room.id} ${selectedRoom && selectedRoom !== room.id ? 'room-muted' : ''} ${selectedRoom === room.id ? 'room-selected' : ''}`} style={roomStyle} key={room.id} onClick={() => { if (!wasDragged.current) onRoomSelect(room.id); }} aria-label={`${room.name} 입장`}>
                 <RoomWalls walls={roomLayout.walls} windows={roomLayout.windows} doors={roomLayout.doors} />
                 <Furniture type={roomLayout.furniture} />
-                <RoomAppliances roomId={room.id} />
+                <RoomAppliances roomId={room.id} kinds={roomLayout.appliances} />
                 <span className="css-room-name"><b>{room.name}</b><small>{room.en}</small></span>
-                <span className={`css-room-temp ${active ? 'active' : ''}`}>
-                  <span className={`room-metric metric-temp ${highTemp ? 'is-alert-value' : ''}`}><Thermometer size={8} />{room.temp.toFixed(1)}°</span>
-                  <span className={`room-metric metric-humidity ${highHumidity ? 'is-alert-value' : ''}`}><Droplets size={8} />{Math.round(room.humidity)}%</span>
-                </span>
+                {room.temp != null && (
+                  <span className={`css-room-temp ${active ? 'active' : ''}`}>
+                    <span className={`room-metric metric-temp ${highTemp ? 'is-alert-value' : ''}`}><Thermometer size={8} />{room.temp.toFixed(1)}°</span>
+                    <span className={`room-metric metric-humidity ${highHumidity ? 'is-alert-value' : ''}`}><Droplets size={8} />{Math.round(room.humidity)}%</span>
+                  </span>
+                )}
                 {room.devices.map((device, index) => {
                   const [left, top] = getDevicePinPosition(index, room.devices.length, room.id);
                   return <Pin key={device.id} device={device} style={{ left: `${left}%`, top: `${top}%` }} />;
@@ -270,7 +299,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
           {occupantPosition && <span className={`occupant-marker ${occupantVisible ? 'visible' : ''} ${occupantMoving ? 'moving' : ''} ${selectedRoom && selectedRoom !== occupantRoom ? 'room-muted' : ''}`} style={{ left: `${occupantPosition[0]}%`, top: `${occupantPosition[1]}%` }} role="img" aria-label={`사용자 위치 · ${rooms.find((item) => item.id === occupantRoom)?.name || '이동 중'}`}><UserRound size={11} /></span>}
         </div>
         {/* same transform as the house, but its own layer, so walls never hide the overlay */}
-        {overlay && <div className={`css-house css-house-overlay ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
+        {overlay && <div className={`css-house css-house-overlay ${plan.className || ''} ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
       </div>
       <div className="three-zoom" onPointerDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => adjustZoom(-.05)} aria-label="3D 모델 축소"><Minus size={12} /></button>

@@ -149,12 +149,15 @@ const flows = await fetch('/collector/flows?limit=20', {
 
 ### 방과 기기
 
+LIVE에서는 3D 집 자체가 실제 구조다(`src/live/housePlan.js`의 `LIVE_PLAN`·`LIVE_ROOMS`): 뒤쪽에 내 방과 보호 방, 앞쪽에 거실(소파·식탁),
+거실 앞 현관. MOCK은 예전 데모 아파트(방 9개)를 그대로 쓴다. 실제 기기에는 온도·습도 센서가 없어서 LIVE의 환경 카드는
+내 방 재실, 내 방 조명 모드, 보호 방 수면 모드를 보여 준다.
+
 | 화면 방 (`rooms[].id`) | 실제 공간 | 화면 기기 ↔ 실제 엔티티 |
 |---|---|---|
 | `living` 거실 | `living_room` (Home Agent) | `living-light` ↔ `input_boolean.living_light`, `living-tv` ↔ `input_boolean.living_tv`. `input_boolean.living_tv_muted`는 TV의 `value`에 "음소거"로 표시 |
-| `bedroom3` 침실 3 (책상·PC) | `my_room` (My Room Agent) | `bedroom3-light` ↔ `input_boolean.room1_light`(+ `input_select.room1_light_mode`를 `value`에), `bedroom3-air` ↔ `input_boolean.room1_ac`. `input_boolean.room1_occupied`는 재실 표시 |
-| `bedroom2` 침실 2 | `protected_room` (room2) | `bedroom2-light` ↔ `input_boolean.room2_light`, `bedroom2-air` ↔ `input_boolean.room2_ac`. `input_boolean.room2_sleep_mode`는 "수면 중" 표시 |
-| 주방·다이닝·베란다·욕실·침실 1 | 없음 | 실제 기기가 없음. `connected: false` 또는 "시뮬레이션 전용" |
+| `myroom` 내 방 (책상·PC) | `my_room` (My Room Agent) | `myroom-light` ↔ `input_boolean.room1_light`(+ `input_select.room1_light_mode`를 `value`에), `myroom-ac` ↔ `input_boolean.room1_ac`. `input_boolean.room1_occupied`는 재실 표시 |
+| `protected` 보호 방 | `protected_room` (room2) | `protected-light` ↔ `input_boolean.room2_light`, `protected-ac` ↔ `input_boolean.room2_ac`. `input_boolean.room2_sleep_mode`는 "수면 모드" 표시 |
 
 값 표시 예:
 - `on`/`off` → 화면 기기의 `on: true/false`
@@ -271,7 +274,8 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 
 **3D 장면 (`src/live/AgentScene.jsx`, `useAgentScene.js`, `scene.css`)**: LIVE의 Home·3D Model·Live Simulation 탭에서 `Home3D`의 `overlay`로 그린다.
 집과 같은 변환을 쓰는 별도 층이라 벽에 가리지 않고, 방을 눌러 확대하면 그 방의 에이전트만 원래 크기로 보인다.
-- 에이전트 자리: Home = 거실, My Room = 침실 3, 보호 방 = 침실 2, Desktop = 침실 3의 PC, Mobile = 복도. 이름표는 바닥 점에서 기둥으로 세운다.
+- 에이전트 자리(`LIVE_PLAN.agents`): Home = 거실, My Room = 내 방, 보호 방 = 보호 방, Desktop = 내 방의 PC, Mobile = 현관 밖(사용자와 함께 있는 폰).
+  이름표는 바닥 점에서 기둥으로 세운다.
 - 말풍선(`mapping.js`의 `sceneLine`): 보낸 부탁·상태 알림(`out`), 받은 부탁의 판단(`in`: 수락/거절, Home이 방에 넘긴 경우 "권한 확인 ✓ → 넘김"),
   자동 규칙(`rule`). 거절은 빨간 글씨.
 - 메시지 점: 보낸 에이전트에서 받는 에이전트로 날아간다. 주황 = 기기 부탁(`device.control`), 파랑 = 상태 알림·조회.

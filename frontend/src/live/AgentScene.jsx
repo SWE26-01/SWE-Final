@@ -4,20 +4,14 @@
 import React, { useEffect, useRef } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import { devicePinSpot, roomRect } from '../Home3D';
+import { LIVE_PLAN } from './housePlan';
 import { AGENT_ORDER, agentName, sceneFlash, sceneLine } from './mapping';
 import { useAgentScene } from './useAgentScene';
 import './scene.css';
 
-// Where each agent stands, in % of the house plan (Home3D layout).
-const SPOT = {
-  orchestrator: [13, 70], // living room
-  room1: [86, 78], // bedroom 3 = My Room
-  room2: [78, 40], // bedroom 2 = protected room
-  desktop: [62, 91], // the PC in My Room
-  smartphone: [49, 52], // the hall, with the person
-};
-// Room each agent stands in: zoomed into a room (Home3D), only that room's agents are shown.
-const ROOM = { orchestrator: 'living', room1: 'bedroom3', room2: 'bedroom2', desktop: 'bedroom3', smartphone: null };
+// Where each agent stands (% of the real house plan) and the room it is in (live/housePlan.js).
+const SPOT = LIVE_PLAN.agents;
+const ROOM = LIVE_PLAN.agentRoom;
 // Desktop and My Room stand close together, so their bubbles lean apart.
 const BUBBLE_SHIFT = { desktop: '-38%', room1: '38%' };
 const REPLY_MS = 8000;
@@ -65,7 +59,7 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
   const flashes = new Map(); // pin -> latest change
   shown.filter((event) => event.dir === 'exec').forEach((event) => {
     const flash = sceneFlash(event, devices);
-    const spot = flash && devicePinSpot(rooms, flash.pin);
+    const spot = flash && devicePinSpot(LIVE_PLAN, rooms, flash.pin);
     if (spot && (!focusRoom || spot.room === focusRoom)) flashes.set(flash.pin, { key: event.id, ...flash, ...spot });
   });
   const llm = {}; // agent -> what its LLM is doing in the current run
@@ -78,7 +72,7 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
   return (
     <div className="agent-scene" aria-hidden="true">
       {[...flashes.values()].map((flash) => {
-        const rect = roomRect(flash.room);
+        const rect = roomRect(LIVE_PLAN, flash.room);
         return <i key={`room-${flash.key}`} className={`scene-room ${flash.ok ? 'ok' : 'no'}`} style={{ left: `${rect.left}%`, top: `${rect.top}%`, width: `${rect.width}%`, height: `${rect.height}%` }} />;
       })}
       <svg className="scene-links" viewBox="0 0 100 100" preserveAspectRatio="none">

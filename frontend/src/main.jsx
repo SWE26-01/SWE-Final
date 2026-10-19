@@ -34,9 +34,10 @@ import Select from './Select';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
 import { useLiveRun } from './live/useLiveRun';
-import { NODE_AGENT, applyLiveDevices, eventsOfRun, expectRows, isRunLogEvent, liveOccupantRoom, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
+import { NODE_AGENT, eventsOfRun, expectRows, isRunLogEvent, liveEnvironmentCard, liveOccupantRoom, liveRooms, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
 import AgentConsole from './live/AgentConsole';
 import AgentScene from './live/AgentScene';
+import { LIVE_PLAN } from './live/housePlan';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRequestFlows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 import './controls.css';
@@ -363,7 +364,7 @@ function App() {
   const liveDevices = liveData.gateway.devices;
   const liveOnline = liveData.gateway.status === 'open' && liveData.gateway.haConnected;
   const shownRooms = useMemo(
-    () => (live ? applyLiveDevices(rooms, liveDevices, liveOnline) : rooms),
+    () => (live ? liveRooms(liveDevices, liveOnline) : rooms),
     [live, rooms, liveDevices, liveOnline],
   );
   const liveEvents = useMemo(
@@ -395,6 +396,9 @@ function App() {
   useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+
+  // LIVE and MOCK draw different houses, so a room picked in one may not exist in the other.
+  useEffect(() => { setSelectedRoom(null); }, [live]);
 
   useEffect(() => {
     if (!runRunning) return undefined;
@@ -478,7 +482,8 @@ function App() {
   const decisionPrediction = decisionCurrent.title === '수면 환경 준비'
     ? '사용자가 곧 취침할 것으로 예상하고 있어요.'
     : `${decisionCurrent.title}에 필요한 상태를 Agent가 감지했어요.`;
-  const environment = room
+  // LIVE: the real house has no temperature sensors, so the card shows real states instead.
+  const environment = live ? liveEnvironmentCard(liveDevices, room) : room
     ? { label: room.name, temp: room.temp, humidity: room.humidity, sensor: '정상' }
     : {
         label: '평균',
@@ -756,7 +761,7 @@ function App() {
               </div>
             </div>
 
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
           </section>
 
           <aside className="side-column" ref={sideColumnRef}>
@@ -864,7 +869,7 @@ function App() {
 
         {activeTab === 'model' && (
           <section className="model-tab" aria-label="3D 스마트홈 모델">
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
           </section>
         )}
 
@@ -904,7 +909,7 @@ function App() {
                 <LiveSayForm canRun={liveRun.canRun} busy={liveRun.busy} hint={runHint} onSay={liveRun.start} />
               </>)}
               {live ? (
-                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
               ) : (
                 <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
               )}
