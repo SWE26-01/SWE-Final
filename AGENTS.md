@@ -18,8 +18,8 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
 - Never send raw personal data (calendar titles, GPS coordinates) between agents or into logs.
   Agents publish only their `provides` fields, filtered by the requester's ACL.
 - Agent IDs, device IDs (HA entity ids) and ownership must agree across
-  `homeassistant/config/configuration.yaml`, each agent's `owned` list in `agents/**/openclaw.json5`
-  and `services/config/devices.yaml`.
+  `homeassistant/config/configuration.yaml`, each agent's `owned` list in `agents/**/openclaw.json5`,
+  `services/config/devices.yaml` and the device tables in `agents/**/AGENTS.md`.
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).
 - Keep repo paths ASCII: OpenClaw rejects non-ASCII (NFD) paths (see `scripts/oc.sh`).
 - Everything is edited here, including `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`.

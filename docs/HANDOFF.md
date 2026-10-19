@@ -32,7 +32,7 @@
 
 - **예측 모델은 만들지 않는다.** 외부 기기의 현재 상태와 공간별 정책으로 판단한다.
 - **LLM**: 모든 에이전트가 LLM을 쓰고, 에이전트마다 다른 컨텍스트(역할 지침 `AGENTS.md`, 자기 상태)를 가진다.
-  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter(`AMBIENT_MODEL`)이고 에이전트별로 바꿀 수 있다.
+  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter의 `anthropic/claude-haiku-5.5`(`AMBIENT_MODEL`, 2026-10-19에 Sonnet 5.5에서 바꿈. 비교는 `docs/performance.md`)이고 에이전트별로 바꿀 수 있다.
 - **분산 제어**: 각 기기는 담당 에이전트가 하나다. Home도 방 기기는 주인 에이전트에게 넘기기만 한다(`on_behalf_of`).
 - **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
   Collector는 정해진 필드만 저장하며, Gateway는 `services/config/devices.yaml`에 있는 엔티티만 보여 준다.

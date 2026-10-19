@@ -67,7 +67,7 @@ scripts/setup.sh    # 최초 1회. 다시 실행해도 안전함
 - Home Assistant 컨테이너를 띄운 뒤 온보딩을 자동으로 마치고, 장기 토큰을 발급해 `.env`에 저장한다. HA 로그인 계정은 `admin` / `.env`의 `HA_ADMIN_PASSWORD`다.
 
 그다음 `.env`에 **`OPENROUTER_API_KEY`** 만 직접 넣으면 된다.
-- 모델은 `AMBIENT_MODEL`로 정한다(기본값 `openrouter/anthropic/claude-sonnet-5-5`).
+- 모델은 `AMBIENT_MODEL`로 정한다(기본값 `openrouter/anthropic/claude-haiku-5.5`, 턴당 약 $0.0006). 더 정확한 답이 필요하면 `openrouter/anthropic/claude-sonnet-5-5`로 바꾼다(약 20~35배 비쌈).
 - tool calling을 지원하는 모델을 골라야 한다. `openrouter/auto`는 피한다.
 
 (선택) 폰 입력: `scripts/oc.sh smartphone channels add --channel telegram --token <bot-token>`

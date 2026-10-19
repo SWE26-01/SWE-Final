@@ -4,7 +4,7 @@
   agents: {
     defaults: {
       workspace: "${AMBIENT_HOME}/state/room1/workspace",
-      model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-sonnet-5-5}" },
+      model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
       thinkingDefault: "off", // tool routing needs no extended reasoning
       skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
     },
