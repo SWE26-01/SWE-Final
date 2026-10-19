@@ -33,6 +33,7 @@ export function useLiveRun(enabled) {
     });
   }, [enabled]);
 
+  /** Resolves true if the run started (the caller may then clear its input), false otherwise. */
   const start = useCallback(async (body) => {
     setError('');
     setStarting(true);
@@ -40,8 +41,10 @@ export function useLiveRun(enabled) {
       const run = await startRun(body);
       // The WebSocket may already have a newer state of this run; never go back to the POST answer.
       setRuns((current) => (current.some((item) => item.id === run.id) ? current : upsert(current, run)));
+      return true;
     } catch (failure) {
       setError(failure.message);
+      return false;
     } finally {
       setStarting(false);
     }
@@ -49,7 +52,9 @@ export function useLiveRun(enabled) {
 
   const current = runs[0] || null;
   const busy = starting || current?.status === 'running';
-  return { scenarios, runs, current, status, error, busy, canRun: RUN_AVAILABLE, start, clearError: () => setError('') };
+  // allowed: this dev server can start runs at all; canRun: and the Runner is connected right now.
+  const canRun = RUN_AVAILABLE && status === 'open';
+  return { scenarios, runs, current, status, error, busy, allowed: RUN_AVAILABLE, canRun, start, clearError: () => setError('') };
 }
 
 // A run already shown is replaced where it is; a new one goes first.

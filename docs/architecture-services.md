@@ -78,6 +78,8 @@ characters, so a new log field can never carry context values (calendar titles, 
 gets `<id>/<room>`) and automation rules, so the part before the first `/` identifies a request across
 agents. The Collector stores it as `flow` on every event. Storage is a single SQLite table, kept in a
 Docker volume.
+Each stored event also gets `received_at`, the Collector's own arrival time, which shares the
+Runner's clock (agent `ts` values come from the host and can drift from the Docker VM's clock).
 
 ## 4. Runner (`services/runner/`)
 
@@ -97,7 +99,8 @@ The Runner never calls the Gateway or Home Assistant and holds no agent token, s
 device or speak as an agent; the agent's LLM decides and the agents' policies and the Gateway apply as
 for any other request. Setup steps that prepare a scenario are also said to the device's own agent.
 OpenClaw answers with the final text only, so the screen shows what the agents did from the
-Collector's events after the run's `started_at` and from the Gateway's device changes.
+Collector's events received during the run (`received_at`) and from the Gateway's device changes.
+The simulator token never reaches the browser: the dev server's `/runner` proxy adds it.
 
 ## 5. Security and privacy
 

@@ -31,4 +31,5 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
   directly. Keep the mock scenarios working (MOCK mode) for offline demos.
 - The Live Simulation talks to agents only through `services/runner` with the simulator token: it
   asks the Runner to say a scenario step or free text to an agent's LLM, and the agent decides.
-  The browser never holds the OpenClaw gateway token or an agent token.
+  The browser never holds the OpenClaw gateway token, an agent token or the simulator token (the Vite
+  dev-server proxy adds it from the root `.env`).

@@ -50,6 +50,9 @@ class HomeConfig:
     openclaw_token: str | None = field(repr=False)  # env OPENCLAW_GATEWAY_TOKEN; only the Runner
     scenarios: dict[str, Scenario]  # scenario id -> scenario (config/scenarios.yaml, optional)
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
+    # Problems with optional callers (simulators). They never stop the Gateway or the Collector;
+    # the Runner refuses to start with them.
+    optional_problems: list[str]
     _by_token: dict[str, str] = field(repr=False)
 
     def caller_by_token(self, token: str) -> Caller | None:
@@ -120,6 +123,7 @@ def load_config(
     callers: dict[str, Caller] = {}
     roles: dict[str, Role] = {}
     by_token: dict[str, str] = {}
+    optional_problems: list[str] = []
     entries = [(Role.AGENT, i, e) for i, e in agents_f.agents.items()]
     entries += [(Role.OPERATOR, i, e) for i, e in agents_f.operators.items()]
     entries += [(Role.SIMULATOR, i, e) for i, e in agents_f.simulators.items()]
@@ -129,14 +133,14 @@ def load_config(
             problems.append(f"{caller_id!r} is listed as both {first} and {_ARTICLE[role]}")
             continue
         roles[caller_id] = role
+        # A simulator is optional: without a usable token only the Live Simulation stays read-only.
+        found = optional_problems if role is Role.SIMULATOR else problems
         token = env.get(entry.token_env, "")
-        if not token and role is Role.SIMULATOR:
-            continue  # optional: without its token the Live Simulation stays read-only
         if not token:
-            problems.append(f"{caller_id}: environment variable {entry.token_env} is not set")
+            found.append(f"{caller_id}: environment variable {entry.token_env} is not set")
             continue
         if token in by_token:
-            problems.append(f"{caller_id}: same token as {by_token[token]!r}")
+            found.append(f"{caller_id}: same token as {by_token[token]!r}")
             continue
         url = _on_host(entry.url, env.get("AMBIENT_AGENTS_HOST") or None)
         callers[caller_id] = Caller(id=caller_id, role=role, token=token, url=url)
@@ -180,5 +184,6 @@ def load_config(
         openclaw_token=env.get("OPENCLAW_GATEWAY_TOKEN") or None,
         scenarios=scenarios,
         cors_origins=cors_origins,
+        optional_problems=optional_problems,
         _by_token=by_token,
     )

@@ -5,13 +5,15 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # Home Assistant entity id, e.g. input_boolean.room1_light
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
 
 SAY_LIMIT = 500  # characters of one thing said to an agent (scenario step or free text)
+# What is said to an agent: trimmed, never blank (a blank message would still cost an LLM turn).
+Say = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=SAY_LIMIT)]
 
 
 class _Cfg(BaseModel):
@@ -68,9 +70,7 @@ class DevicesFile(_Cfg):
 
 class Step(_Cfg):
     agent: CallerId = Field(description="agent the Runner talks to")
-    say: Annotated[str, Field(min_length=1, max_length=SAY_LIMIT)] = Field(
-        description="what the user says to that agent, as in a chat"
-    )
+    say: Say = Field(description="what the user says to that agent, as in a chat")
     setup: bool = Field(
         default=False, description="prepares the home for the scenario (said to the device owner)"
     )

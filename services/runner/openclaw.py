@@ -99,5 +99,7 @@ def _reply(agent_id: str, resp: httpx.Response) -> Reply:
         raise AgentError(f"{agent_id}: unexpected answer from OpenClaw") from e
     if not isinstance(text, str) or not text.strip():
         raise AgentError(f"{agent_id}: empty reply")
-    tokens = (body.get("usage") or {}).get("total_tokens")
-    return Reply(text=text, tokens=tokens if isinstance(tokens, int) else None)
+    usage = body.get("usage")  # optional; its shape is not ours to rely on
+    tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
+    ok = isinstance(tokens, int) and not isinstance(tokens, bool)
+    return Reply(text=text, tokens=tokens if ok else None)

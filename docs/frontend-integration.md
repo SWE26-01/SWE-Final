@@ -121,6 +121,7 @@ const flows = await fetch('/collector/flows?limit=20', {
   | `action` | `{device, command, value}` 또는 `{macro}`. `command`는 `TURN_ON`/`TURN_OFF`/`SET`/`ENERGY_SAVING` |
   | `accepted`, `reason_code` | 결과와 사유 (`in`, `out-result`, `exec`, `rule`에 있음) |
   | `request_id`, `flow` | 요청 ID와 그 요청의 흐름 ID |
+  | `received_at` | Collector에 **도착한** 시각(Collector 시계). 2026-10-19 이전 기록에는 없다 |
   | `on_behalf_of` | Home이 넘겨줄 때 원래 요청자 |
   | `fields` | 맥락 조회·구독에서 요청한 항목 이름 (값은 없음) |
   | `message`, `rule`, `error` | 사람이 읽는 설명 (최대 300자) |
@@ -235,11 +236,15 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 **화면 (구현됨, 2026-10-19)**: `src/live/useLiveRun.js`(시나리오·실행·WebSocket), `LiveViews.jsx`의 `LiveScenarioButtons`·`LiveSayForm`·`LiveRunSummary`·`LiveExpect`·`LiveRunSteps`,
 `mapping.js`의 `eventsOfRun`·`toRunLogRow`·`runPhase`·`expectRows`.
 - 위: Runner 시나리오 버튼(실행 중에는 모두 잠김), 에이전트를 골라 직접 말하는 입력창. 3D 모델은 Gateway의 실제 기기 상태.
-- 오른쪽 Agent Activity: 실행 요약(경과 시간·단계·토큰), 기대 결과(맞으면 초록), 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
+- 오른쪽 Agent Activity: 실행 요약(경과 시간·단계·토큰), 기대 결과, 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
   그 실행 동안의 기기 실행·자동화 규칙(Collector `exec`·`rule`).
 - 오른쪽 A2A Communication: 그 실행 동안 받은 메시지(`in`)와 상대에게 닿지 못한 메시지(`out-error`).
 - 상태 배지: `SETUP`(준비 단계) → `LLM`(답변 기다림) → `DONE`/`FAILED`.
-- 시작하려면 `frontend/.env.local`에 `VITE_SIMULATOR_TOKEN`(루트 `.env`의 `SIMULATOR_TOKEN`)을 넣는다. 없으면 보기만 된다.
+- 시작하려면 루트 `.env`에 `SIMULATOR_TOKEN`이 있으면 된다(`npm run dev`를 다시 실행). `vite.config.js`가 루트 `.env`에서 읽어
+  `/runner` 프록시 요청에 붙이므로 토큰이 브라우저나 `frontend/.env.local`, 빌드 결과(`dist/`)에 들어가지 않는다. 없으면 보기만 된다.
+  대신 개발 서버에 접속할 수 있으면 누구나 실행할 수 있으니 `npm run dev`는 기본값(localhost)으로만 띄운다.
+- 기대 결과 칩: 초록 ✓ = 이번 실행 중에 그 상태가 됨(HA `last_changed` ≥ 실행 시작), 회색 – = 실행 전부터 그 상태(이번 실행의 결과가 아님),
+  파랑 = 아직(실행 중), 빨강 ✗ = 실행이 끝났는데 다름. LLM 답은 매번 다를 수 있어서 표시만 한다.
 - MOCK 모드는 예전 가짜 시나리오(SIMULATION 1~4) 그대로다.
 - 확인: 브라우저에서 desktop 에이전트 하나만 켠 채 "회의 시작"을 눌러, LLM 답변·A2A 로그("상대 응답 없음" 2건)·DONE까지 화면에 나오는 것을 봤다.
   에이전트 5개를 다 켠 전체 시나리오는 RAM이 넉넉한 PC에서 확인해야 한다(에이전트 하나가 약 1.2GB).
@@ -252,7 +257,8 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 | 한 실행 | `GET /runs/{id}` → `contracts/runner/run.schema.json` | 대시보드 또는 시뮬레이터 |
 
 - 실행의 각 단계(`steps[]`)에는 에이전트, 한 말(`say`), 준비 단계 여부(`setup`), 상태, LLM 답변(`reply`), 실패 이유(`error`)가 있다.
-- 에이전트가 실제로 한 일은 Runner가 아니라 Collector·Gateway에서 온다. 실행의 `started_at` 이후 Collector 기록(`ts`)과 기기 변화를 보여 준다.
+- 에이전트가 실제로 한 일은 Runner가 아니라 Collector·Gateway에서 온다. 실행의 `started_at`~`ended_at`(+5초)에 Collector에 **도착한**
+  기록(`received_at`)과 기기 변화를 보여 준다. `received_at`은 Collector 시계라 Runner와 같은 시계다(둘 다 services/의 Docker).
+  에이전트의 `ts`는 호스트 시계라 Docker VM 시계와 몇 초씩 어긋날 수 있어서 묶는 데 쓰지 않는다(표시 순서에만 쓴다).
   상태 공유(`context.update`)에는 `request_id`가 없으므로 flow가 아니라 시각으로 묶는다.
-- `expect`는 시나리오가 기대하는 기기 상태다. 실제 상태와 비교해 표시만 한다(LLM 답은 매번 다를 수 있다).
-- 시뮬레이터 토큰은 Vite 프록시로 보내는 요청에만 쓰고(`/runner` → 8300), 대시보드 토큰과 마찬가지로 `.env.local`에만 둔다.
+- 실행 요청(POST)은 브라우저가 토큰 없이 보내고 프록시가 시뮬레이터 토큰을 붙인다. 시나리오·진행 상황(GET, WebSocket)은 대시보드 토큰으로 읽는다.

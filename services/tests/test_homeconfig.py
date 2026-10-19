@@ -102,10 +102,26 @@ def test_simulator_is_optional():
     cfg = load_config(env=ENV)
     assert cfg.caller_by_token("t-simulator").role is Role.SIMULATOR
     assert cfg.openclaw_token == "t-openclaw"
+    assert cfg.optional_problems == []
     env = {k: v for k, v in ENV.items() if k not in ("SIMULATOR_TOKEN", "OPENCLAW_GATEWAY_TOKEN")}
     cfg = load_config(env=env)  # the Gateway and the Collector run without them
     assert "simulator" not in cfg.callers
     assert cfg.openclaw_token is None
+    assert cfg.optional_problems == ["simulator: environment variable SIMULATOR_TOKEN is not set"]
+
+
+def test_bad_simulator_token_does_not_stop_the_other_services():
+    cfg = load_config(env={**ENV, "SIMULATOR_TOKEN": "t-dashboard"})  # reused for convenience
+    assert cfg.caller_by_token("t-dashboard").id == "dashboard"  # still read-only
+    assert "simulator" not in cfg.callers
+    assert cfg.optional_problems == ["simulator: same token as 'dashboard'"]
+
+
+def test_blank_step_is_rejected(cfg_dir):
+    (cfg_dir / "scenarios.yaml").write_text(
+        "scenarios:\n  - {id: a, title: A, steps: [{agent: room1, say: '   '}]}\n"
+    )
+    assert "scenarios.yaml: scenarios.0.steps.0.say" in problems(cfg_dir)
 
 
 def test_repo_scenarios_load():

@@ -155,6 +155,7 @@ def test_free_text_goes_to_one_agent(client, openclaw):
         ({"agent": "nobody", "say": "hi"}, 422),
         ({"agent": "desktop"}, 422),
         ({"agent": "desktop", "say": ""}, 422),
+        ({"agent": "desktop", "say": " \n\t "}, 422),  # blank once trimmed
         ({"agent": "desktop", "say": "x" * 501}, 422),
         ({"scenario": "meeting", "agent": "desktop", "say": "hi"}, 422),
         ({"scenario": "meeting", "speed": 2}, 422),
@@ -206,6 +207,30 @@ def test_why_a_step_failed(client, openclaw, reply, error):
     assert error in step["error"]
 
 
+def test_free_text_is_trimmed(client, openclaw):
+    run_id = start(client, {"agent": "desktop", "say": "  나 회의 시작할게 \n"}).json()["id"]
+    run = finished(client, run_id)
+    assert run["steps"][0]["say"] == "나 회의 시작할게"
+    assert openclaw.said() == [("desktop", "나 회의 시작할게")]
+
+
+@pytest.mark.parametrize("usage", [["not", "a", "dict"], "1200", {"total_tokens": True}, None])
+def test_odd_usage_keeps_the_reply(client, openclaw, usage):
+    body = {"choices": [{"message": {"content": "ok"}}], "usage": usage}
+    openclaw.answers["desktop"] = httpx.Response(200, json=body)
+    run = finished(client, start(client, {"agent": "desktop", "say": "hi"}).json()["id"])
+    assert run["status"] == "done"
+    assert (run["steps"][0]["reply"], run["steps"][0]["tokens"]) == ("ok", None)
+
+
+def test_unexpected_error_is_named(client, openclaw):
+    openclaw.answers["room1"] = RuntimeError("bug")
+    run = finished(client, start(client, {"scenario": "away"}).json()["id"])
+    assert run["status"] == "failed"
+    assert [s["status"] for s in run["steps"]] == ["failed", "skipped", "skipped", "skipped"]
+    assert run["steps"][0]["error"] == "Runner error (RuntimeError); see the Runner log"
+
+
 def test_long_replies_are_cut(client, openclaw):
     openclaw.answers["desktop"] = answer("가" * (REPLY_LIMIT + 50))
     run = finished(client, start(client, {"agent": "desktop", "say": "hi"}).json()["id"])
@@ -241,6 +266,11 @@ def test_runner_needs_its_tokens(missing):
     env = {k: v for k, v in ENV.items() if k != missing}
     with pytest.raises(ConfigError, match=f"{missing} is not set"):
         create_app(load_config(env=env))
+
+
+def test_runner_names_a_reused_simulator_token():
+    with pytest.raises(ConfigError, match="simulator: same token as 'dashboard'"):
+        create_app(load_config(env={**ENV, "SIMULATOR_TOKEN": "t-dashboard"}))
 
 
 async def test_stopping_mid_run_closes_the_run():

@@ -82,7 +82,8 @@ export function resultText(accepted, reasonCode) {
 }
 
 function requestText(event, devices) {
-  if (event.type === 'device.control') return actionText(event.action, devices);
+  // Older agents logged unreachable-peer lines without the action.
+  if (event.type === 'device.control') return actionText(event.action, devices) || '기기 제어';
   const base = TYPE_TEXT[event.type] || event.type || '';
   return event.fields?.length ? `${base} (${event.fields.join(', ')})` : base;
 }
@@ -142,7 +143,9 @@ export function toFlowCard(flow, devices) {
   };
 }
 
-const powerText = (state) => (state === 'on' ? '켜짐' : state === 'off' ? '꺼짐' : '상태 없음');
+const ON_OFF_TEXT = { on: '켜짐', off: '꺼짐' };
+const powerText = (state) => ON_OFF_TEXT[state] || '상태 없음';
+const stateText = (state) => ON_OFF_TEXT[state] || valueText(state); // on/off, or an option like meeting
 
 /** Rooms with live device states. Devices without a real counterpart show as not connected. */
 export function applyLiveDevices(rooms, devices, online) {
@@ -192,17 +195,22 @@ export function toAgentCard(status) {
 
 // --- Live Simulation runs (services/runner) -----------------------------------------------------
 
-const RUN_LEAD_MS = 1000; // agent and Runner clocks may differ a little
+const RUN_LEAD_MS = 1000; // only for events without received_at (older Collector): agent clocks may differ
 const RUN_TAIL_MS = 5000; // automation rules fire just after the reply that triggered them
 
-/** Collector events that happened during a run (by time: context updates carry no request_id). */
+/**
+ * Collector events that arrived during a run. Context updates carry no request_id, so this goes by
+ * time: the Collector's `received_at`, which shares the Runner's clock (both run in services/),
+ * not the agent's `ts`, which comes from the host and can drift from the Docker VM's clock.
+ * Shown in the order things happened (`ts`).
+ */
 export function eventsOfRun(events, run) {
   if (!run) return [];
-  const start = Date.parse(run.started_at) - RUN_LEAD_MS;
+  const start = Date.parse(run.started_at);
   const end = run.ended_at ? Date.parse(run.ended_at) + RUN_TAIL_MS : Infinity;
   return events
     .filter((event) => {
-      const at = Date.parse(event.ts);
+      const at = event.received_at ? Date.parse(event.received_at) : Date.parse(event.ts) + RUN_LEAD_MS;
       return at >= start && at <= end;
     })
     .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.id - b.id));
@@ -236,15 +244,23 @@ export function runPhase(run) {
   return step?.setup ? { label: 'SETUP', tone: 'sensor' } : { label: 'LLM', tone: 'predict' };
 }
 
-/** Expected device states of a scenario next to the live ones. */
-export function expectRows(expect, devices) {
+/**
+ * Expected device states of a scenario next to the live ones. Only a device that got there during
+ * the run counts: `reached`. Otherwise `already` (it was like that before the run, so the run proved
+ * nothing), `pending` (not yet, the run is still going) or `missed`. HA's `last_changed` and the
+ * Runner's `started_at` share the Docker VM's clock.
+ */
+export function expectRows(expect, devices, run) {
+  const started = run ? Date.parse(run.started_at) : NaN;
   return Object.entries(expect || {}).map(([entity, want]) => {
-    const got = devices[entity]?.state ?? null;
-    return { entity, name: deviceName(entity, devices), want: stateText(want), got: got == null ? '알 수 없음' : stateText(got), ok: got === want };
+    const device = devices[entity];
+    const got = device?.state ?? null;
+    let status;
+    if (got === want) status = Date.parse(device.last_changed) >= started ? 'reached' : 'already';
+    else status = run?.status === 'running' ? 'pending' : 'missed';
+    return { entity, name: deviceName(entity, devices), want: stateText(want), got: got == null ? '알 수 없음' : stateText(got), status };
   });
 }
-
-const stateText = (state) => (state === 'on' ? '켜짐' : state === 'off' ? '꺼짐' : valueText(state));
 
 // Agent nodes drawn on the Home tab, by label.
 export const NODE_AGENT = { Home: 'orchestrator', 'My Room': 'room1', Desktop: 'desktop', Mobile: 'smartphone' };

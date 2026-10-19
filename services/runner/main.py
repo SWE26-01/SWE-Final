@@ -17,11 +17,11 @@ from collections import deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, WebSocket, status
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 from starlette.websockets import WebSocketDisconnect
 
 from common.auth import make_auth, ws_caller
@@ -29,7 +29,7 @@ from common.cors import allow_dashboards
 from common.hub import Hub, push
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import ConfigError, HomeConfig, load_config
-from homeconfig.models import SAY_LIMIT, CallerId, Role, Scenario, Step
+from homeconfig.models import CallerId, Role, Say, Scenario, Step
 from runner.openclaw import AgentError, OpenClaw
 from runner.stream import (
     REPLY_LIMIT,
@@ -53,7 +53,7 @@ class RunRequest(BaseModel):
 
     scenario: str | None = None
     agent: CallerId | None = None
-    say: Annotated[str, Field(min_length=1, max_length=SAY_LIMIT)] | None = None
+    say: Say | None = None
 
     @model_validator(mode="after")
     def _one_kind(self) -> "RunRequest":
@@ -129,8 +129,12 @@ class Runs:
             for step in run.steps:
                 if not await self._step(run, step, session):
                     break
-        except Exception:
+        except Exception as e:  # a bug or an unexpected answer, not the agent's refusal
             log.exception("run %s broke off", run.id)
+            for step in run.steps:
+                if step.status is StepStatus.RUNNING:
+                    step.status, step.ended_at = StepStatus.FAILED, _now()
+                    step.error = f"Runner error ({type(e).__name__}); see the Runner log"
         finally:  # also when the Runner shuts down mid-run
             for step in run.steps:
                 if step.status is StepStatus.RUNNING:
@@ -172,7 +176,8 @@ def create_app(
     if config.openclaw_token is None:
         problems.append("OPENCLAW_GATEWAY_TOKEN is not set: the Runner talks to agents with it")
     if not any(c.role is Role.SIMULATOR for c in config.callers.values()):
-        problems.append("SIMULATOR_TOKEN is not set: nobody could start a run")
+        # e.g. "simulator: environment variable SIMULATOR_TOKEN is not set" or a duplicate token
+        problems += config.optional_problems or ["no simulator caller: nobody could start a run"]
     if problems:
         raise ConfigError(problems)
     openclaw = OpenClaw(config.openclaw_token, transport=openclaw_transport)

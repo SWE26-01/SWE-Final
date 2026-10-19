@@ -1,6 +1,6 @@
 // Panels for live data, built from the same class names as the mock panels so they look alike.
 import React, { useState } from 'react';
-import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
+import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Minus, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
 import { AGENTS, agentColor, agentName, socketLabel, stepText } from './mapping';
 import './live.css';
 
@@ -83,7 +83,8 @@ export function LiveAgentCards({ agents }) {
 
 // --- Live Simulation (services/runner) ------------------------------------------------------------
 
-export function LiveScenarioButtons({ scenarios, current, busy, canRun, onStart }) {
+// `hint` says why running is off (no simulator token on the dev server, or the Runner is not connected).
+export function LiveScenarioButtons({ scenarios, current, busy, canRun, hint, onStart }) {
   if (!scenarios.length) return <span className="live-run-note">시나리오를 불러오는 중…</span>;
   return scenarios.map((scenario) => {
     const active = current?.scenario === scenario.id;
@@ -94,7 +95,7 @@ export function LiveScenarioButtons({ scenarios, current, busy, canRun, onStart 
         key={scenario.id}
         className={active ? 'active' : ''}
         disabled={!canRun || busy}
-        title={canRun ? scenario.description : 'frontend/.env.local에 VITE_SIMULATOR_TOKEN을 넣으면 실행할 수 있어요'}
+        title={canRun ? scenario.description : hint}
         aria-label={`${scenario.title} 실행`}
         onClick={() => onStart({ scenario: scenario.id })}
       >
@@ -105,14 +106,14 @@ export function LiveScenarioButtons({ scenarios, current, busy, canRun, onStart 
   });
 }
 
-export function LiveSayForm({ canRun, busy, onSay }) {
+export function LiveSayForm({ canRun, busy, hint, onSay }) {
   const [agent, setAgent] = useState('desktop');
   const [text, setText] = useState('');
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!text.trim()) return;
-    onSay({ agent, say: text.trim() });
-    setText('');
+    // Keep the text if the run did not start (e.g. another run is still going), so it can be resent.
+    if (await onSay({ agent, say: text.trim() })) setText('');
   };
   return (
     <form className="live-say" onSubmit={submit} aria-label="에이전트에게 직접 말하기">
@@ -124,7 +125,7 @@ export function LiveSayForm({ canRun, busy, onSay }) {
         maxLength={500}
         onChange={(event) => setText(event.target.value)}
         disabled={!canRun}
-        placeholder={canRun ? '예: 나 회의 시작할게' : 'VITE_SIMULATOR_TOKEN이 있어야 말할 수 있어요'}
+        placeholder={canRun ? '예: 나 회의 시작할게' : hint}
         aria-label="할 말"
       />
       <button type="submit" disabled={!canRun || busy || !text.trim()} aria-label="보내기"><Send size={14} /></button>
@@ -150,15 +151,25 @@ export function LiveRunSummary({ run, now }) {
   );
 }
 
+const EXPECT = {
+  reached: { icon: Check, text: '이번 실행에서 바뀜' },
+  already: { icon: Minus, text: '실행 전부터 이 상태 (이번 실행의 결과가 아님)' },
+  pending: { icon: LoaderCircle, text: '아직 바뀌지 않음' },
+  missed: { icon: X, text: '기대와 다름' },
+};
+
 export function LiveExpect({ rows }) {
   if (!rows.length) return null;
   return (
     <ul className="live-expect" aria-label="기대 결과">
-      {rows.map((row) => (
-        <li key={row.entity} className={row.ok ? 'ok' : ''} title={`기대: ${row.want} · 지금: ${row.got}`}>
-          {row.ok ? <Check size={11} /> : <X size={11} />}<span>{row.name}</span><b>{row.want}</b>
-        </li>
-      ))}
+      {rows.map((row) => {
+        const { icon: Icon, text } = EXPECT[row.status];
+        return (
+          <li key={row.entity} className={row.status} title={`${text} · 기대: ${row.want} · 지금: ${row.got}`}>
+            <Icon size={11} className={row.status === 'pending' ? 'live-spin' : undefined} /><span>{row.name}</span><b>{row.want}</b>
+          </li>
+        );
+      })}
     </ul>
   );
 }

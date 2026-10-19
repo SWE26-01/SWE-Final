@@ -39,7 +39,9 @@
 
 .live-expect { display:flex; flex-wrap:wrap; gap:5px; margin:-6px 0 14px; padding:0; list-style:none; }
 .live-expect li { display:flex; align-items:center; gap:4px; padding:4px 7px; border-radius:999px; color:#7a5a4c; background:rgba(243,201,182,.45); font-size:7.5px; }
-.live-expect li.ok { color:#0e3a2c; background:rgba(185,241,217,.7); }
+.live-expect li.reached { color:#0e3a2c; background:rgba(185,241,217,.7); }
+.live-expect li.already { color:#5f6d76; background:rgba(219,227,233,.6); }
+.live-expect li.pending { color:#397eaf; background:rgba(106,166,218,.13); }
 .live-expect li b { font-weight:700; }
 
 .live-steps { display:grid; gap:9px; max-height:300px; margin:0; padding:0 3px 0 0; overflow-y:auto; list-style:none; scrollbar-width:thin; }
