@@ -651,8 +651,8 @@ h1,h2,h3,b,strong { font-weight:600; }
 .window-3d {
   overflow:hidden;
   border:3px solid #fff;
-  background:linear-gradient(145deg,rgba(255,255,255,.96) 0 35%,rgba(185,220,240,.72) 36% 100%);
-  box-shadow:0 0 0 2px rgba(79,113,154,.48),inset 0 0 0 1px rgba(79,113,154,.14),inset 0 0 10px rgba(79,113,154,.16);
+  background:transparent;
+  box-shadow:0 0 0 2px rgba(79,113,154,.48);
 }
 .window-3d::before {
   content:'';
