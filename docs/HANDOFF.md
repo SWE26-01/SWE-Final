@@ -82,4 +82,5 @@
 - 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.
 - Runner(`services/runner`, 2026-10-19): 시나리오 5개, 자유 입력, 한 번에 실행 하나, WebSocket 진행 상황. 단위 테스트는 가짜 OpenClaw,
   실제로는 Docker 안 Runner → desktop 에이전트 → LLM 답변까지 확인. Live Simulation 탭 LIVE 모드도 Runner에 연결함(`docs/frontend-integration.md` 8).
-  남은 것: A2A-agents PR(`agents/gateway.json5`에 chatCompletions 켜기), 시나리오 전체를 에이전트 5개로 돌려 보기(RAM 8GB PC로는 부족).
+  에이전트의 chat 엔드포인트는 `agents/gateway.json5`에 켜져 있다(`scripts/say.sh`와 같이 씀).
+  남은 것: 시나리오 전체를 에이전트 5개로 돌려 보기(RAM 8GB PC로는 부족).

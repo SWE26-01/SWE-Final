@@ -43,8 +43,8 @@ uvicorn runner.main:build --factory --port 8300 --env-file ../.env   # SIMULATOR
 
 ### Runner (Live Simulation)
 
-- 에이전트마다 OpenClaw chat 엔드포인트가 켜져 있어야 한다: 게이트웨이 설정에
-  `http: { endpoints: { chatCompletions: { enabled: true } } }`. `agents/gateway.json5`는 A2A-agents가 원본이라 그쪽 PR로 켠다.
+- 에이전트마다 OpenClaw chat 엔드포인트가 켜져 있어야 한다. `agents/gateway.json5`의
+  `http: { endpoints: { chatCompletions: { enabled: true } } }`로 다섯 에이전트 모두 켜져 있다(`scripts/say.sh`도 같은 엔드포인트를 쓴다).
   꺼져 있으면 실행 단계가 "chat endpoint is off"로 실패한다.
 - `POST /runs`(시뮬레이터 토큰만): `{"scenario": "meeting"}` 또는 `{"agent": "desktop", "say": "나 회의 시작할게"}`. 답은 202와 실행 정보,
   진행 중인 실행이 있으면 409. 진행 상황은 `WebSocket /ws?token=`(대시보드·시뮬레이터 토큰)이나 `GET /runs/{id}`.

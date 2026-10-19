@@ -84,8 +84,8 @@ python services/scripts/verify_integration.py --env-file .env
 - **필요한 것**
   - 루트 `.env`의 `SIMULATOR_TOKEN`(새 `.env`는 `setup.sh`가 채움. 기존 `.env`에는 직접 추가)과 `OPENCLAW_GATEWAY_TOKEN`(이미 있음).
     없으면 Runner만 뜨지 않고 Gateway·Collector는 그대로다.
-  - 에이전트 OpenClaw 게이트웨이의 chat 엔드포인트: `agents/gateway.json5`에
-    `http: { endpoints: { chatCompletions: { enabled: true } } }` (A2A-agents PR 필요, 2026-10-19 기준 아직 꺼져 있음).
+  - 에이전트 OpenClaw 게이트웨이의 chat 엔드포인트: `agents/gateway.json5`의
+    `http: { endpoints: { chatCompletions: { enabled: true } } }`로 켜져 있다(`scripts/say.sh`와 같이 씀).
 - 확인(2026-10-18~19, 로컬): OpenClaw 2026.10.4에서 엔드포인트 동작, 토큰 없으면 401, 답변 한 번에 약 12~20초·토큰 약 4만.
   응답에는 최종 답변만 있고 에이전트 안의 tool 호출은 없다. 그래서 화면은 에이전트가 한 일을 Collector 기록으로 보여 준다.
   Docker 안의 Runner → 호스트 desktop 에이전트 → LLM 답변까지 확인했다.
