@@ -1,7 +1,7 @@
 // Agents on the 3D house (LIVE): where each agent lives, what it says to whom (speech bubbles and a
-// dot travelling between agents), what its LLM is doing, and which device changed or was refused.
-// Rendered inside Home3D's house so it turns with it; labels face the viewer (scene.css).
-import React from 'react';
+// dot travelling between agents), what its LLM is doing in a Runner run (thinking, then its answer),
+// and which device changed or was refused. Home3D draws it on the house; labels face the viewer.
+import React, { useEffect, useRef } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import { devicePinSpot, roomRect } from '../Home3D';
 import { AGENT_ORDER, agentName, sceneFlash, sceneLine } from './mapping';
@@ -25,6 +25,24 @@ const shortName = (id) => agentName(id).replace(' Agent', '');
 const plain = (text) => text.replace(/[*_`#>|]/g, '').replace(/^\s*[-•]\s*/gm, '').replace(/\s+/g, ' ').trim();
 const clip = (text, length = 80) => (text.length > length ? `${text.slice(0, length)}…` : text);
 
+/**
+ * Answers to show now: step key -> when this screen first saw the answer. Answers already there when
+ * the screen opened are not replayed.
+ */
+function useNewAnswers(run) {
+  const seen = useRef(null);
+  useEffect(() => {
+    if (!run) return; // the Runner's snapshot is not in yet
+    const first = seen.current === null;
+    if (first) seen.current = new Map();
+    run.steps.forEach((step, index) => {
+      const key = `${run.id}-${index}`;
+      if (step.reply && !seen.current.has(key)) seen.current.set(key, first ? 0 : Date.now());
+    });
+  }, [run]);
+  return seen.current || new Map();
+}
+
 function Billboard({ x, y, className = '', children }) {
   return (
     <div className={`scene-anchor ${className}`} style={{ left: `${x}%`, top: `${y}%` }}>
@@ -33,8 +51,9 @@ function Billboard({ x, y, className = '', children }) {
   );
 }
 
-export default function AgentScene({ events, devices, rooms, chat, offline, focusRoom = null }) {
+export default function AgentScene({ events, devices, rooms, run, offline, focusRoom = null }) {
   const { shown, now } = useAgentScene(events);
+  const answers = useNewAnswers(run);
   const visible = (id) => !focusRoom || ROOM[id] === focusRoom;
 
   const lines = {};
@@ -49,12 +68,12 @@ export default function AgentScene({ events, devices, rooms, chat, offline, focu
     const spot = flash && devicePinSpot(rooms, flash.pin);
     if (spot && (!focusRoom || spot.room === focusRoom)) flashes.set(flash.pin, { key: event.id, ...flash, ...spot });
   });
-  const run = chat.lastRun;
-  const llm = {};
-  AGENT_ORDER.forEach((id) => {
-    if (chat.pending[id]) llm[id] = { thinking: true, said: run?.agent === id ? run.message : '' };
+  const llm = {}; // agent -> what its LLM is doing in the current run
+  run?.steps.forEach((step, index) => {
+    const seenAt = answers.get(`${run.id}-${index}`);
+    if (step.status === 'running') llm[step.agent] = { thinking: true, said: step.say };
+    else if (step.reply && seenAt && now - seenAt < REPLY_MS) llm[step.agent] = { reply: clip(plain(step.reply)) };
   });
-  if (run?.answer?.role === 'agent' && now - run.answeredAt < REPLY_MS) llm[run.agent] = { reply: clip(plain(run.answer.text)) };
 
   return (
     <div className="agent-scene" aria-hidden="true">
@@ -92,7 +111,7 @@ export default function AgentScene({ events, devices, rooms, chat, offline, focu
                   {mind?.thinking && (
                     <>
                       {mind.said && <p className="said">“{mind.said}”</p>}
-                      <p className="think"><Loader2 size={9} className="spin" /> 생각하는 중…</p>
+                      <p className="think"><Loader2 size={9} className="live-spin" /> 생각하는 중…</p>
                     </>
                   )}
                   {mind?.reply && <p className="reply">{mind.reply}</p>}

@@ -58,3 +58,33 @@
 .live-step-error { margin:5px 0 0; color:#9a4d36; font-size:8.5px; }
 .live-run-log { max-height:220px; overflow-y:auto; scrollbar-width:thin; }
 .live-run-actions { margin-top:14px; }
+
+/* Agents' LLM replies (Markdown.jsx) */
+.live-reply .live-markdown { flex:1; min-width:0; white-space:normal; }
+.live-markdown > :first-child { margin-top:0; }
+.live-markdown > :last-child { margin-bottom:0; }
+.live-markdown p { margin:0 0 6px; }
+.live-markdown ul, .live-markdown ol { margin:4px 0 6px; padding-left:16px; }
+.live-markdown li { margin:2px 0; }
+.live-markdown strong { font-weight:700; color:var(--black); }
+.live-markdown code { padding:1px 4px; border-radius:4px; background:rgba(0,0,0,.06); font-size:9px; }
+.live-markdown pre { margin:6px 0; padding:8px; border-radius:8px; background:rgba(0,0,0,.06); overflow-x:auto; }
+.live-markdown pre code { padding:0; background:none; }
+.live-markdown table { border-collapse:collapse; margin:6px 0; font-size:9px; }
+.live-markdown th, .live-markdown td { padding:3px 6px; border:1px solid rgba(0,0,0,.12); text-align:left; }
+.live-markdown blockquote { margin:6px 0; padding-left:8px; border-left:3px solid rgba(106,166,218,.5); color:rgba(0,0,0,.6); }
+.live-markdown h1, .live-markdown h2, .live-markdown h3 { margin:6px 0 4px; font-size:11px; }
+.live-markdown a { color:#3d6f94; }
+
+/* Requests a run set off (LiveRequestFlows) */
+.live-flows { display:grid; gap:6px; margin:12px 0 4px; padding:10px 12px; border-radius:12px; background:rgba(219,227,233,.3); }
+.live-flows > span { color:rgba(0,0,0,.45); font-size:8px; font-weight:700; }
+.live-flows ol { margin:0; padding:0; list-style:none; display:grid; gap:6px; }
+.live-flows li { display:flex; align-items:center; gap:8px; }
+.live-flows li > div { flex:1; min-width:0; display:grid; }
+.live-flows li b { font-size:9.5px; }
+.live-flows li small { color:rgba(0,0,0,.5); font-size:8px; }
+.live-flows li em { flex:0 0 auto; padding:3px 8px; border-radius:999px; font-style:normal; font-weight:700; font-size:8px; }
+.live-flows li em.ok { background:var(--mint); color:#0e3a2c; }
+.live-flows li em.no { background:#f3c9b6; color:#4a1d10; }
+.live-flows p { margin:0; color:rgba(0,0,0,.45); font-size:9px; }

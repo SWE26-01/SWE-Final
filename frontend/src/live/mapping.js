@@ -279,16 +279,6 @@ export const AGENT_ROLE = {
   room2: '보호 방 기기를 맡아요. 수면 중에는 에어컨 끄기를 거절해요',
 };
 
-// One click = one message to the agent that would naturally start it.
-export const SCENARIOS = [
-  { id: 'meeting-on', label: '회의 시작', agent: 'desktop', message: '나 회의 시작할게' },
-  { id: 'meeting-off', label: '회의 끝', agent: 'desktop', message: '회의 끝났어' },
-  { id: 'away', label: '외출', agent: 'smartphone', message: '나 나간다' },
-  { id: 'home', label: '귀가', agent: 'smartphone', message: '집 도착' },
-  { id: 'save', label: '집 전체 절전', agent: 'smartphone', message: '집 전체 절전해줘' },
-  { id: 'sleep', label: '보호 방 수면 모드', agent: 'room2', message: '보호 방 수면 모드 켜줘' },
-];
-
 export const SUGGESTIONS = {
   desktop: ['나 회의 시작할게', '회의 끝났어', '지금 무슨 상태야?'],
   smartphone: ['나 나간다', '집 도착', '집 전체 절전해줘'],
@@ -298,13 +288,14 @@ export const SUGGESTIONS = {
 };
 
 /**
- * Requests that started at or after `since` (ms): what one scenario set off. Requests an agent asked
- * for come first, then the automation rules they triggered (`rule: true`).
+ * The requests a run set off (GET /flows items whose events are among the run's events), as flow
+ * cards. Requests an agent asked for come first, then the automation rules they triggered (`rule`).
  */
-export function scenarioSteps(flows, events, since, devices) {
-  const ruleFlows = new Set(events.filter((event) => event.dir === 'rule').map((event) => event.flow));
+export function requestFlows(flows, runEvents, devices) {
+  const ids = new Set(runEvents.map((event) => event.flow).filter(Boolean));
+  const ruleFlows = new Set(runEvents.filter((event) => event.dir === 'rule').map((event) => event.flow));
   return flows
-    .filter((flow) => Date.parse(flow.started_at) >= since)
+    .filter((flow) => ids.has(flow.flow))
     .map((flow) => ({ ...toFlowCard(flow, devices), rule: ruleFlows.has(flow.flow), startedAt: flow.started_at }))
     .sort((a, b) => a.rule - b.rule || (a.startedAt < b.startedAt ? -1 : 1));
 }

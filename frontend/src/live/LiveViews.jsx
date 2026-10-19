@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Minus, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
 import { AGENTS, agentColor, agentName, socketLabel, stepText } from './mapping';
+import Markdown from './Markdown';
 import './live.css';
 
 export function DataModeToggle({ mode, available, onChange }) {
@@ -186,11 +187,30 @@ export function LiveRunSteps({ run }) {
             <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>
           </div>
           <p className="live-said"><User size={11} />{step.say}</p>
-          {step.reply && <p className="live-reply"><Bot size={11} />{step.reply}</p>}
+          {step.reply && <div className="live-reply"><Bot size={11} /><Markdown text={step.reply} /></div>}
           {step.error && <p className="live-step-error">{step.error}</p>}
         </li>
       ))}
     </ol>
+  );
+}
+
+/** The requests a run set off: who asked whom (path) and what came of it. */
+export function LiveRequestFlows({ items, running }) {
+  return (
+    <div className="live-flows" aria-label="요청 흐름">
+      <span>요청 흐름</span>
+      {items.length ? (
+        <ol>
+          {items.map((item) => (
+            <li key={item.key}>
+              <div><b>{item.title}</b><small>{item.rule ? `${item.path[0]} · 자동 규칙` : item.path.join(' → ')}</small></div>
+              <em className={item.accepted ? 'ok' : 'no'}>{item.result}</em>
+            </li>
+          ))}
+        </ol>
+      ) : <p>{running ? '에이전트 사이에 요청이 오가면 여기에 나타나요.' : '이번 실행에서 기기 요청은 없었어요.'}</p>}
+    </div>
   );
 }
 
