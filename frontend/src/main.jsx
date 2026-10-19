@@ -1041,7 +1041,7 @@ function App() {
                       <div className="chat-message-flow">
                         <p>{log.text}</p>
                         <span className="chat-route-line" aria-hidden="true" />
-                        <span className="chat-route-target" title={log.to}>
+                        <span className={`chat-route-target target-${log.to.replace(' Agent', '').toLowerCase().replace(/\s+/g, '-')}`} title={log.to}>
                           <span>{log.to}</span>
                           <i><Bot size={18} /></i>
                         </span>
