@@ -133,8 +133,8 @@ const initialRooms = [
 ];
 
 // Control Mode tests environment values on the real apartment (live/housePlan.js). Starting
-// temperature, humidity and noise per room; spaces without them (hallway, kitchen nook, AC unit room)
-// are drawn but not tested.
+// temperature, humidity and noise per room; spaces without them (hallway, AC unit room) are drawn but
+// not tested.
 const TEST_START = {
   living: [24.1, 48, 42], myroom: [23.6, 46, 35], protected: [24.0, 45, 31], bedroom3: [23.8, 46, 33], kitchen: [25.2, 51, 44],
   entrance: [22.9, 50, 38], bath1: [24.4, 60, 36], bath2: [24.2, 58, 34], veranda: [22.8, 55, 40], veranda2: [22.6, 56, 39],

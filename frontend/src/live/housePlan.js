@@ -11,9 +11,9 @@ import './house.css';
  * My Room), the living room and bedroom 2 (protected room) with its balcony and the AC unit room.
  * The outline is not a rectangle, so house.css hides the floor slab and only rooms are drawn. Rooms
  * that are open to each other (hallway, kitchen, living room, entrance) draw no wall between them;
- * every room places its own furniture against the walls (`items`, Furniture3D.jsx);
  * where a door is in a shared wall, only the room with the door draws that wall. The kitchen (with its
- * counter nook) and the L-shaped hallway are rooms of two rectangles (`partOf`).
+ * counter nook) and the L-shaped hallway are rooms of two rectangles (`partOf`). Every room places its
+ * own furniture against the walls (`items`: kind, footprint, which way it faces; Furniture3D.jsx).
  */
 export const LIVE_PLAN = {
   className: 'plan-live',
