@@ -149,12 +149,20 @@ const flows = await fetch('/collector/flows?limit=20', {
 
 ### 방과 기기
 
+LIVE에서는 3D 집이 실제 아파트 도면이다(`src/live/housePlan.js`의 `LIVE_PLAN`·`LIVE_ROOMS`): 국내 59㎡ A타입 평면을 그대로 옮겼다.
+뒤쪽에 침실3·다용도 발코니·주방/식당·현관·공용욕실, 가운데에 부부욕실·복도, 앞쪽에 침실1(안방)·거실·침실2와 발코니·실외기실.
+에이전트와 기기는 거실(Home)·침실1(내 방)·침실2(보호 방)에만 있고 나머지 공간은 비어 있다. 외곽이 직사각형이 아니라 바닥판 없이 방만 그리고,
+TOP VIEW는 도면처럼 북쪽이 위로 온다.
+가구는 진짜 상자(윗면+옆면, `src/Furniture3D.jsx`)로 그리고, 실제 집은 방마다 가구를 벽에 붙여 배치한다(`LIVE_PLAN.rooms[].items`:
+종류, 자리, 앞쪽 방향). 예: 거실은 소파와 TV가 마주 보고, 안방은 붙박이장·침대·책상(Desktop PC)이 벽을 따라 있다.
+Control Mode(환경 테스트)도 LIVE·MOCK과 상관없이 이 도면을 쓴다(온도·습도·소음은 시험용 값, 복도처럼 방이 아닌 공간은 시험 대상에서 뺀다). MOCK은 예전 데모 아파트(방 9개)를 그대로 쓴다. 실제 기기에는 온도·습도 센서가 없어서 LIVE의 환경 카드는
+내 방 재실, 내 방 조명 모드, 보호 방 수면 모드를 보여 준다.
+
 | 화면 방 (`rooms[].id`) | 실제 공간 | 화면 기기 ↔ 실제 엔티티 |
 |---|---|---|
 | `living` 거실 | `living_room` (Home Agent) | `living-light` ↔ `input_boolean.living_light`, `living-tv` ↔ `input_boolean.living_tv`. `input_boolean.living_tv_muted`는 TV의 `value`에 "음소거"로 표시 |
-| `bedroom3` 침실 3 (책상·PC) | `my_room` (My Room Agent) | `bedroom3-light` ↔ `input_boolean.room1_light`(+ `input_select.room1_light_mode`를 `value`에), `bedroom3-air` ↔ `input_boolean.room1_ac`. `input_boolean.room1_occupied`는 재실 표시 |
-| `bedroom2` 침실 2 | `protected_room` (room2) | `bedroom2-light` ↔ `input_boolean.room2_light`, `bedroom2-air` ↔ `input_boolean.room2_ac`. `input_boolean.room2_sleep_mode`는 "수면 중" 표시 |
-| 주방·다이닝·베란다·욕실·침실 1 | 없음 | 실제 기기가 없음. `connected: false` 또는 "시뮬레이션 전용" |
+| `myroom` 내 방 (책상·PC) | `my_room` (My Room Agent) | `myroom-light` ↔ `input_boolean.room1_light`(+ `input_select.room1_light_mode`를 `value`에), `myroom-ac` ↔ `input_boolean.room1_ac`. `input_boolean.room1_occupied`는 재실 표시 |
+| `protected` 보호 방 | `protected_room` (room2) | `protected-light` ↔ `input_boolean.room2_light`, `protected-ac` ↔ `input_boolean.room2_ac`. `input_boolean.room2_sleep_mode`는 "수면 모드" 표시 |
 
 값 표시 예:
 - `on`/`off` → 화면 기기의 `on: true/false`
@@ -271,7 +279,9 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 
 **3D 장면 (`src/live/AgentScene.jsx`, `useAgentScene.js`, `scene.css`)**: LIVE의 Home·3D Model·Live Simulation 탭에서 `Home3D`의 `overlay`로 그린다.
 집과 같은 변환을 쓰는 별도 층이라 벽에 가리지 않고, 방을 눌러 확대하면 그 방의 에이전트만 원래 크기로 보인다.
-- 에이전트 자리: Home = 거실, My Room = 침실 3, 보호 방 = 침실 2, Desktop = 침실 3의 PC, Mobile = 복도. 이름표는 바닥 점에서 기둥으로 세운다.
+- 에이전트 자리(`LIVE_PLAN.agents`): Home = 거실, My Room = 침실1(안방), 보호 방 = 침실2, Desktop = 안방 책상의 PC.
+  이름표는 바닥 점에서 기둥으로 세운다. Mobile은 사용자와 함께 있는 폰이라 집 안에 두지 않고 3D 화면 왼쪽 아래 카드로 보여 준다
+  (말풍선도 그 카드 위에 뜬다).
 - 말풍선(`mapping.js`의 `sceneLine`): 보낸 부탁·상태 알림(`out`), 받은 부탁의 판단(`in`: 수락/거절, Home이 방에 넘긴 경우 "권한 확인 ✓ → 넘김"),
   자동 규칙(`rule`). 거절은 빨간 글씨.
 - 메시지 점: 보낸 에이전트에서 받는 에이전트로 날아간다. 주황 = 기기 부탁(`device.control`), 파랑 = 상태 알림·조회.

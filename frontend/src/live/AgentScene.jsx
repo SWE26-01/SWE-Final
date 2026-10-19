@@ -1,25 +1,22 @@
 // Agents on the 3D house (LIVE): where each agent lives, what it says to whom (speech bubbles and a
 // dot travelling between agents), what its LLM is doing in a Runner run (thinking, then its answer),
 // and which device changed or was refused. Home3D draws it on the house; labels face the viewer.
-import React, { useEffect, useRef } from 'react';
-import { Bot, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Bot, Loader2, Smartphone } from 'lucide-react';
 import { devicePinSpot, roomRect } from '../Home3D';
+import { LIVE_PLAN } from './housePlan';
 import { AGENT_ORDER, agentName, sceneFlash, sceneLine } from './mapping';
 import { useAgentScene } from './useAgentScene';
 import './scene.css';
 
-// Where each agent stands, in % of the house plan (Home3D layout).
-const SPOT = {
-  orchestrator: [13, 70], // living room
-  room1: [86, 78], // bedroom 3 = My Room
-  room2: [78, 40], // bedroom 2 = protected room
-  desktop: [62, 91], // the PC in My Room
-  smartphone: [49, 52], // the hall, with the person
-};
-// Room each agent stands in: zoomed into a room (Home3D), only that room's agents are shown.
-const ROOM = { orchestrator: 'living', room1: 'bedroom3', room2: 'bedroom2', desktop: 'bedroom3', smartphone: null };
+// Where each agent stands (% of the real house plan) and the room it is in (live/housePlan.js). The
+// phone has no spot: it is with the user, so it is drawn in the view's corner (Home3D .scene-corner).
+const PHONE = 'smartphone';
+const SPOT = LIVE_PLAN.agents;
+const ROOM = LIVE_PLAN.agentRoom;
 // Desktop and My Room stand close together, so their bubbles lean apart.
-const BUBBLE_SHIFT = { desktop: '-38%', room1: '38%' };
+const BUBBLE_SHIFT = { desktop: '38%', room1: '-38%' };
 const REPLY_MS = 8000;
 const shortName = (id) => agentName(id).replace(' Agent', '');
 const plain = (text) => text.replace(/[*_`#>|]/g, '').replace(/^\s*[-•]\s*/gm, '').replace(/\s+/g, ' ').trim();
@@ -43,6 +40,21 @@ function useNewAnswers(run) {
   return seen.current || new Map();
 }
 
+function Bubble({ said, mind, shift }) {
+  return (
+    <div className="scene-bubble" style={shift ? { '--shift': shift } : undefined}>
+      {mind?.thinking && (
+        <>
+          {mind.said && <p className="said">“{mind.said}”</p>}
+          <p className="think"><Loader2 size={9} className="live-spin" /> 생각하는 중…</p>
+        </>
+      )}
+      {mind?.reply && <p className="reply">{mind.reply}</p>}
+      {said.map((line) => <p key={line.key} className={line.ok === false ? 'no' : ''}>{line.text}</p>)}
+    </div>
+  );
+}
+
 function Billboard({ x, y, className = '', children }) {
   return (
     <div className={`scene-anchor ${className}`} style={{ left: `${x}%`, top: `${y}%` }}>
@@ -54,6 +66,9 @@ function Billboard({ x, y, className = '', children }) {
 export default function AgentScene({ events, devices, rooms, run, offline, focusRoom = null }) {
   const { shown, now } = useAgentScene(events);
   const answers = useNewAnswers(run);
+  const root = useRef(null);
+  const [corner, setCorner] = useState(null);
+  useEffect(() => { setCorner(root.current?.closest('.home-3d')?.querySelector('.scene-corner') || null); }, []);
   const visible = (id) => !focusRoom || ROOM[id] === focusRoom;
 
   const lines = {};
@@ -65,7 +80,7 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
   const flashes = new Map(); // pin -> latest change
   shown.filter((event) => event.dir === 'exec').forEach((event) => {
     const flash = sceneFlash(event, devices);
-    const spot = flash && devicePinSpot(rooms, flash.pin);
+    const spot = flash && devicePinSpot(LIVE_PLAN, rooms, flash.pin);
     if (spot && (!focusRoom || spot.room === focusRoom)) flashes.set(flash.pin, { key: event.id, ...flash, ...spot });
   });
   const llm = {}; // agent -> what its LLM is doing in the current run
@@ -76,9 +91,9 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
   });
 
   return (
-    <div className="agent-scene" aria-hidden="true">
+    <div className="agent-scene" aria-hidden="true" ref={root}>
       {[...flashes.values()].map((flash) => {
-        const rect = roomRect(flash.room);
+        const rect = roomRect(LIVE_PLAN, flash.room);
         return <i key={`room-${flash.key}`} className={`scene-room ${flash.ok ? 'ok' : 'no'}`} style={{ left: `${rect.left}%`, top: `${rect.top}%`, width: `${rect.width}%`, height: `${rect.height}%` }} />;
       })}
       <svg className="scene-links" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -97,7 +112,7 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
           <Billboard x={flash.x} y={flash.y} className="scene-flash"><span className={`scene-tag ${flash.ok ? 'ok' : 'no'}`}>{flash.text}</span></Billboard>
         </React.Fragment>
       ))}
-      {AGENT_ORDER.filter(visible).map((id) => {
+      {AGENT_ORDER.filter((id) => SPOT[id] && visible(id)).map((id) => {
         const [x, y] = SPOT[id];
         const said = lines[id]?.slice(-3) || [];
         const mind = llm[id];
@@ -106,23 +121,21 @@ export default function AgentScene({ events, devices, rooms, run, offline, focus
           <React.Fragment key={id}>
             <i className="scene-base" style={{ left: `${x}%`, top: `${y}%` }} />
             <Billboard x={x} y={y}>
-              {speaking && (
-                <div className="scene-bubble" style={BUBBLE_SHIFT[id] ? { '--shift': BUBBLE_SHIFT[id] } : undefined}>
-                  {mind?.thinking && (
-                    <>
-                      {mind.said && <p className="said">“{mind.said}”</p>}
-                      <p className="think"><Loader2 size={9} className="live-spin" /> 생각하는 중…</p>
-                    </>
-                  )}
-                  {mind?.reply && <p className="reply">{mind.reply}</p>}
-                  {said.map((line) => <p key={line.key} className={line.ok === false ? 'no' : ''}>{line.text}</p>)}
-                </div>
-              )}
+              {speaking && <Bubble said={said} mind={mind} shift={BUBBLE_SHIFT[id]} />}
               <span className={`scene-chip ${speaking ? 'speaking' : ''} ${offline.has(id) ? 'offline' : ''}`}><Bot size={10} />{shortName(id)}</span>
             </Billboard>
           </React.Fragment>
         );
       })}
+      {corner && createPortal(
+        <div className="scene-phone">
+          {(lines[PHONE]?.length || llm[PHONE]) && <Bubble said={lines[PHONE]?.slice(-3) || []} mind={llm[PHONE]} />}
+          <span className={`scene-chip ${lines[PHONE]?.length || llm[PHONE] ? 'speaking' : ''} ${offline.has(PHONE) ? 'offline' : ''}`}>
+            <Smartphone size={12} />Mobile<small>집 밖 · 사용자와 함께</small>
+          </span>
+        </div>,
+        corner,
+      )}
     </div>
   );
 }

@@ -34,9 +34,10 @@ import Select from './Select';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
 import { useLiveRun } from './live/useLiveRun';
-import { NODE_AGENT, applyLiveDevices, eventsOfRun, expectRows, isRunLogEvent, liveOccupantRoom, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
+import { NODE_AGENT, eventsOfRun, expectRows, isRunLogEvent, liveEnvironmentCard, liveOccupantRoom, liveRooms, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
 import AgentConsole from './live/AgentConsole';
 import AgentScene from './live/AgentScene';
+import { LIVE_PLAN, LIVE_ROOMS } from './live/housePlan';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRequestFlows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 import './controls.css';
@@ -131,11 +132,25 @@ const initialRooms = [
   },
 ];
 
-const createTestRooms = () => initialRooms.map((room, index) => ({
-  ...room,
-  devices: room.devices.map((device) => ({ ...device })),
-  noise: [38, 42, 36, 31, 44, 32, 35, 46, 33][index],
-}));
+// Control Mode tests environment values on the real apartment (live/housePlan.js). Starting
+// temperature, humidity and noise per room; spaces without them (hallway, AC unit room) are drawn but
+// not tested.
+const TEST_START = {
+  living: [24.1, 48, 42], myroom: [23.6, 46, 35], protected: [24.0, 45, 31], bedroom3: [23.8, 46, 33], kitchen: [25.2, 51, 44],
+  entrance: [22.9, 50, 38], bath1: [24.4, 60, 36], bath2: [24.2, 58, 34], veranda: [22.8, 55, 40], veranda2: [22.6, 56, 39],
+};
+const createTestRooms = () => LIVE_ROOMS.map((room) => {
+  const [temp = null, humidity = null, noise = null] = TEST_START[room.id] || [];
+  return {
+    ...room,
+    temp,
+    humidity,
+    noise,
+    test: temp != null,
+    devices: room.devices.map((device) => ({ ...device, on: false, value: '꺼짐' })),
+  };
+});
+const testedRooms = (rooms) => rooms.filter((room) => room.test);
 
 const testLimits = {
   temp: 26,
@@ -363,7 +378,7 @@ function App() {
   const liveDevices = liveData.gateway.devices;
   const liveOnline = liveData.gateway.status === 'open' && liveData.gateway.haConnected;
   const shownRooms = useMemo(
-    () => (live ? applyLiveDevices(rooms, liveDevices, liveOnline) : rooms),
+    () => (live ? liveRooms(liveDevices, liveOnline) : rooms),
     [live, rooms, liveDevices, liveOnline],
   );
   const liveEvents = useMemo(
@@ -395,6 +410,9 @@ function App() {
   useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+
+  // LIVE and MOCK draw different houses, so a room picked in one may not exist in the other.
+  useEffect(() => { setSelectedRoom(null); }, [live]);
 
   useEffect(() => {
     if (!runRunning) return undefined;
@@ -478,7 +496,8 @@ function App() {
   const decisionPrediction = decisionCurrent.title === '수면 환경 준비'
     ? '사용자가 곧 취침할 것으로 예상하고 있어요.'
     : `${decisionCurrent.title}에 필요한 상태를 Agent가 감지했어요.`;
-  const environment = room
+  // LIVE: the real house has no temperature sensors, so the card shows real states instead.
+  const environment = live ? liveEnvironmentCard(liveDevices, room) : room
     ? { label: room.name, temp: room.temp, humidity: room.humidity, sensor: '정상' }
     : {
         label: '평균',
@@ -491,8 +510,8 @@ function App() {
     ? { label: testRoom.name, temp: testRoom.temp, humidity: testRoom.humidity, sensor: '테스트' }
     : {
         label: '평균',
-        temp: testRooms.reduce((sum, item) => sum + item.temp, 0) / testRooms.length,
-        humidity: Math.round(testRooms.reduce((sum, item) => sum + item.humidity, 0) / testRooms.length),
+        temp: testedRooms(testRooms).reduce((sum, item) => sum + item.temp, 0) / testedRooms(testRooms).length,
+        humidity: Math.round(testedRooms(testRooms).reduce((sum, item) => sum + item.humidity, 0) / testedRooms(testRooms).length),
         sensor: '테스트',
       };
   const liveScenario = simulationScenarios.find((scenario) => scenario.id === liveScenarioId) || simulationScenarios[0];
@@ -756,7 +775,7 @@ function App() {
               </div>
             </div>
 
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
           </section>
 
           <aside className="side-column" ref={sideColumnRef}>
@@ -864,7 +883,7 @@ function App() {
 
         {activeTab === 'model' && (
           <section className="model-tab" aria-label="3D 스마트홈 모델">
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
           </section>
         )}
 
@@ -904,7 +923,7 @@ function App() {
                 <LiveSayForm canRun={liveRun.canRun} busy={liveRun.busy} hint={runHint} onSay={liveRun.start} />
               </>)}
               {live ? (
-                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
+                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} plan={live ? LIVE_PLAN : undefined} />
               ) : (
                 <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
               )}
@@ -979,7 +998,7 @@ function App() {
         {activeTab === 'test' && (
           <div className="test-tab">
             <section className="test-model" aria-label="환경 테스트용 3D 스마트홈">
-              <Home3D rooms={testRooms} environment={testEnvironment} selectedRoom={selectedTestRoom} onRoomSelect={setSelectedTestRoom} onBack={() => setSelectedTestRoom(null)} />
+              <Home3D rooms={testRooms} environment={testEnvironment} selectedRoom={selectedTestRoom} onRoomSelect={(id) => { if (testRooms.find((item) => item.id === id)?.test) setSelectedTestRoom(id); }} onBack={() => setSelectedTestRoom(null)} plan={LIVE_PLAN} />
             </section>
             <aside className="test-control panel">
               <div className="test-control-heading">
@@ -987,7 +1006,7 @@ function App() {
                 <button type="button" onClick={resetTestEnvironment} aria-label="테스트 환경 초기화"><RotateCcw size={14} /></button>
               </div>
               <div className="test-room-list" aria-label="테스트할 방 선택">
-                {testRooms.map((item) => <button type="button" className={selectedTestRoom === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedTestRoom(item.id)}>{item.name}</button>)}
+                {testedRooms(testRooms).map((item) => <button type="button" className={selectedTestRoom === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedTestRoom(item.id)}>{item.name}</button>)}
               </div>
               {testRoom ? (
                 <div className="test-sliders">
