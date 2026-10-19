@@ -831,6 +831,17 @@ h1,h2,h3,b,strong { font-weight:600; }
 .css-device-pin.active svg {
   filter:drop-shadow(0 0 3px rgba(246,194,68,.72));
 }
+.room-side-devices .device-card.active .device-icon,
+.room-side-devices .device-card.active .power-button {
+  color:var(--device-active);
+  background:rgba(246,194,68,.16);
+  border:1px solid rgba(246,194,68,.42);
+  box-shadow:0 0 14px rgba(246,194,68,.16);
+}
+.room-side-devices .device-card.active .device-icon svg,
+.room-side-devices .device-card.active .power-button svg {
+  filter:drop-shadow(0 0 2px rgba(246,194,68,.46));
+}
 .three-topview,
 .three-topview:hover,
 .chat-avatar.green,
