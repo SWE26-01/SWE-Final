@@ -33,7 +33,7 @@
 
 - id: ambient_simulation_4
   alias: "시뮬레이션 4 실행"
-  description: "프론트엔드 요청으로 환경 최적화 시뮬레이션을 실행합니다."
+  description: "프론트엔드 요청으로 귀가 맞이 자동화 시뮬레이션을 실행합니다."
   trigger:
     - platform: state
       entity_id: input_button.ambient_simulation_4

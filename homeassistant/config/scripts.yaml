@@ -47,17 +47,17 @@ ambient_simulation_3:
       target: { entity_id: scene.ambient_jori_wiheom_haeje }
 
 ambient_simulation_4:
-  alias: "시뮬레이션 4 · 환경 최적화"
+  alias: "시뮬레이션 4 · 귀가 맞이 자동화"
   mode: restart
   sequence:
     - service: scene.turn_on
       target: { entity_id: scene.ambient_gibon_sangtae }
     - delay: "00:00:01"
     - service: scene.turn_on
-      target: { entity_id: scene.ambient_hwangyeong_isang }
-    - delay: "00:00:06"
+      target: { entity_id: scene.ambient_arrival_detected }
+    - delay: "00:00:05"
     - service: scene.turn_on
-      target: { entity_id: scene.ambient_hwangyeong_hoebog }
+      target: { entity_id: scene.ambient_welcome_home }
     - delay: "00:00:07"
     - service: scene.turn_on
-      target: { entity_id: scene.ambient_hwangyeong_jeongsang }
+      target: { entity_id: scene.ambient_arrival_complete }

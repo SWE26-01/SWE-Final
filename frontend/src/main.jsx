@@ -266,14 +266,14 @@ const simulationScenarios = [
     ],
   },
   {
-    id: 4, label: 'SIMULATION 4', title: '환경 최적화', duration: 20, confidence: 94,
+    id: 4, label: 'SIMULATION 4', title: '귀가 맞이 자동화', duration: 18, confidence: 95,
     steps: [
-      { at: 0, phase: 'SENSOR', title: '온도·공기질 악화 감지', detail: '거실 온도 상승과 미세먼지 증가를 동시에 감지했습니다.', from: 'Climate Agent', to: 'Context Agent', message: '28.2°C · 공기질 나쁨 전달', occupant: 'living', sensor: '공기질 나쁨', roomUpdates: [{ roomId: 'living', temp: 28.2, humidity: 61 }] },
-      { at: 5, phase: 'PREDICT', title: '쾌적도 저하 예측', detail: '현재 상태가 지속될 경우 쾌적도 저하 가능성 94%로 예측했습니다.', from: 'Context Agent', to: 'Comfort Agent', message: '쾌적도 저하 94% · 데모 예측', sensor: '쾌적도 분석' },
-      { at: 11, phase: 'ACTION', title: '환경 최적화 실행', detail: '냉방 23°C, 주방 환기와 공기청정기 강풍을 실행합니다.', from: 'Comfort Agent', to: 'Device Agent', message: '냉방·환기·공기청정 명령', sensor: '공기질 개선 중', commands: [
-        ['living', 'living-air', true, '23°C · 강풍'], ['kitchen', 'kitchen-air', true, '강제 환기 중'], ['living', 'living-purifier', true, '강풍 · 공기질 개선'],
-      ] },
-      { at: 19, phase: 'VERIFY', title: '쾌적 환경 회복 확인', detail: '온도와 습도가 안정 범위로 복귀하고 공기질이 개선되었습니다.', from: 'Device Agent', to: 'Climate Agent', message: '환경 목표값 도달 확인', sensor: '공기질 좋음', roomUpdates: [{ roomId: 'living', temp: 23.4, humidity: 50 }] },
+      { at: 0, phase: 'SENSOR', title: '귀가 접근 감지', detail: 'Mobile Agent가 사용자의 자택 접근과 귀가 위치 상태를 감지했습니다.', from: 'Mobile Agent', to: 'Home Agent', message: '자택 접근·귀가 위치 상태 전달', occupant: 'veranda', sensor: '귀가 접근 감지' },
+      { at: 3, phase: 'PREDICT', title: '귀가 동선 예측', detail: '현재 이동 속도와 평소 귀가 패턴을 결합해 3분 이내 도착 가능성을 95%로 예측했습니다.', from: 'Home Agent', to: 'Context Agent', message: '귀가 동선·도착 가능성 95% 분석', sensor: '귀가 동선 분석' },
+      { at: 6, phase: 'ACTION', title: '웰컴 홈 장면 실행', detail: '현관과 거실 조명을 켜고 거실 냉방과 공기청정을 미리 시작합니다.', from: 'Home Agent', to: 'Device Agent', message: '조명·냉방·공기청정 귀가 준비 명령', occupant: 'living', sensor: '귀가 환경 준비 중', commands: [
+        ['veranda', 'veranda-light', true, '귀가 안내 조명'], ['living', 'living-light', true, '웜 화이트 · 70%'], ['dining', 'dining-light', true, '웜 화이트 · 50%'], ['living', 'living-air', true, '24°C · 자동'], ['living', 'living-purifier', true, '자동 공기청정'],
+      ], roomUpdates: [{ roomId: 'living', temp: 24.2, humidity: 50 }] },
+      { at: 13, phase: 'VERIFY', title: '귀가 환경 안정 확인', detail: '사용자의 거실 도착을 확인하고 안내 조명은 끈 뒤 생활 공간의 쾌적 상태를 유지합니다.', from: 'Device Agent', to: 'Home Agent', message: '거실 도착·귀가 장면 완료 확인', sensor: '귀가 준비 완료', commands: [['veranda', 'veranda-light', false, '꺼짐'], ['dining', 'dining-light', false, '꺼짐']] },
     ],
   },
 ];

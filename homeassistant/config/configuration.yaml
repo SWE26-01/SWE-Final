@@ -16,8 +16,8 @@ input_button:
     name: "시뮬레이션 3 · 조리 방치 대응"
     icon: mdi:alert-outline
   ambient_simulation_4:
-    name: "시뮬레이션 4 · 환경 최적화"
-    icon: mdi:home-thermometer-outline
+    name: "시뮬레이션 4 · 귀가 맞이 자동화"
+    icon: mdi:home-import-outline
 
 input_boolean:
   # kitchen — orchestrator (Home)
