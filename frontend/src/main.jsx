@@ -1146,7 +1146,7 @@ function App() {
                 <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
               </div>
               <div className="expanded-network">
-                {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className="expanded-agent"><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
+                {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className={`expanded-agent agent-${index}`}><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
               </div>
               <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span></div>
               <div className="expanded-log-list">

@@ -348,6 +348,12 @@ button { font: inherit; }
 .agent-network { height:74px; position:relative; display:flex; justify-content:space-around; align-items:center; background:#f7f9f7; border-radius:11px; margin-bottom:10px; overflow:hidden; }
 .agent-network > .agent-connection-map { position:absolute; left:8%; width:84%; height:64px; }.agent-connection-map path { fill:none; stroke:#c5d7d0; stroke-width:1.2; stroke-dasharray:4 3; }.agent-connection-map circle { fill:#28a87f; }
 .agent-node { z-index:2; width:56px; height:47px; background:#fff; border:1px solid #dce5df; border-radius:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#33846a; box-shadow:0 4px 13px rgba(22,42,34,.06); }.agent-node span { font-size:7px; font-weight:700; margin-top:2px; color:#62716b; }
+.agent-node.node-0 { color:#4F719A; border-color:rgba(79,113,154,.2); background:#E2F2FB; }
+.agent-node.node-1 { color:#9B741B; border-color:rgba(155,116,27,.18); background:#FFF5D9; }
+.agent-node.node-2 { color:#71688D; border-color:rgba(113,104,141,.18); background:#EEEAF7; }
+.agent-node.node-3 { color:#4F8276; border-color:rgba(79,130,118,.18); background:#E5F3EF; }
+.expanded-agent.agent-0 { color:#4F719A; }.expanded-agent.agent-1 { color:#9B741B; }.expanded-agent.agent-2 { color:#71688D; }.expanded-agent.agent-3 { color:#4F8276; }
+.activity-tab .expanded-agent.agent-0 { background:#E2F2FB; }.activity-tab .expanded-agent.agent-1 { background:#FFF5D9; }.activity-tab .expanded-agent.agent-2 { background:#EEEAF7; }.activity-tab .expanded-agent.agent-3 { background:#E5F3EF; }
 .log-row { display:grid; grid-template-columns:57px 54px 13px 1fr; align-items:center; font-size:8px; padding:5px 2px; color:#7c8782; }.log-time { font-variant-numeric:tabular-nums; }.agent-pill { justify-self:start; padding:3px 5px; border-radius:4px; background:#eef3ff; color:#4d71aa; }.agent-pill.purple { background:#f1efff; color:#735dc6; }.agent-pill.green { background:#e9f7f1; color:#1f8062; }.log-text { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 .room-overlay { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:25px; }
