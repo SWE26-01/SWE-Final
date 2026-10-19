@@ -797,8 +797,8 @@ h1,h2,h3,b,strong { font-weight:600; }
   color:var(--device-inactive);
 }
 .css-device-pin:not(.active) {
-  border-width:2px;
-  border-color:rgba(79,113,154,.62);
+  border-width:1px;
+  border-color:#4F719A;
 }
 .css-device-pin.active,
 .device-card.active .device-icon,
