@@ -324,10 +324,10 @@ export function recentDoings(agentId, events, devices, limit = 3) {
       }
       if (event.dir === 'out') {
         const what = event.type === 'device.control' ? actionText(event.action, devices) : (TYPE_TEXT[event.type] || event.type);
-        return { key: event.id, time: timeOf(event.ts), text: `${agentName(event.to)}에게 ${what}`, ok: true };
+        return { key: event.id, time: timeOf(event.ts), text: `${shortAgent(event.to)}에게 ${what}`, ok: true };
       }
       const row = toLogRow(event, devices);
-      return { key: event.id, time: row.time, text: `${row.from}의 ${row.text}`, ok: event.accepted !== false };
+      return { key: event.id, time: row.time, text: `${shortAgent(event.from)}의 ${row.text}`, ok: event.accepted !== false };
     });
 }
 
