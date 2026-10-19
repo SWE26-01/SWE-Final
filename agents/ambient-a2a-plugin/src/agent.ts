@@ -231,12 +231,14 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   async function status() {
     const devices: Record<string, string> = {};
     if (ha) for (const d of owned) devices[d] = await ha.state(d).catch((e) => `error: ${e}`);
-    return {
+    // A copy, never live references: OpenClaw freezes tool results, and a frozen pub.state / store.fields /
+    // ownership would make every later publish, context update or discovery throw.
+    return structuredClone({
       agentId: cfg.agentId, role: cfg.role, space: cfg.space, devices,
       context: store.fields,
       published: cfg.role === "external" ? { sequence: pub.sequence, expires_at: pub.expires_at, state: pub.state, subscribers: Object.fromEntries(pub.subs) } : undefined,
       known_ownership: cfg.role === "home" ? ownership : undefined,
-    };
+    });
   }
 
   const card = agentCard({ agentId: cfg.agentId, role: cfg.role, space: cfg.space, publicUrl: cfg.publicUrl, owned, provides: cfg.provides ?? [], energySaving: cfg.energySaving });
