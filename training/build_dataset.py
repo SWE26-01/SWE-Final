@@ -89,7 +89,9 @@ def main():
 
     results = [json.loads(l) for l in open(RUN / "results.jsonl")]
     passed = {r["tag"] for r in results if r["pass"] and r["tag"].startswith(a.teacher) and ":t-" in r["tag"]}
-    calls = [c for c in map(json.loads, open(RUN / "calls.jsonl")) if c["tag"] in passed]
+    calls = [c for c in map(json.loads, open(RUN / "calls.jsonl")) if c["tag"] in passed
+             and not any(m.get("role") == "tool" and '"status": "error"' in text_of(m.get("content"))
+                         for m in c["request"]["messages"])]  # teacher answers after a tool error are not examples
     random.seed(0)
     scen = sorted({t.split(":", 1)[1] for t in passed})
     eval_scen = set(random.sample(scen, max(1, int(len(scen) * a.eval_frac))))
