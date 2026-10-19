@@ -656,7 +656,7 @@ h1,h2,h3,b,strong { font-weight:600; }
 }
 .device-card.active,
 .room-side-devices .device-card.active {
-  background:var(--mist);
+  background:var(--canvas);
   border-color:var(--device-active);
 }
 .three-topview,
