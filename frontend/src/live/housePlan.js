@@ -84,6 +84,6 @@ export const LIVE_ROOMS = [
   { id: 'hall', name: '복도', en: 'Hall', className: 'room-hall', icon: DoorOpen, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'hall2', name: '복도', en: 'Hall', className: 'room-hall', icon: DoorOpen, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'veranda', name: '발코니', en: 'Balcony', className: 'room-veranda', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
-  { id: 'veranda2', name: '발코니', en: 'Balcony', className: 'room-veranda', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
+  { id: 'veranda2', name: '발코니 (다용도)', en: 'Utility balcony', className: 'room-veranda', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
   { id: 'outdoor', name: '실외기실', en: 'AC unit', className: 'room-outdoor', icon: Sun, agent: null, description: '에이전트·기기 없음', devices: [] },
 ];

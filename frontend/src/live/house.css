@@ -4,3 +4,6 @@
 .plan-live .house-base { display:none; }
 /* the kitchen counter nook and the hallway band are parts of rooms already labelled */
 .plan-live .css-room-kitchen2 .css-room-name, .plan-live .css-room-hall .css-room-name, .plan-live .css-room-hall2 .css-room-name { display:none; }
+/* the 3D Model and Control Mode tabs size the demo apartment larger; this one keeps fitting */
+.model-tab .css-house.plan-live { height:min(78%,620px); }
+.test-model .css-house.plan-live { height:min(76%,600px); }

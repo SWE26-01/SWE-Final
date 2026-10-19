@@ -37,7 +37,7 @@ import { useLiveRun } from './live/useLiveRun';
 import { NODE_AGENT, eventsOfRun, expectRows, isRunLogEvent, liveEnvironmentCard, liveOccupantRoom, liveRooms, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
 import AgentConsole from './live/AgentConsole';
 import AgentScene from './live/AgentScene';
-import { LIVE_PLAN } from './live/housePlan';
+import { LIVE_PLAN, LIVE_ROOMS } from './live/housePlan';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRequestFlows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 import './controls.css';
@@ -132,11 +132,25 @@ const initialRooms = [
   },
 ];
 
-const createTestRooms = () => initialRooms.map((room, index) => ({
-  ...room,
-  devices: room.devices.map((device) => ({ ...device })),
-  noise: [38, 42, 36, 31, 44, 32, 35, 46, 33][index],
-}));
+// Control Mode tests environment values on the real apartment (live/housePlan.js). Starting
+// temperature, humidity and noise per room; spaces without them (hallway, kitchen nook, AC unit room)
+// are drawn but not tested.
+const TEST_START = {
+  living: [24.1, 48, 42], myroom: [23.6, 46, 35], protected: [24.0, 45, 31], bedroom3: [23.8, 46, 33], kitchen: [25.2, 51, 44],
+  entrance: [22.9, 50, 38], bath1: [24.4, 60, 36], bath2: [24.2, 58, 34], veranda: [22.8, 55, 40], veranda2: [22.6, 56, 39],
+};
+const createTestRooms = () => LIVE_ROOMS.map((room) => {
+  const [temp = null, humidity = null, noise = null] = TEST_START[room.id] || [];
+  return {
+    ...room,
+    temp,
+    humidity,
+    noise,
+    test: temp != null,
+    devices: room.devices.map((device) => ({ ...device, on: false, value: '꺼짐' })),
+  };
+});
+const testedRooms = (rooms) => rooms.filter((room) => room.test);
 
 const testLimits = {
   temp: 26,
@@ -496,8 +510,8 @@ function App() {
     ? { label: testRoom.name, temp: testRoom.temp, humidity: testRoom.humidity, sensor: '테스트' }
     : {
         label: '평균',
-        temp: testRooms.reduce((sum, item) => sum + item.temp, 0) / testRooms.length,
-        humidity: Math.round(testRooms.reduce((sum, item) => sum + item.humidity, 0) / testRooms.length),
+        temp: testedRooms(testRooms).reduce((sum, item) => sum + item.temp, 0) / testedRooms(testRooms).length,
+        humidity: Math.round(testedRooms(testRooms).reduce((sum, item) => sum + item.humidity, 0) / testedRooms(testRooms).length),
         sensor: '테스트',
       };
   const liveScenario = simulationScenarios.find((scenario) => scenario.id === liveScenarioId) || simulationScenarios[0];
@@ -984,7 +998,7 @@ function App() {
         {activeTab === 'test' && (
           <div className="test-tab">
             <section className="test-model" aria-label="환경 테스트용 3D 스마트홈">
-              <Home3D rooms={testRooms} environment={testEnvironment} selectedRoom={selectedTestRoom} onRoomSelect={setSelectedTestRoom} onBack={() => setSelectedTestRoom(null)} />
+              <Home3D rooms={testRooms} environment={testEnvironment} selectedRoom={selectedTestRoom} onRoomSelect={(id) => { if (testRooms.find((item) => item.id === id)?.test) setSelectedTestRoom(id); }} onBack={() => setSelectedTestRoom(null)} plan={LIVE_PLAN} />
             </section>
             <aside className="test-control panel">
               <div className="test-control-heading">
@@ -992,7 +1006,7 @@ function App() {
                 <button type="button" onClick={resetTestEnvironment} aria-label="테스트 환경 초기화"><RotateCcw size={14} /></button>
               </div>
               <div className="test-room-list" aria-label="테스트할 방 선택">
-                {testRooms.map((item) => <button type="button" className={selectedTestRoom === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedTestRoom(item.id)}>{item.name}</button>)}
+                {testedRooms(testRooms).map((item) => <button type="button" className={selectedTestRoom === item.id ? 'active' : ''} key={item.id} onClick={() => setSelectedTestRoom(item.id)}>{item.name}</button>)}
               </div>
               {testRoom ? (
                 <div className="test-sliders">
