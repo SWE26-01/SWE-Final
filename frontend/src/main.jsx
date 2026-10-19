@@ -10,7 +10,6 @@ import {
   CircleDot,
   CookingPot,
   Flame,
-  House,
   Lightbulb,
   Monitor,
   Moon,
@@ -22,7 +21,6 @@ import {
   ShowerHead,
   SlidersHorizontal,
   Sofa,
-  Smartphone,
   Sun,
   Droplets,
   RotateCcw,
@@ -56,14 +54,6 @@ const gatewayLabels = {
   configuration_required: 'SET TOKEN',
   invalid_message: 'STREAM ERROR',
 };
-
-function ChatAgentIcon({ agent, size = 14 }) {
-  if (agent.startsWith('Home')) return <House size={size} />;
-  if (agent.startsWith('My Room')) return <BedDouble size={size} />;
-  if (agent.startsWith('Desktop')) return <Monitor size={size} />;
-  if (agent.startsWith('Mobile')) return <Smartphone size={size} />;
-  return <Bot size={size} />;
-}
 
 const initialRooms = [
   {
@@ -1048,14 +1038,14 @@ function App() {
                     <div className={`chat-avatar ${log.color}`}><Bot size={17} /></div>
                     <div className="chat-message-body">
                       <div><b>{log.from}</b><span>{log.time}</span></div>
-                      <p>{log.text}</p>
-                      <small className="chat-route" aria-label={`${log.to}에게 전달`}>
+                      <div className="chat-message-flow">
+                        <p>{log.text}</p>
                         <span className="chat-route-line" aria-hidden="true" />
                         <span className="chat-route-target" title={log.to}>
-                          <ChatAgentIcon agent={log.to} size={12} />
-                          <span>{log.to.replace(' Agent', '')}</span>
+                          <span>{log.to}</span>
+                          <i><Bot size={18} /></i>
                         </span>
-                      </small>
+                      </div>
                     </div>
                   </article>
                 ))}
