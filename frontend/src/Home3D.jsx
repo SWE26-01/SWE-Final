@@ -46,6 +46,7 @@ const APPLIANCE = {
   computer: <div className="appliance-3d computer-3d"><i /><span /></div>,
   humidifier: <div className="appliance-3d humidifier-3d"><i /></div>,
   washer: <div className="appliance-3d washer-3d"><i /></div>,
+  hood: <div className="appliance-3d hood-3d"><i /><i /><i /></div>,
 };
 
 // `kinds` (a plan's room `appliances`) picks them; without it the demo apartment's rooms are used.
@@ -108,7 +109,7 @@ function getDevicePinPosition(index, count, roomId) {
 }
 
 // The demo apartment (MOCK). LIVE passes the real house (live/housePlan.js) as `plan`.
-const DEMO_PLAN = { rooms: layout, hall: { left: 42, top: 22, width: 14, height: 77, stairs: true }, anchors: occupantAnchors, routes: occupantRoutes };
+const DEMO_PLAN = { topRotation: -90, rooms: layout, hall: { left: 42, top: 22, width: 14, height: 77, stairs: true }, anchors: occupantAnchors, routes: occupantRoutes };
 
 /** A room's box on a house plan, in % of the house. */
 export const roomRect = (plan, roomId) => plan.rooms[roomId];
@@ -226,7 +227,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
     setIsDragging(false);
     window.requestAnimationFrame(() => { wasDragged.current = false; });
   };
-  const topView = () => { setRotation(-90); setTilt(0); };
+  const topView = () => { setRotation(plan.topRotation ?? -90); setTilt(0); };
   const adjustZoom = (amount) => setZoom((current) => Math.min(1.5, Math.max(.5, Number((current + amount).toFixed(2)))));
   const selectedLayout = selectedRoom ? plan.rooms[selectedRoom] : null;
   const center = selectedLayout ? [selectedLayout.left + selectedLayout.width / 2, selectedLayout.top + selectedLayout.height / 2] : [50, 50];

@@ -1,2 +1,6 @@
-/* The real house (LIVE, live/housePlan.js): a landscape apartment, so its box is wider than the demo's. */
-.css-house.plan-live { height:min(64%,470px); aspect-ratio:1.3; }
+/* The real house (LIVE, live/housePlan.js), traced from a 59 m² apartment plan. Its outline is not a
+   rectangle, so the floor slab is hidden and only the rooms are drawn. */
+.css-house.plan-live { height:min(74%,560px); aspect-ratio:.92; }
+.plan-live .house-base { display:none; }
+/* the kitchen counter nook and the hallway band are parts of rooms already labelled */
+.plan-live .css-room-kitchen2 .css-room-name, .plan-live .css-room-hall .css-room-name, .plan-live .css-room-hall2 .css-room-name { display:none; }
