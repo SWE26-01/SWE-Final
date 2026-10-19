@@ -46,3 +46,11 @@
 /* Home3D draws the overlay as a second house-sized layer stacked on the house */
 .css-3d-stage > .css-house { grid-area:1 / 1; }
 .css-house-overlay { pointer-events:none; }
+
+/* Mobile: the phone is with the user, so it sits in the view's corner, not in the house */
+.scene-corner { position:absolute; left:16px; bottom:16px; z-index:6; pointer-events:none; }
+.scene-phone { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+.scene-phone .scene-bubble { max-width:220px; font-size:9.5px; transform:none; }
+.scene-phone .scene-bubble::after { left:22px; margin-left:0; }
+.scene-phone .scene-chip { gap:5px; padding:6px 11px; font-size:10px; }
+.scene-phone .scene-chip small { font-size:8px; font-weight:500; opacity:.7; }

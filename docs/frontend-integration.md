@@ -149,8 +149,9 @@ const flows = await fetch('/collector/flows?limit=20', {
 
 ### 방과 기기
 
-LIVE에서는 3D 집 자체가 실제 구조다(`src/live/housePlan.js`의 `LIVE_PLAN`·`LIVE_ROOMS`): 뒤쪽에 내 방과 보호 방, 앞쪽에 거실(소파·식탁),
-거실 앞 현관. MOCK은 예전 데모 아파트(방 9개)를 그대로 쓴다. 실제 기기에는 온도·습도 센서가 없어서 LIVE의 환경 카드는
+LIVE에서는 3D 집이 실제 구조다(`src/live/housePlan.js`의 `LIVE_PLAN`·`LIVE_ROOMS`): 흔한 국내 판상형 3베이 방 2개 아파트(약 59㎡).
+앞쪽(남향)에 보호 방(작은방)·거실·내 방(안방)과 발코니, 뒤쪽에 욕실·현관·주방·식당·안방 욕실이 있다. 에이전트와 기기는 거실·내 방·보호 방에만
+있고 나머지 공간은 비어 있다. MOCK은 예전 데모 아파트(방 9개)를 그대로 쓴다. 실제 기기에는 온도·습도 센서가 없어서 LIVE의 환경 카드는
 내 방 재실, 내 방 조명 모드, 보호 방 수면 모드를 보여 준다.
 
 | 화면 방 (`rooms[].id`) | 실제 공간 | 화면 기기 ↔ 실제 엔티티 |
@@ -274,8 +275,9 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 
 **3D 장면 (`src/live/AgentScene.jsx`, `useAgentScene.js`, `scene.css`)**: LIVE의 Home·3D Model·Live Simulation 탭에서 `Home3D`의 `overlay`로 그린다.
 집과 같은 변환을 쓰는 별도 층이라 벽에 가리지 않고, 방을 눌러 확대하면 그 방의 에이전트만 원래 크기로 보인다.
-- 에이전트 자리(`LIVE_PLAN.agents`): Home = 거실, My Room = 내 방, 보호 방 = 보호 방, Desktop = 내 방의 PC, Mobile = 현관 밖(사용자와 함께 있는 폰).
-  이름표는 바닥 점에서 기둥으로 세운다.
+- 에이전트 자리(`LIVE_PLAN.agents`): Home = 거실, My Room = 내 방(안방), 보호 방 = 작은방, Desktop = 안방 책상의 PC.
+  이름표는 바닥 점에서 기둥으로 세운다. Mobile은 사용자와 함께 있는 폰이라 집 안에 두지 않고 3D 화면 왼쪽 아래 카드로 보여 준다
+  (말풍선도 그 카드 위에 뜬다).
 - 말풍선(`mapping.js`의 `sceneLine`): 보낸 부탁·상태 알림(`out`), 받은 부탁의 판단(`in`: 수락/거절, Home이 방에 넘긴 경우 "권한 확인 ✓ → 넘김"),
   자동 규칙(`rule`). 거절은 빨간 글씨.
 - 메시지 점: 보낸 에이전트에서 받는 에이전트로 날아간다. 주황 = 기기 부탁(`device.control`), 파랑 = 상태 알림·조회.

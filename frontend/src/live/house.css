@@ -1,8 +1,2 @@
-/* The real house (LIVE, live/housePlan.js). Three spaces fill the box, so each is about twice the size
-   of a demo room: the box is less tall, and the living room's furniture is placed and sized here. */
-.css-house.plan-live { height:min(70%,520px); aspect-ratio:.9; } /* smaller, so the phone outside the door stays in view */
-.plan-live .css-room-living .sofa-3d { left:8%; top:16%; width:28%; height:15%; }
-.plan-live .css-room-living .table-3d { left:15%; top:43%; width:13%; height:15%; }
-.plan-live .css-room-living .plant-3d { left:42%; top:12%; width:5%; height:12%; }
-.plan-live .css-room-living .television-3d { left:12%; right:auto; top:80%; width:22%; height:4%; }
-.plan-live .css-room-living .dining-3d { left:64%; top:24%; width:16%; height:30%; }
+/* The real house (LIVE, live/housePlan.js): a landscape apartment, so its box is wider than the demo's. */
+.css-house.plan-live { height:min(64%,470px); aspect-ratio:1.3; }

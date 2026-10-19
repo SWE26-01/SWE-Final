@@ -29,7 +29,7 @@ const occupantRoutes = {
 };
 
 function Furniture({ type }) {
-  if (type === 'living-dining') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d" /><div className="plant-3d"><i /><span /></div><div className="furniture dining-3d"><i /><i /><i /><i /></div></>;
+  if (type === 'none') return null;
   if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /><div className="furniture desk-3d bedroom-desk-3d" /><div className="furniture chair-3d bedroom-chair-3d" /></>;
   if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /></>;
   if (type === 'desk') return <><div className="furniture desk-3d"><span /></div><div className="furniture chair-3d" /></>;
@@ -316,6 +316,8 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
         <span>{Math.round(zoom * 100)}%</span>
       </div>
       <button className="three-topview" onClick={topView} aria-label="완전 탑뷰로 전환"><Map size={13} /> TOP VIEW</button>
+      {/* flat corner of the view for things that are not in the house (AgentScene puts the phone here) */}
+      {overlay && <div className="scene-corner" />}
     </div>
   );
 }
