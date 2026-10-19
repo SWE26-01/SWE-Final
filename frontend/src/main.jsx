@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
+import Select from './Select';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
 import { useLiveRun } from './live/useLiveRun';
@@ -38,6 +39,7 @@ import AgentConsole from './live/AgentConsole';
 import AgentScene from './live/AgentScene';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRequestFlows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
+import './controls.css';
 
 const initialRooms = [
   {
@@ -1084,12 +1086,14 @@ function App() {
             <span className="device-control-icon"><DeviceIcon type={selectedGroup.type} /></span>
             <p>SMART HOME · DEVICE CONTROL</p>
             <h2 id="device-control-title">{selectedGroup.label}</h2>
-            <label className="device-target-select">제어할 위치
-              <select value={selectedTargetId} onChange={(event) => setSelectedTargetId(event.target.value)}>
-                <option value="all">전체 {selectedGroup.label}</option>
-                {selectedGroup.devices.map((device) => <option value={device.id} key={device.id}>{device.roomName} · {device.name}</option>)}
-              </select>
-            </label>
+            <div className="device-target-select"><span>제어할 위치</span>
+              <Select
+                value={selectedTargetId}
+                onChange={setSelectedTargetId}
+                label="제어할 위치"
+                options={[{ value: 'all', label: `전체 ${selectedGroup.label}` }, ...selectedGroup.devices.map((device) => ({ value: device.id, label: `${device.roomName} · ${device.name}` }))]}
+              />
+            </div>
             <div className={`connection-state ${targetConnectedCount ? '' : 'offline'}`}><i />{targetConnectedCount}/{selectedTargets.length} 연결됨<em>{targetConnectedCount ? `${targetOnCount}/${targetConnectedCount} ON` : 'OFFLINE'}</em></div>
             <div className="device-control-actions">
               {targetConnectedCount > 0 && <button className={targetOnCount === targetConnectedCount ? 'selected' : ''} onClick={() => setGroupPower(true)}><Power size={14} /> 켜기</button>}

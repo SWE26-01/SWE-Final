@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Minus, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
 import { AGENTS, agentColor, agentName, socketLabel, stepText } from './mapping';
 import Markdown from './Markdown';
+import Select from '../Select';
 import './live.css';
 
 export function DataModeToggle({ mode, available, onChange }) {
@@ -106,6 +107,8 @@ export function LiveScenarioButtons({ scenarios, current, busy, canRun, hint, on
   });
 }
 
+const AGENT_OPTIONS = Object.entries(AGENTS).map(([value, item]) => ({ value, label: item.name }));
+
 export function LiveSayForm({ canRun, busy, hint, onSay }) {
   const [agent, setAgent] = useState('desktop');
   const [text, setText] = useState('');
@@ -117,9 +120,7 @@ export function LiveSayForm({ canRun, busy, hint, onSay }) {
   };
   return (
     <form className="live-say" onSubmit={submit} aria-label="에이전트에게 직접 말하기">
-      <select value={agent} onChange={(event) => setAgent(event.target.value)} disabled={!canRun} aria-label="말할 에이전트">
-        {Object.entries(AGENTS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
-      </select>
+      <Select value={agent} onChange={setAgent} disabled={!canRun} label="말할 에이전트" options={AGENT_OPTIONS} />
       <input
         value={text}
         maxLength={500}
