@@ -18,14 +18,14 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
 - Never send raw personal data (calendar titles, GPS coordinates) between agents or into logs.
   Agents publish only their `provides` fields, filtered by the requester's ACL.
 - Agent IDs, device IDs (HA entity ids) and ownership must agree across
-  `homeassistant/config/configuration.yaml`, each agent's `owned` list in `agents/**/openclaw.json5`
-  and `services/config/devices.yaml`.
+  `homeassistant/config/configuration.yaml`, each agent's `owned` list in `agents/**/openclaw.json5`,
+  `services/config/devices.yaml` and the device tables in `agents/**/AGENTS.md`.
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).
 - Keep repo paths ASCII: OpenClaw rejects non-ASCII (NFD) paths (see `scripts/oc.sh`).
-- Upstream-owned paths are synced in from SWE26-01/A2A-agents with `tools/sync_upstream.sh` and are
-  not edited here: `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`. Propose such changes
-  as a PR to A2A-agents. Edit freely: `services/`, `frontend/`, `docs/`, `tools/`, `.github/`, root
-  `CLAUDE.md`/`AGENTS.md`. (`frontend/` came from SWE26-01/SWE-frontend but is no longer synced.)
+- Everything is edited here, including `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`.
+  Since 2026-10-18 SWE26-01/A2A-agents is no longer developed; do not open PRs there and do not run
+  `tools/sync_upstream.sh` (it would only re-import old history). `frontend/` came from
+  SWE26-01/SWE-frontend and is also no longer synced.
 - The frontend reads live data only through the services (`frontend/src/live/`,
   `docs/frontend-integration.md`); the dashboard token is read-only, so the UI never commands devices
   directly. Keep the mock scenarios working (MOCK mode) for offline demos.

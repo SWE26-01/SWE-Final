@@ -14,18 +14,14 @@
 팀 레포 세 개를 커밋 기록째 이 레포(SWE26-01/SWE-Final) 하나로 합쳤다.
 
 **작업 흐름**
-- 에이전트(A2A-agents) 작업은 **원래 레포에서 계속한다.** 프론트는 2026-10-18부터 **SWE-Final에서 바로 작업한다**(SWE-frontend와는 연결을 끊음).
-- SWE-Final 관리자가 `tools/sync_upstream.sh`로 A2A-agents의 새 커밋을 가져온다. `sync/...` 브랜치와 PR을 만든다.
-  `--check`로 새 커밋 수만 볼 수 있다.
-- a2a-agentic-home은 더 이상 쓰지 않는다. `services/` 작업은 SWE-Final에서 바로 한다.
-- **A2A-agents가 주인인 경로는 SWE-Final에서 직접 고치지 않는다**: 루트의 `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`.
-  고칠 게 있으면 A2A-agents에 PR을 올리고 동기화로 가져온다. 여기서 직접 고치면 다음 동기화 때 충돌한다.
-- SWE-Final에서 고치는 경로: `services/`, `frontend/`, `docs/`, `tools/`, `.github/`, 루트 `CLAUDE.md`·`AGENTS.md`.
-  루트 `README.md`·`.gitignore`·`.env.example`은 A2A-agents에서도 바뀌므로, 동기화 때 충돌이 나면 양쪽 내용을 모두 살린다.
+- **2026-10-18부터 모든 작업을 SWE-Final에서 한다.** 에이전트 경로(`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`)도 여기서 바로 고친다.
+  A2A-agents는 이 시점까지의 커밋이 모두 들어온 상태(미반영 0건)에서 개발을 멈췄다. 그쪽에 PR을 올리지 않고, `tools/sync_upstream.sh`도 더 쓰지 않는다.
+- 프론트(SWE-frontend)와 a2a-agentic-home도 더 이상 쓰지 않는다. `frontend/`, `services/`도 여기서 바로 작업한다.
+- 각자 브랜치에서 작업하고 PR로 `main`에 합친다(예: `nsu102/dev`, `frontend`).
 
 | 폴더 | 원래 레포 | 담당 | 내용 |
 | --- | --- | --- | --- |
-| 루트 (`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`) | A2A-agents | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, orchestrator(=Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `ambient-a2a`에 확장 규칙이 들어 있다 |
+| 루트 (`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, orchestrator(=Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `ambient-a2a`에 확장 규칙이 들어 있다 |
 | `services/` | a2a-agentic-home | jwsong05, sjounng | Device Gateway(HA 앞 주인 재확인), Event Collector(통신 기록 모음), 연동 확인 |
 | `frontend/` | SWE-frontend (연결 끊음) | lahee3423(원작), 실제 데이터 연결은 SWE-Final 관리자 | 시뮬레이터 화면(React). 실제 데이터 연결 방법: `docs/frontend-integration.md` |
 
@@ -36,7 +32,7 @@
 
 - **예측 모델은 만들지 않는다.** 외부 기기의 현재 상태와 공간별 정책으로 판단한다.
 - **LLM**: 모든 에이전트가 LLM을 쓰고, 에이전트마다 다른 컨텍스트(역할 지침 `AGENTS.md`, 자기 상태)를 가진다.
-  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter(`AMBIENT_MODEL`)이고 에이전트별로 바꿀 수 있다.
+  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter의 `anthropic/claude-haiku-5.5`(`AMBIENT_MODEL`, 2026-10-19에 Sonnet 5.5에서 바꿈. 비교는 `docs/performance.md`)이고 에이전트별로 바꿀 수 있다.
 - **분산 제어**: 각 기기는 담당 에이전트가 하나다. Home도 방 기기는 주인 에이전트에게 넘기기만 한다(`on_behalf_of`).
 - **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
   Collector는 정해진 필드만 저장하며, Gateway는 `services/config/devices.yaml`에 있는 엔티티만 보여 준다.
@@ -78,6 +74,7 @@
 - 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
   아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
+- 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다(tool 직접 노출, 프롬프트 축소, 추론 끔, `scripts/say.sh`). 측정과 바꾼 설정은 `docs/performance.md`.
 - frontend: LIVE/MOCK 전환. LIVE에서 Home·3D Model·Agent Activity 탭이 Gateway·Collector의 실제 데이터를 보여 준다(`frontend/src/live/`).
   에이전트 카드는 Collector가 5초마다 Agent Card를 확인한 실제 상태다(`GET /agents`, WebSocket `agents`).
   Live Simulation 탭은 LIVE에서 Runner로 실제 LLM을 돌리고(MOCK은 가짜 시나리오 그대로), Control Mode 탭은 데모용 가짜 데이터.

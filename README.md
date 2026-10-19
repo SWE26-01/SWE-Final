@@ -12,12 +12,12 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | [scripts/](scripts/) | 설치·실행·검증 스크립트 |
 | [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
 | [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React. LIVE(실제 데이터)/MOCK 전환: [docs/frontend-integration.md](docs/frontend-integration.md) |
-| [docs/](docs/) | 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`) |
-| [tools/](tools/) | `sync_upstream.sh`: A2A-agents의 새 커밋을 가져오는 PR 만들기 |
+| [docs/](docs/) | 실행 가이드(`RUN.md`), 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`), 응답 속도 측정(`performance.md`) |
+| [tools/](tools/) | `sync_upstream.sh`: 예전 A2A-agents 동기화 도구(2026-10-18부터 쓰지 않음) |
 | [plan.md](plan.md) | 기획서 |
 
 SWE26-01의 A2A-agents(루트), a2a-agentic-home(`services/`), SWE-frontend(`frontend/`)를 커밋 기록째 합친 레포다.
-에이전트 작업은 A2A-agents에서 하고 `tools/sync_upstream.sh`로 가져온다. 프론트는 여기서 바로 작업한다 ([docs/HANDOFF.md](docs/HANDOFF.md)).
+2026-10-18부터 에이전트를 포함한 모든 작업을 이 레포에서 바로 한다 ([docs/HANDOFF.md](docs/HANDOFF.md)).
 
 ## 에이전트
 
@@ -51,6 +51,7 @@ desktop ──"회의 시작"──▶ orchestrator ──(요청자 ACL 확인)
   - `run_all.sh`: HA와 게이트웨이 5개 기동
   - `logs.sh`: 이벤트 로그 확인
   - `scenario.sh`: 검증 시나리오
+  - `say.sh`: 실행 중인 에이전트에 자연어 한 턴 보내기(HTTP, 빠른 경로)
   - `a2a_probe.py`: 표준 a2a-sdk 클라이언트
 
 LLM(OpenClaw)은 사용자 의도를 해석해 `ambient_*` tool을 호출하는 역할만 한다. 정책, 소유권, 만료 판단은 플러그인 코드가 결정적으로 처리한다.
@@ -66,7 +67,7 @@ scripts/setup.sh    # 최초 1회. 다시 실행해도 안전함
 - Home Assistant 컨테이너를 띄운 뒤 온보딩을 자동으로 마치고, 장기 토큰을 발급해 `.env`에 저장한다. HA 로그인 계정은 `admin` / `.env`의 `HA_ADMIN_PASSWORD`다.
 
 그다음 `.env`에 **`OPENROUTER_API_KEY`** 만 직접 넣으면 된다.
-- 모델은 `AMBIENT_MODEL`로 정한다(기본값 `openrouter/anthropic/claude-sonnet-5-5`).
+- 모델은 `AMBIENT_MODEL`로 정한다(기본값 `openrouter/anthropic/claude-haiku-5.5`, 턴당 약 $0.0006). 더 정확한 답이 필요하면 `openrouter/anthropic/claude-sonnet-5-5`로 바꾼다(약 20~35배 비쌈).
 - tool calling을 지원하는 모델을 골라야 한다. `openrouter/auto`는 피한다.
 
 (선택) 폰 입력: `scripts/oc.sh smartphone channels add --channel telegram --token <bot-token>`
@@ -93,7 +94,9 @@ python services/scripts/verify_integration.py --env-file .env   # 실행 중인 
 
 시뮬레이터 화면: `cp frontend/.env.example frontend/.env.local`(토큰 입력) 후 `cd frontend && npm ci && npm run dev` (http://localhost:5173). 오른쪽 위 LIVE/MOCK으로 실제 데이터와 데모 데이터를 전환
 
-직접 말 걸기: `scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"`
+직접 말 걸기: `scripts/say.sh desktop "나 회의 시작할게"` (CLI로는 `scripts/oc.sh desktop agent --agent main --message ...`, 매번 CLI를 띄워 2~3초 더 걸린다)
+
+설치부터 데모까지의 자세한 순서와 문제 해결은 [docs/RUN.md](docs/RUN.md)에 있다.
 
 ## 검증 항목 (plan.md 8.3)
 | 항목 | 시나리오 |
