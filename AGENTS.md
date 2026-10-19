@@ -4,7 +4,7 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 
 Monorepo: `agents/` (OpenClaw agents + the `ambient-a2a` plugin, TypeScript), `spec/` (Ambient-A2A
 extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, checks), `services/`
-(Device Gateway + Event Collector, Python; its own rules are in `services/CLAUDE.md`),
+(Device Gateway + Event Collector + Runner, Python; its own rules are in `services/CLAUDE.md`),
 `frontend/` (simulator UI, React; developed here, see `docs/frontend-integration.md`).
 
 - A2A **v1.0 only**. Do not write v0.3 code:
@@ -29,3 +29,6 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
 - The frontend reads live data only through the services (`frontend/src/live/`,
   `docs/frontend-integration.md`); the dashboard token is read-only, so the UI never commands devices
   directly. Keep the mock scenarios working (MOCK mode) for offline demos.
+- The Live Simulation talks to agents only through `services/runner` with the simulator token: it
+  asks the Runner to say a scenario step or free text to an agent's LLM, and the agent decides.
+  The browser never holds the OpenClaw gateway token or an agent token.

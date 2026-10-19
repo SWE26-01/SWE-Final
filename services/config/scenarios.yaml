@@ -1,0 +1,62 @@
+# Live Simulation scenarios. The Runner says each step to the agent's LLM in order, as a user would
+# in a chat; the agents decide what to do and their policies apply. Loaded and checked by
+# homeconfig.load_config(): step agents must be agents, `expect` entities must be in devices.yaml.
+#
+# setup: true  prepares the home first, by asking the device's own agent (never the Gateway).
+# expect       device states a dashboard can compare afterwards. LLM replies vary, so this is a
+#              hint for the screen, not a test.
+# Quote "on"/"off": YAML would read them as true/false.
+scenarios:
+  - id: meeting
+    title: 회의 시작
+    description: Desktop이 회의 상태를 공유하면 room1이 조명을 회의 모드로, Home이 거실 TV를 음소거한다.
+    steps:
+      - {agent: desktop, say: "나 회의 시작할게"}
+    expect:
+      input_select.room1_light_mode: meeting
+      input_boolean.living_tv_muted: "on"
+
+  - id: away
+    title: 외출
+    description: >-
+      폰이 외출(AWAY)을 알리면 room1이 스스로 절전하고 Home이 집 전체 절전을 요청한다.
+      수면 중인 보호 방은 에어컨 끄기를 안전 정책으로 거절해서 Home이 일부만 수락(PARTIAL)으로 모은다.
+    steps:
+      - {agent: room1, say: "내 방 조명과 에어컨을 켜 줘.", setup: true}
+      - {agent: room2, say: "보호 방 에어컨을 켜고 수면 모드를 켜 줘.", setup: true}
+      - {agent: orchestrator, say: "거실 조명과 TV를 켜 줘.", setup: true}
+      - {agent: smartphone, say: "나 나간다"}
+    expect:
+      input_boolean.room1_light: "off"
+      input_boolean.room1_ac: "off"
+      input_boolean.living_light: "off"
+      input_boolean.living_tv: "off"
+      input_boolean.room2_light: "off"
+      input_boolean.room2_ac: "on"
+
+  - id: energy-check
+    title: 절전 판단
+    description: Home의 LLM이 Desktop·폰 상태를 조회(허용된 항목만)한 뒤 집 전체 절전을 해도 되는지 스스로 판단한다.
+    steps:
+      - {agent: orchestrator, say: "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."}
+
+  - id: unauthorized
+    title: 권한 밖 요청
+    description: Desktop이 Home에 보호 방 에어컨을 꺼 달라고 하지만 Desktop에게 허용되지 않은 요청이라 Home이 거절(UNAUTHORIZED)한다.
+    steps:
+      - {agent: room2, say: "보호 방 에어컨을 켜 줘.", setup: true}
+      - {agent: desktop, say: "보호 방 에어컨 좀 꺼 줘."}
+    expect:
+      input_boolean.room2_ac: "on"
+
+  - id: reset
+    title: 초기화
+    description: 회의 종료, 귀가, 수면 해제로 처음 상태에 가깝게 되돌린다.
+    steps:
+      - {agent: desktop, say: "회의 끝났어"}
+      - {agent: smartphone, say: "집에 도착했어"}
+      - {agent: room2, say: "보호 방 수면 모드를 꺼 줘."}
+    expect:
+      input_select.room1_light_mode: normal
+      input_boolean.living_tv_muted: "off"
+      input_boolean.room2_sleep_mode: "off"

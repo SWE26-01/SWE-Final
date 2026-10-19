@@ -93,6 +93,73 @@ def test_device_checks(cfg_dir):
 def test_caller_cannot_be_agent_and_operator(cfg_dir):
     edit(cfg_dir / "agents.yaml", lambda d: d["operators"].update(room1={"token_env": "X"}))
     assert "'room1' is listed as both an agent and an operator" in problems(cfg_dir)
+    edit(cfg_dir / "agents.yaml", lambda d: d["operators"].pop("room1"))
+    edit(cfg_dir / "agents.yaml", lambda d: d["simulators"].update(dashboard={"token_env": "X"}))
+    assert "'dashboard' is listed as both an operator and a simulator" in problems(cfg_dir)
+
+
+def test_simulator_is_optional():
+    cfg = load_config(env=ENV)
+    assert cfg.caller_by_token("t-simulator").role is Role.SIMULATOR
+    assert cfg.openclaw_token == "t-openclaw"
+    env = {k: v for k, v in ENV.items() if k not in ("SIMULATOR_TOKEN", "OPENCLAW_GATEWAY_TOKEN")}
+    cfg = load_config(env=env)  # the Gateway and the Collector run without them
+    assert "simulator" not in cfg.callers
+    assert cfg.openclaw_token is None
+
+
+def test_repo_scenarios_load():
+    scenarios = load_config(env=ENV).scenarios
+    assert list(scenarios) == ["meeting", "away", "energy-check", "unauthorized", "reset"]
+    away = scenarios["away"]
+    assert [(s.agent, s.setup) for s in away.steps] == [
+        ("room1", True),
+        ("room2", True),
+        ("orchestrator", True),
+        ("smartphone", False),
+    ]
+    assert away.expect["input_boolean.room2_ac"] == "on"  # kept by room2's sleep policy
+
+
+def test_scenarios_file_is_optional(cfg_dir):
+    assert load_config(cfg_dir, ENV).scenarios == {}
+
+
+def test_scenario_checks(cfg_dir):
+    step = {"agent": "room1", "say": "조명 켜 줘"}
+    (cfg_dir / "scenarios.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "scenarios": [
+                    {"id": "a", "title": "A", "steps": [step]},
+                    {"id": "a", "title": "A again", "steps": [step]},
+                    {"id": "b", "title": "B", "steps": [{"agent": "dashboard", "say": "hi"}]},
+                    {
+                        "id": "c",
+                        "title": "C",
+                        "steps": [step],
+                        "expect": {"input_boolean.attic_light": "on"},
+                    },
+                ]
+            },
+            allow_unicode=True,
+        )
+    )
+    found = problems(cfg_dir)
+    assert "duplicate scenario 'a'" in found
+    assert "scenario 'b': 'dashboard' is not an agent" in found
+    assert "scenario 'c': expects unknown device 'input_boolean.attic_light'" in found
+
+
+def test_scenario_expect_must_quote_on_off(cfg_dir):
+    (cfg_dir / "scenarios.yaml").write_text(
+        "scenarios:\n"
+        "  - id: a\n"
+        "    title: A\n"
+        "    steps: [{agent: room1, say: hi}]\n"
+        "    expect: {input_boolean.room1_light: on}\n"  # YAML reads `on` as true
+    )
+    assert "scenarios.yaml: scenarios.0.expect.input_boolean.room1_light" in problems(cfg_dir)
 
 
 def test_unknown_keys_rejected(cfg_dir):

@@ -1,8 +1,8 @@
-# Architecture: Device Gateway and Event Collector
+# Architecture: Device Gateway, Event Collector and Runner
 
 This is the `services/` part of the requirements and architecture document (W12-2, #5).
 The agents, the Ambient-A2A extension and the virtual devices are described elsewhere
-(`spec/ambient-a2a.md`, `plan.md`); this part covers the two services that sit next to them.
+(`spec/ambient-a2a.md`, `plan.md`); this part covers the three services that sit next to them.
 
 ## 1. Role in the system
 
@@ -79,19 +79,40 @@ gets `<id>/<room>`) and automation rules, so the part before the first `/` ident
 agents. The Collector stores it as `flow` on every event. Storage is a single SQLite table, kept in a
 Docker volume.
 
-## 4. Security and privacy
+## 4. Runner (`services/runner/`)
+
+The frontend's Live Simulation shows the agents' real LLM behaviour. The Runner plays the user: it says
+a scenario step (`config/scenarios.yaml`) or free text to an agent's LLM through that agent's OpenClaw
+chat endpoint (`POST /v1/chat/completions`, enabled per gateway with
+`gateway.http.endpoints.chatCompletions.enabled`), one step after the other, one run at a time.
+
+| Endpoint | Caller | Behaviour |
+| --- | --- | --- |
+| `GET /scenarios` | operators, simulators | The configured scenarios (`contracts/runner/scenario.schema.json`) |
+| `POST /runs` | simulators | Start a scenario or one free-text message; 202 with the run, 409 while another run is going |
+| `GET /runs`, `GET /runs/{id}` | operators, simulators | Recent runs (memory only) with each step's reply or error |
+| `WebSocket /ws?token=` | operators, simulators | `snapshot`, then the whole run after every change (`contracts/runner/stream.schema.json`) |
+
+The Runner never calls the Gateway or Home Assistant and holds no agent token, so it cannot move a
+device or speak as an agent; the agent's LLM decides and the agents' policies and the Gateway apply as
+for any other request. Setup steps that prepare a scenario are also said to the device's own agent.
+OpenClaw answers with the final text only, so the screen shows what the agents did from the
+Collector's events after the run's `started_at` and from the Gateway's device changes.
+
+## 5. Security and privacy
 
 - **Identities.** Every caller has its own bearer token (the agents' `AMBIENT_TOKEN_*`, the dashboard's
-  `DASHBOARD_TOKEN`). Tokens live only in the root `.env`; `config/agents.yaml` names the variables.
+  `DASHBOARD_TOKEN`, the Live Simulation's `SIMULATOR_TOKEN`). Tokens live only in the root `.env`; `config/agents.yaml` names the variables.
 - **Least privilege.** With the Gateway on, agents no longer use the Home Assistant token; only the
-  Gateway and the setup scripts do. Operators can read but not command or report.
+  Gateway and the setup scripts do. Operators can read but not command or report. Only the Runner
+  holds the OpenClaw gateway token, and only simulators can start runs.
 - **Data exposure.** The Gateway exposes only entities listed in `config/devices.yaml` (HA also holds
   people and zones). The Collector stores a fixed set of fields and no context values.
 - **Known limit.** All agents run from one `.env`, so a compromised agent process could read the other
   tokens. Per-agent secrets or mTLS would be needed for mutually untrusted agents (same limit as the
   agents' peer tokens).
 
-## 5. Configuration and deployment
+## 6. Configuration and deployment
 
 - `services/config/agents.yaml`: callers and the environment variable holding each token.
 - `services/config/devices.yaml`: Home Assistant entity → space and owning agent. It must match the
@@ -108,9 +129,10 @@ Docker volume.
 | Gateway down at start | `run_all.sh` warns and the agents use Home Assistant directly |
 | Gateway down while running | The agents' device commands fail (`EXECUTION_FAILED`) until it is back |
 
-## 6. Verification
+## 7. Verification
 
-- Unit tests: `services/` 71 (fake Home Assistant REST and WebSocket, no HA needed in CI); agent
+- Unit tests: `services/` 116 (fake Home Assistant REST and WebSocket, fake OpenClaw; no HA or LLM
+  needed in CI); agent
   plugin 19, including the Gateway/Collector settings and request-id propagation.
 - `services/scripts/verify_integration.py` on the running system:
   1. every Agent Card's `owned_devices` equals `config/devices.yaml`;

@@ -32,8 +32,9 @@ import {
 import Home3D from './Home3D';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
-import { NODE_AGENT, applyLiveDevices, liveOccupantRoom, toActivity, toAgentCard, toFlowCard, toLogRow } from './live/mapping';
-import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
+import { useLiveRun } from './live/useLiveRun';
+import { NODE_AGENT, applyLiveDevices, eventsOfRun, expectRows, isRunLogEvent, liveOccupantRoom, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
+import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
 const initialRooms = [
@@ -360,10 +361,35 @@ function App() {
   const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
   const liveAgents = useMemo(() => liveData.agents.map(toAgentCard), [liveData.agents]);
   const offlineAgents = new Set(liveAgents.filter((agent) => agent.checked && !agent.online).map((agent) => agent.id));
+  // LIVE Live Simulation: runs from services/runner; what the agents did is the Collector's events during the run.
+  const liveRun = useLiveRun(live);
+  const currentRun = liveRun.current;
+  const runEvents = useMemo(() => eventsOfRun(liveData.collector.events, currentRun), [liveData.collector.events, currentRun]);
+  const runTimelineItems = useMemo(() => runEvents.filter((event) => event.dir === 'exec' || event.dir === 'rule').map((event) => toActivity(event, liveDevices)), [runEvents, liveDevices]);
+  const runLogRows = useMemo(() => runEvents.filter(isRunLogEvent).map((event) => toRunLogRow(event, liveDevices)), [runEvents, liveDevices]);
+  const runAgents = new Set([...(currentRun?.steps.map((step) => step.agent) || []), ...runEvents.map((event) => event.agent)]);
+  const runPhaseBadge = runPhase(currentRun);
+  const runExpect = expectRows(currentRun?.expect, liveDevices);
+  const [runClock, setRunClock] = useState(() => Date.now());
+  const runRunning = currentRun?.status === 'running';
 
   useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+
+  useEffect(() => {
+    if (!runRunning) return undefined;
+    setRunClock(Date.now());
+    const timer = window.setInterval(() => setRunClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [runRunning]);
+
+  useEffect(() => {
+    if (!liveRun.error) return undefined;
+    setToast(liveRun.error);
+    const timer = window.setTimeout(() => { setToast(''); liveRun.clearError(); }, 3600);
+    return () => window.clearTimeout(timer);
+  }, [liveRun.error]);
 
   useEffect(() => () => {
     if (environmentAnimationFrame.current) window.cancelAnimationFrame(environmentAnimationFrame.current);
@@ -650,12 +676,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (!livePlaying || activeTab !== 'live') return undefined;
+    if (!livePlaying || activeTab !== 'live' || live) return undefined; // LIVE runs come from the Runner
     const timer = window.setInterval(() => {
       setLiveElapsed((current) => Math.min(liveScenario.duration, current + 1));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [livePlaying, activeTab, liveScenario.duration, liveRunId]);
+  }, [livePlaying, activeTab, live, liveScenario.duration, liveRunId]);
 
   useEffect(() => {
     if (!liveRunId) return;
@@ -835,6 +861,9 @@ function App() {
                 </div>
                 <div className="panel-heading-actions">
                   <div className="live-mode-controls" aria-label="라이브 시뮬레이션 모드">
+                    {live ? (
+                      <LiveScenarioButtons scenarios={liveRun.scenarios} current={currentRun} busy={liveRun.busy} canRun={liveRun.canRun} onStart={liveRun.start} />
+                    ) : (<>
                     {simulationScenarios.map((scenario) => (
                       <button
                         type="button"
@@ -849,14 +878,53 @@ function App() {
                       </button>
                     ))}
                     <button type="button" className="live-restart" onClick={() => restartLiveScenario()} aria-label="현재 시뮬레이션 재시작"><RotateCcw size={15} /></button>
+                    </>)}
                   </div>
                 </div>
               </div>
-              {live && <p className="live-banner">이 탭은 데모용 가짜 시나리오예요. 실제 데이터는 Home, 3D Model, Agent Activity 탭에서 볼 수 있어요.</p>}
-              <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
+              {live && (<>
+                {liveRun.status !== 'open' && <p className="live-banner">Runner(services/runner, 포트 8300)에 연결하는 중이에요. 연결되면 시나리오가 나타나요.</p>}
+                {liveRun.status === 'open' && !liveRun.canRun && <p className="live-banner">보기만 할 수 있어요. frontend/.env.local에 VITE_SIMULATOR_TOKEN(루트 .env의 SIMULATOR_TOKEN)을 넣으면 실행할 수 있어요.</p>}
+                <LiveSayForm canRun={liveRun.canRun && liveRun.status === 'open'} busy={liveRun.busy} onSay={liveRun.start} />
+              </>)}
+              {live ? (
+                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
+              ) : (
+                <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
+              )}
             </section>
 
             <aside className="side-column" aria-label="실시간 에이전트 모니터링">
+              {live ? (<>
+              <section className="activity-card panel">
+                <div className="panel-heading compact">
+                  <div><h2>Agent Activity</h2></div>
+                  <span className={`live-phase phase-${runPhaseBadge.tone}`}>{runPhaseBadge.label}</span>
+                </div>
+                <LiveRunSummary run={currentRun} now={runClock} />
+                <LiveExpect rows={runExpect} />
+                <LiveRunSteps run={currentRun} />
+                {currentRun && (
+                  <div className="timeline live-timeline live-run-actions" aria-label="에이전트 실행 기록">
+                    <LiveTimeline items={runTimelineItems} empty={runRunning ? '에이전트가 판단하는 중이에요.' : '이번 실행에서 기기 실행이나 규칙은 없었어요.'} />
+                  </div>
+                )}
+              </section>
+
+              <section className="a2a-card panel">
+                <div className="panel-heading compact">
+                  <div><h2>A2A Communication</h2></div>
+                  <SocketState status={liveData.collector.status} />
+                </div>
+                <div className="agent-network">
+                  {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${runAgents.has(NODE_AGENT[agent]) ? 'active' : ''} ${offlineAgents.has(NODE_AGENT[agent]) ? 'live-agent-offline' : ''}`} title={offlineAgents.has(NODE_AGENT[agent]) ? 'OFFLINE' : undefined}><Bot size={17} /><span>{agent}</span></div>)}
+                  <svg className="agent-connection-map" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path d="M47 32 C90 4 110 4 150 32 S215 60 256 32" /><circle cx="111" cy="15" r="3" /><circle cx="218" cy="49" r="3" /></svg>
+                </div>
+                <div className="log-list live-run-log">
+                  <LiveLogRows rows={runLogRows} />
+                </div>
+              </section>
+              </>) : (<>
               <section className="activity-card panel">
                 <div className="panel-heading compact">
                   <div><h2>Agent Activity</h2></div>
@@ -897,6 +965,7 @@ function App() {
                   )) : <div className="live-empty-state compact"><Wifi size={14} /><span>Agent 메시지를 기다리는 중입니다.</span></div>}
                 </div>
               </section>
+              </>)}
             </aside>
           </div>
         )}

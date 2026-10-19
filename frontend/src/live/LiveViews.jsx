@@ -1,7 +1,7 @@
 // Panels for live data, built from the same class names as the mock panels so they look alike.
-import React from 'react';
-import { Bot, BrainCircuit, ChevronRight, Radio, Wifi, WifiOff } from 'lucide-react';
-import { socketLabel } from './mapping';
+import React, { useState } from 'react';
+import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
+import { AGENTS, agentColor, agentName, socketLabel, stepText } from './mapping';
 import './live.css';
 
 export function DataModeToggle({ mode, available, onChange }) {
@@ -79,6 +79,108 @@ export function LiveAgentCards({ agents }) {
       <small>{agent.detail}</small>
     </div>
   ));
+}
+
+// --- Live Simulation (services/runner) ------------------------------------------------------------
+
+export function LiveScenarioButtons({ scenarios, current, busy, canRun, onStart }) {
+  if (!scenarios.length) return <span className="live-run-note">시나리오를 불러오는 중…</span>;
+  return scenarios.map((scenario) => {
+    const active = current?.scenario === scenario.id;
+    const running = active && current.status === 'running';
+    return (
+      <button
+        type="button"
+        key={scenario.id}
+        className={active ? 'active' : ''}
+        disabled={!canRun || busy}
+        title={canRun ? scenario.description : 'frontend/.env.local에 VITE_SIMULATOR_TOKEN을 넣으면 실행할 수 있어요'}
+        aria-label={`${scenario.title} 실행`}
+        onClick={() => onStart({ scenario: scenario.id })}
+      >
+        {running ? <LoaderCircle size={15} className="live-spin" /> : <Play size={15} />}
+        {scenario.title}
+      </button>
+    );
+  });
+}
+
+export function LiveSayForm({ canRun, busy, onSay }) {
+  const [agent, setAgent] = useState('desktop');
+  const [text, setText] = useState('');
+  const submit = (event) => {
+    event.preventDefault();
+    if (!text.trim()) return;
+    onSay({ agent, say: text.trim() });
+    setText('');
+  };
+  return (
+    <form className="live-say" onSubmit={submit} aria-label="에이전트에게 직접 말하기">
+      <select value={agent} onChange={(event) => setAgent(event.target.value)} disabled={!canRun} aria-label="말할 에이전트">
+        {Object.entries(AGENTS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
+      </select>
+      <input
+        value={text}
+        maxLength={500}
+        onChange={(event) => setText(event.target.value)}
+        disabled={!canRun}
+        placeholder={canRun ? '예: 나 회의 시작할게' : 'VITE_SIMULATOR_TOKEN이 있어야 말할 수 있어요'}
+        aria-label="할 말"
+      />
+      <button type="submit" disabled={!canRun || busy || !text.trim()} aria-label="보내기"><Send size={14} /></button>
+    </form>
+  );
+}
+
+const elapsedText = (run, now) => {
+  const end = run.ended_at ? Date.parse(run.ended_at) : now;
+  return `${Math.max(0, Math.round((end - Date.parse(run.started_at)) / 1000))}s`;
+};
+
+export function LiveRunSummary({ run, now }) {
+  if (!run) return null;
+  const done = run.steps.filter((step) => step.status !== 'pending' && step.status !== 'running').length;
+  const tokens = run.steps.reduce((sum, step) => sum + (step.tokens || 0), 0);
+  return (
+    <div className="live-run-summary">
+      <div><b>{run.scenario ? run.title : '직접 말하기'}</b><span>{elapsedText(run, now)} · 단계 {done}/{run.steps.length}</span></div>
+      <i><span style={{ width: `${(done / run.steps.length) * 100}%` }} /></i>
+      <small>실제 LLM · 답변은 매번 다를 수 있어요{tokens ? ` · 토큰 ${tokens.toLocaleString()}` : ''}</small>
+    </div>
+  );
+}
+
+export function LiveExpect({ rows }) {
+  if (!rows.length) return null;
+  return (
+    <ul className="live-expect" aria-label="기대 결과">
+      {rows.map((row) => (
+        <li key={row.entity} className={row.ok ? 'ok' : ''} title={`기대: ${row.want} · 지금: ${row.got}`}>
+          {row.ok ? <Check size={11} /> : <X size={11} />}<span>{row.name}</span><b>{row.want}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function LiveRunSteps({ run }) {
+  if (!run) return <div className="live-empty-state"><Play size={16} /><span>시나리오를 누르거나 에이전트에게 직접 말해 보세요.</span></div>;
+  return (
+    <ol className="live-steps">
+      {run.steps.map((step, index) => (
+        <li key={index} className={`live-step step-${step.status}`}>
+          <div className="live-step-head">
+            <span className={`agent-pill ${agentColor(step.agent)}`}>{agentName(step.agent).replace(' Agent', '')}</span>
+            {step.setup && <em className="live-step-setup">준비</em>}
+            <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>
+          </div>
+          <p className="live-said"><User size={11} />{step.say}</p>
+          {step.reply && <p className="live-reply"><Bot size={11} />{step.reply}</p>}
+          {step.error && <p className="live-step-error">{step.error}</p>}
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 export function LiveExpandedLog({ rows }) {

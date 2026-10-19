@@ -10,6 +10,9 @@ consuming team reviewing.
 | `collector/agent.schema.json` | Event Collector → dashboards (`GET /agents`, WebSocket `snapshot.agents` and `{type: "agents"}`): each agent up or down and its latest activity | `collector/agents.py` |
 | `collector/flow.schema.json` | Event Collector → dashboards (`GET /flows`, `GET /flows/{flow}`): one request followed across agents | `collector/flows.py` |
 | `collector/event.schema.json` | agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
+| `runner/scenario.schema.json` | Runner → dashboards (`GET /scenarios`): Live Simulation scenarios | `homeconfig/models.py`, data in `config/scenarios.yaml` |
+| `runner/run.schema.json` | Runner → dashboards (`POST /runs` answer, `GET /runs`, `GET /runs/{id}`): one run and its steps | `runner/stream.py` |
+| `runner/stream.schema.json` | Runner → dashboards (WebSocket `/ws`): `snapshot` (recent runs), `run.updated` (the whole run after each change) | `runner/stream.py` |
 
 `examples/` holds real messages captured on 2026-10-18 (see `docs/frontend-integration.md`).
 

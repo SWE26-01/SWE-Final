@@ -11,6 +11,7 @@ export default defineConfig({
     proxy: {
       '/gateway': { target: 'http://127.0.0.1:8100', ws: true, rewrite: strip('/gateway') },
       '/collector': { target: 'http://127.0.0.1:8200', ws: true, rewrite: strip('/collector') },
+      '/runner': { target: 'http://127.0.0.1:8300', ws: true, rewrite: strip('/runner') },
     },
   },
 });

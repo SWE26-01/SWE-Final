@@ -3,8 +3,8 @@
 > **구현됨 (2026-10-18)**: `frontend/src/live/`에 이 가이드대로 연결해 두었다. 화면 오른쪽 위 **LIVE / MOCK** 전환으로 실제 데이터와
 > 데모용 가짜 시나리오를 오간다. 시작: `frontend/.env.example`을 `frontend/.env.local`로 복사해 토큰을 넣고 `npm run dev`.
 > - `src/live/config.js` 접속 주소·토큰, `socket.js` 자동 재연결, `useLiveHome.js` 데이터 훅, `mapping.js` 대응·문구 규칙, `LiveViews.jsx` 실제 데이터 패널
-> - 실제 데이터를 쓰는 화면: Home(3D 모델·기기 상태·Agent Decision=요청 카드·Agent Activity·A2A 로그), 3D Model, Agent Activity 탭.
->   Live Simulation·Control Mode 탭은 그대로 가짜 데이터다.
+> - 실제 데이터를 쓰는 화면: Home(3D 모델·기기 상태·Agent Decision=요청 카드·Agent Activity·A2A 로그), 3D Model, Agent Activity 탭,
+>   그리고 **Live Simulation 탭(2026-10-19)**: LIVE에서는 Runner의 시나리오를 실제 에이전트 LLM으로 돌린다(아래 8). Control Mode 탭은 그대로 가짜 데이터다.
 > - Agent Activity 탭의 에이전트 카드와 Home 탭의 에이전트 표시는 Collector가 확인한 실제 상태(ONLINE/OFFLINE, 역할·공간, 마지막 활동)다.
 > - LIVE에서는 화면에서 기기를 조작할 수 없다(안내만 뜬다).
 
@@ -199,7 +199,7 @@ const flows = await fetch('/collector/flows?limit=20', {
 ## 5. 주의
 
 - **화면에서 기기를 조작하지 않는다.** 대시보드 토큰은 읽기 전용이다(명령 → 403). 실제 데이터 화면에서는 기기 켜기·끄기 버튼을 비활성화한다.
-  화면에서 시나리오를 실행하는 버튼이 필요하면 services에 별도 API를 만들어야 한다.
+  시나리오를 실행하는 버튼은 Runner(`services/runner`, 아래 8)를 부른다. Runner도 기기를 직접 움직이지 않고 에이전트에게 말만 건다.
 - 토큰은 `frontend/.env.local`에만 두고 커밋하지 않는다.
 - 정렬과 시각은 `ts`를 쓴다. `id`는 도착 순이다.
 - 가짜 시나리오 화면은 오프라인 데모용으로 남겨 두고, 실제 데이터와 전환하는 방식(Mock / Live)을 두는 것을 추천한다.
@@ -227,3 +227,32 @@ Vite에서는 `import snapshot from '../../services/contracts/examples/gateway-s
 - [ ] services를 재시작해도(`cd services && docker compose restart`) 화면이 다시 붙고 상태가 맞다
 - [ ] Home Assistant를 멈추면 "기기 연결 끊김"이 표시된다
 - [ ] 토큰이 커밋되지 않았다 (`git status`에 `.env.local`이 없다)
+
+## 8. Live Simulation: Runner (실제 LLM)
+
+Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다. 자세한 구조는 [integration.md](integration.md)의 Runner.
+
+**화면 (구현됨, 2026-10-19)**: `src/live/useLiveRun.js`(시나리오·실행·WebSocket), `LiveViews.jsx`의 `LiveScenarioButtons`·`LiveSayForm`·`LiveRunSummary`·`LiveExpect`·`LiveRunSteps`,
+`mapping.js`의 `eventsOfRun`·`toRunLogRow`·`runPhase`·`expectRows`.
+- 위: Runner 시나리오 버튼(실행 중에는 모두 잠김), 에이전트를 골라 직접 말하는 입력창. 3D 모델은 Gateway의 실제 기기 상태.
+- 오른쪽 Agent Activity: 실행 요약(경과 시간·단계·토큰), 기대 결과(맞으면 초록), 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
+  그 실행 동안의 기기 실행·자동화 규칙(Collector `exec`·`rule`).
+- 오른쪽 A2A Communication: 그 실행 동안 받은 메시지(`in`)와 상대에게 닿지 못한 메시지(`out-error`).
+- 상태 배지: `SETUP`(준비 단계) → `LLM`(답변 기다림) → `DONE`/`FAILED`.
+- 시작하려면 `frontend/.env.local`에 `VITE_SIMULATOR_TOKEN`(루트 `.env`의 `SIMULATOR_TOKEN`)을 넣는다. 없으면 보기만 된다.
+- MOCK 모드는 예전 가짜 시나리오(SIMULATION 1~4) 그대로다.
+- 확인: 브라우저에서 desktop 에이전트 하나만 켠 채 "회의 시작"을 눌러, LLM 답변·A2A 로그("상대 응답 없음" 2건)·DONE까지 화면에 나오는 것을 봤다.
+  에이전트 5개를 다 켠 전체 시나리오는 RAM이 넉넉한 PC에서 확인해야 한다(에이전트 하나가 약 1.2GB).
+
+| 할 일 | 호출 | 토큰 |
+|---|---|---|
+| 시나리오 목록 | `GET /scenarios` → `contracts/runner/scenario.schema.json` | 대시보드 또는 시뮬레이터 |
+| 실행 | `POST /runs` `{"scenario": "meeting"}` 또는 `{"agent": "desktop", "say": "..."}` → 202 + 실행 정보, 진행 중이면 409 | **시뮬레이터만** (`SIMULATOR_TOKEN`) |
+| 진행 상황 | `WebSocket /ws?token=`: `snapshot`(최근 실행) 후 바뀔 때마다 `run.updated`(실행 전체) → `contracts/runner/stream.schema.json` | 대시보드 또는 시뮬레이터 |
+| 한 실행 | `GET /runs/{id}` → `contracts/runner/run.schema.json` | 대시보드 또는 시뮬레이터 |
+
+- 실행의 각 단계(`steps[]`)에는 에이전트, 한 말(`say`), 준비 단계 여부(`setup`), 상태, LLM 답변(`reply`), 실패 이유(`error`)가 있다.
+- 에이전트가 실제로 한 일은 Runner가 아니라 Collector·Gateway에서 온다. 실행의 `started_at` 이후 Collector 기록(`ts`)과 기기 변화를 보여 준다.
+  상태 공유(`context.update`)에는 `request_id`가 없으므로 flow가 아니라 시각으로 묶는다.
+- `expect`는 시나리오가 기대하는 기기 상태다. 실제 상태와 비교해 표시만 한다(LLM 답은 매번 다를 수 있다).
+- 시뮬레이터 토큰은 Vite 프록시로 보내는 요청에만 쓰고(`/runner` → 8300), 대시보드 토큰과 마찬가지로 `.env.local`에만 둔다.

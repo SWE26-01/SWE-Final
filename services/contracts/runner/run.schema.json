@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "RunStatus": {
+      "enum": [
+        "running",
+        "done",
+        "failed"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "StepState": {
+      "properties": {
+        "agent": {
+          "title": "Agent",
+          "type": "string"
+        },
+        "say": {
+          "description": "what was said to the agent",
+          "title": "Say",
+          "type": "string"
+        },
+        "setup": {
+          "description": "prepares the home for the scenario",
+          "title": "Setup",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/StepStatus",
+          "default": "pending"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "reply": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the agent's LLM answer (final text)",
+          "title": "Reply"
+        },
+        "tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM tokens the step used, if reported",
+          "title": "Tokens"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "why the step got no reply",
+          "title": "Error"
+        }
+      },
+      "required": [
+        "agent",
+        "say",
+        "setup"
+      ],
+      "title": "StepState",
+      "type": "object"
+    },
+    "StepStatus": {
+      "enum": [
+        "pending",
+        "running",
+        "done",
+        "failed",
+        "skipped"
+      ],
+      "title": "StepStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "scenario": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "scenario id; null for free text",
+      "title": "Scenario"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus",
+      "default": "running"
+    },
+    "started_at": {
+      "description": "agent events (Collector) from this time on belong to the run",
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "ended_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ended At"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/StepState"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "expect": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "device states the scenario expects afterwards",
+      "title": "Expect",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "scenario",
+    "title",
+    "started_at",
+    "steps"
+  ],
+  "title": "Run",
+  "type": "object"
+}

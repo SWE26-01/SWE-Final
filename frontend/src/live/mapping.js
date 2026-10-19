@@ -190,6 +190,62 @@ export function toAgentCard(status) {
   };
 }
 
+// --- Live Simulation runs (services/runner) -----------------------------------------------------
+
+const RUN_LEAD_MS = 1000; // agent and Runner clocks may differ a little
+const RUN_TAIL_MS = 5000; // automation rules fire just after the reply that triggered them
+
+/** Collector events that happened during a run (by time: context updates carry no request_id). */
+export function eventsOfRun(events, run) {
+  if (!run) return [];
+  const start = Date.parse(run.started_at) - RUN_LEAD_MS;
+  const end = run.ended_at ? Date.parse(run.ended_at) + RUN_TAIL_MS : Infinity;
+  return events
+    .filter((event) => {
+      const at = Date.parse(event.ts);
+      return at >= start && at <= end;
+    })
+    .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.id - b.id));
+}
+
+/** A2A log row for a run: answered messages, plus messages that never reached their peer. */
+export function toRunLogRow(event, devices) {
+  if (event.dir === 'in') return toLogRow(event, devices);
+  return {
+    key: event.id,
+    time: timeOf(event.ts),
+    from: agentName(event.agent),
+    to: agentName(event.to),
+    color: agentColor(event.agent),
+    text: [requestText(event, devices), REASON_TEXT.PEER_UNREACHABLE].filter(Boolean).join(' · '),
+    accepted: false,
+  };
+}
+
+export const isRunLogEvent = (event) => event.dir === 'in' || event.dir === 'out-error';
+
+const STEP_TEXT = { pending: '대기', running: '답변 기다리는 중', done: '답변', failed: '실패', skipped: '건너뜀' };
+export const stepText = (status) => STEP_TEXT[status] || status;
+
+/** Phase badge for a run: READY, SETUP (preparing), LLM (waiting for an answer), DONE, FAILED. */
+export function runPhase(run) {
+  if (!run) return { label: 'READY', tone: '' };
+  if (run.status === 'done') return { label: 'DONE', tone: 'verify' };
+  if (run.status === 'failed') return { label: 'FAILED', tone: 'failed' };
+  const step = run.steps.find((item) => item.status === 'running');
+  return step?.setup ? { label: 'SETUP', tone: 'sensor' } : { label: 'LLM', tone: 'predict' };
+}
+
+/** Expected device states of a scenario next to the live ones. */
+export function expectRows(expect, devices) {
+  return Object.entries(expect || {}).map(([entity, want]) => {
+    const got = devices[entity]?.state ?? null;
+    return { entity, name: deviceName(entity, devices), want: stateText(want), got: got == null ? '알 수 없음' : stateText(got), ok: got === want };
+  });
+}
+
+const stateText = (state) => (state === 'on' ? '켜짐' : state === 'off' ? '꺼짐' : valueText(state));
+
 // Agent nodes drawn on the Home tab, by label.
 export const NODE_AGENT = { Home: 'orchestrator', 'My Room': 'room1', Desktop: 'desktop', Mobile: 'smartphone' };
 
