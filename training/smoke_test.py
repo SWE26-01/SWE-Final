@@ -50,7 +50,7 @@ patches = [("/content/data", str(data_dir)), ("bf16=bf16, fp16=not bf16", "bf16=
            ("num_train_epochs=3", "max_steps=2"), ("num_train_epochs=2", "max_steps=2"),
            (".to('cuda')", ""), ("eval_strategy='epoch'", "eval_strategy='no'"),
            ("save_strategy='epoch'", "save_strategy='no'"), ("torch.cuda.empty_cache()", "pass"),
-           ("rows = load('sft_eval')", "rows = load('sft_eval')[:2]"), ("max_new_tokens=400", "max_new_tokens=20")]
+           ("if r['completion'][0].get('tool_calls')]", "if r['completion'][0].get('tool_calls')][:2]"), ("max_new_tokens=400", "max_new_tokens=20")]
 ns = {"OUT": str(out), "torch": torch}
 for i, code in enumerate(run, start=2):
     for a, b in patches:

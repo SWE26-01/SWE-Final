@@ -154,7 +154,8 @@ def score(m, rows):
         hit += calls(gen) == calls(render(r['tools'], r['prompt'], r['completion']))
     return hit / len(rows)
 
-rows = load('sft_eval')
+rows = [r for r in load('sft_eval') if r['completion'][0].get('tool_calls')]   # only answers that call tools
+print(len(rows), 'eval rows with tool calls')
 base = AutoModelForCausalLM.from_pretrained(BASE, dtype=DTYPE).to('cuda')
 print('base  match:', score(base, rows)); del base
 print('final match:', score(final.to('cuda'), rows))
