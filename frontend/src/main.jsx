@@ -380,7 +380,6 @@ function App() {
   const liveRun = useLiveRun(live);
   const currentRun = liveRun.current;
   const runEvents = useMemo(() => eventsOfRun(liveData.collector.events, currentRun), [liveData.collector.events, currentRun]);
-  const runTimelineItems = useMemo(() => runEvents.filter((event) => event.dir === 'exec' || event.dir === 'rule').map((event) => toActivity(event, liveDevices)), [runEvents, liveDevices]);
   const runLogRows = useMemo(() => runEvents.filter(isRunLogEvent).map((event) => toRunLogRow(event, liveDevices)), [runEvents, liveDevices]);
   const runAgents = new Set([...(currentRun?.steps.map((step) => step.agent) || []), ...runEvents.map((event) => event.agent)]);
   const runPhaseBadge = runPhase(currentRun);
@@ -743,7 +742,7 @@ function App() {
                 <div className="heading-label"><h2>Home Simulation</h2></div>
               </div>
               <div className="panel-heading-actions">
-                <p>{live ? '실제 기기 상태예요. 거실·침실 2·침실 3이 연결돼 있고, 기기는 에이전트가 제어해요.' : '공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.'}</p>
+                {!live && <p>공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.</p>}
                 <div className="simulation-control">
                   {live ? <SocketState status={liveData.gateway.haConnected ? liveData.gateway.status : 'closed'} label="DEVICES" /> : (
                   <button onClick={toggleSimulation} className={running ? 'pause' : ''}>
@@ -898,8 +897,8 @@ function App() {
                 </div>
               </div>
               {live && (<>
-                {liveRun.status !== 'open' && <p className="live-banner">Runner(services/runner, 포트 8300)에 연결하는 중이에요. 연결되면 시나리오가 나타나요.</p>}
-                {liveRun.status === 'open' && !liveRun.allowed && <p className="live-banner">보기만 할 수 있어요. 루트 .env에 SIMULATOR_TOKEN이 있어야 실행할 수 있어요(넣은 뒤 npm run dev 재시작).</p>}
+                {liveRun.status !== 'open' && <p className="live-banner">시뮬레이터(Runner)에 연결하는 중이에요.</p>}
+                {liveRun.status === 'open' && !liveRun.allowed && <p className="live-banner">보기만 할 수 있어요. 실행하려면 루트 .env에 SIMULATOR_TOKEN을 넣고 npm run dev를 다시 시작하세요.</p>}
                 <LiveSayForm canRun={liveRun.canRun} busy={liveRun.busy} hint={runHint} onSay={liveRun.start} />
               </>)}
               {live ? (
@@ -920,11 +919,6 @@ function App() {
                 <LiveExpect rows={runExpect} />
                 <LiveRunSteps run={currentRun} />
                 {currentRun && <LiveRequestFlows items={runFlows} running={runRunning} />}
-                {currentRun && (
-                  <div className="timeline live-timeline live-run-actions" aria-label="에이전트 실행 기록">
-                    <LiveTimeline items={runTimelineItems} empty={runRunning ? '에이전트가 판단하는 중이에요.' : '이번 실행에서 기기 실행이나 규칙은 없었어요.'} />
-                  </div>
-                )}
               </section>
 
               <section className="a2a-card panel">

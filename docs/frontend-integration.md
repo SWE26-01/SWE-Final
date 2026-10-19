@@ -238,8 +238,8 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 **화면 (구현됨, 2026-10-19)**: `src/live/useLiveRun.js`(시나리오·실행·WebSocket), `LiveViews.jsx`의 `LiveScenarioButtons`·`LiveSayForm`·`LiveRunSummary`·`LiveExpect`·`LiveRunSteps`,
 `mapping.js`의 `eventsOfRun`·`toRunLogRow`·`runPhase`·`expectRows`.
 - 위: Runner 시나리오 버튼(실행 중에는 모두 잠김), 에이전트를 골라 직접 말하는 입력창. 3D 모델은 Gateway의 실제 기기 상태.
-- 오른쪽 Agent Activity: 실행 요약(경과 시간·단계·토큰), 기대 결과, 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
-  그 실행이 일으킨 요청 흐름(`LiveRequestFlows`: 누가 누구에게 → 수락/거절, 자동 규칙 구분), 그 실행 동안의 기기 실행·자동화 규칙(Collector `exec`·`rule`).
+- 오른쪽 Agent Activity: 실행 요약(경과 시간, 여러 단계면 진행 수), 기대 결과, 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
+  그 실행이 일으킨 요청 흐름(`LiveRequestFlows`: 누가 누구에게 → 수락/거절, 자동 규칙 구분). 기기 실행·규칙은 요청 흐름에 들어 있어서 따로 나열하지 않는다.
   LLM 답변은 마크다운으로 그린다(`Markdown.jsx`, react-markdown + remark-gfm, HTML은 그리지 않음).
 - 오른쪽 A2A Communication: 그 실행 동안 받은 메시지(`in`)와 상대에게 닿지 못한 메시지(`out-error`).
 - 상태 배지: `SETUP`(준비 단계) → `LLM`(답변 기다림) → `DONE`/`FAILED`.

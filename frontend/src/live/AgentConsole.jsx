@@ -6,7 +6,7 @@ import { Bot, Loader2, MessageSquare, Send } from 'lucide-react';
 import Markdown from './Markdown';
 import { LiveScenarioButtons } from './LiveViews';
 import {
-  AGENT_ORDER, AGENT_ROLE, SUGGESTIONS, agentName, ownedDeviceChips, recentDoings, timeOf, toFlowCard,
+  AGENT_ORDER, AGENT_ROLE, SUGGESTIONS, agentName, ownedDeviceChips, recentDoings, toFlowCard,
 } from './mapping';
 import './console.css';
 
@@ -52,7 +52,7 @@ function AgentMap({ events, statuses, latestFlow }) {
   const online = (id) => statuses[id]?.online !== false;
   return (
     <section className="console-map panel">
-      <div className="panel-heading compact"><div><h2>Agent Map</h2></div><span className="console-hint">메시지가 오가면 선 위로 점이 지나가요</span></div>
+      <div className="panel-heading compact"><div><h2>Agent Map</h2></div></div>
       <svg viewBox="0 0 640 284" className="console-map-svg" role="img" aria-label="에이전트 사이 메시지 흐름">
         {EDGES.map(([a, b]) => {
           const active = pulses.some((p) => (p.from === a && p.to === b) || (p.from === b && p.to === a));
@@ -78,20 +78,14 @@ function AgentMap({ events, statuses, latestFlow }) {
   );
 }
 
-const stepMeta = (step) => {
-  const seconds = step.started_at && step.ended_at ? (Date.parse(step.ended_at) - Date.parse(step.started_at)) / 1000 : null;
-  return [seconds != null ? `${seconds.toFixed(1)}초` : null, step.tokens ? `토큰 ${step.tokens.toLocaleString()}` : null].filter(Boolean).join(' · ');
-};
-
 /** What was said to one agent in the Runner's recent runs and what it answered, oldest first. */
 function chatOf(runs, agent) {
   const messages = [];
   [...runs].reverse().forEach((run) => run.steps.forEach((step, index) => {
     if (step.agent !== agent) return;
     const key = `${run.id}-${index}`;
-    const where = run.scenario ? `시나리오 · ${run.title}${step.setup ? ' (준비)' : ''}` : null;
-    messages.push({ key: `${key}-q`, role: 'user', text: step.say, meta: where });
-    if (step.reply) messages.push({ key: `${key}-a`, role: 'agent', text: step.reply, meta: stepMeta(step) });
+    messages.push({ key: `${key}-q`, role: 'user', text: step.say });
+    if (step.reply) messages.push({ key: `${key}-a`, role: 'agent', text: step.reply });
     else if (step.error) messages.push({ key: `${key}-a`, role: 'error', text: step.error });
     else if (step.status === 'skipped') messages.push({ key: `${key}-a`, role: 'error', text: '앞 단계가 실패해서 건너뛰었어요.' });
   }));
@@ -112,7 +106,7 @@ function Chat({ selected, onSelect, history, thinking, onSend, statuses, canSend
   };
   return (
     <section className="console-chat panel">
-      <div className="panel-heading compact"><div><h2>에이전트와 대화</h2></div><span className="console-hint">{note || '에이전트의 LLM이 답해요 · 한 번에 몇 초'}</span></div>
+      <div className="panel-heading compact"><div><h2>에이전트와 대화</h2></div></div>
       <div className="console-chat-tabs" role="tablist">
         {AGENT_ORDER.map((id) => (
           <button type="button" role="tab" key={id} aria-selected={selected === id} className={`${selected === id ? 'active' : ''} ${statuses[id]?.online === false ? 'offline' : ''}`} onClick={() => onSelect(id)}>
@@ -124,7 +118,6 @@ function Chat({ selected, onSelect, history, thinking, onSend, statuses, canSend
         {history.length ? history.map((m) => (
           <div key={m.key} className={`console-bubble ${m.role}`}>
             {m.role === 'agent' ? <Markdown text={m.text} /> : <p>{m.text}</p>}
-            {m.meta && <small>{m.meta}</small>}
           </div>
         )) : <div className="console-chat-empty"><MessageSquare size={16} /><span>{agentName(selected)}에게 말을 걸어 보세요. {AGENT_ROLE[selected]}.</span></div>}
         {thinking(selected) && <div className="console-bubble agent pending"><p><Loader2 size={12} className="live-spin" /> {agentName(selected)}가 생각하는 중…</p></div>}
@@ -132,8 +125,8 @@ function Chat({ selected, onSelect, history, thinking, onSend, statuses, canSend
       <div className="console-suggestions">
         {SUGGESTIONS[selected].map((text) => <button type="button" key={text} disabled={!canSend} onClick={() => submit(text)}>{text}</button>)}
       </div>
-      <form className="console-input" onSubmit={(event) => { event.preventDefault(); submit(input); }}>
-        <input value={input} maxLength={500} placeholder={`${agentName(selected)}에게 보낼 말`} onChange={(event) => setInput(event.target.value)} />
+      <form className="live-say" onSubmit={(event) => { event.preventDefault(); submit(input); }}>
+        <input value={input} maxLength={500} placeholder={note || `${agentName(selected)}에게 보낼 말`} onChange={(event) => setInput(event.target.value)} aria-label="보낼 말" />
         <button type="submit" disabled={!input.trim() || !canSend} aria-label="보내기"><Send size={14} /></button>
       </form>
     </section>
@@ -153,12 +146,11 @@ function AgentBoard({ statuses, events, devices }) {
             <header><span className="console-agent-icon"><Bot size={16} /></span><b>{agentName(id)}</b><em>{status ? (online ? 'ONLINE' : 'OFFLINE') : '확인 중'}</em></header>
             <p className="console-agent-role">{AGENT_ROLE[id]}</p>
             <div className="console-chips">
-              {chips.length ? chips.map((chip) => <span key={chip.entity} className={chip.on ? 'on' : ''}>{chip.name} <b>{chip.text}</b></span>) : <span className="none">맡은 기기 없음 (외부 기기)</span>}
+              {chips.length ? chips.map((chip) => <span key={chip.entity} className={chip.on ? 'on' : ''}>{chip.name} <b>{chip.text}</b></span>) : <span className="none">맡은 기기 없음</span>}
             </div>
             <ol className="console-doings">
               {doings.length ? doings.map((d) => <li key={d.key} className={d.ok ? '' : 'no'}><time>{d.time.slice(0, 5)}</time>{d.text}</li>) : <li className="none">최근 활동 없음</li>}
             </ol>
-            <small>{status?.last_event_at ? `마지막 활동 ${timeOf(status.last_event_at)}` : '활동 기록 없음'}</small>
           </article>
         );
       })}
@@ -182,8 +174,8 @@ export default function AgentConsole({ live, liveData, events, run }) {
   return (
     <div className="console-tab">
       <section className="console-scenarios panel">
-        <div><h2>시나리오</h2><span className="console-hint">누르면 Runner가 에이전트에게 말을 걸어요. 결과는 아래 지도·대화창·현황판과 Live Simulation 탭에 나타나요.</span></div>
-        <div className="console-scenario-buttons">
+        <h2>시나리오</h2>
+        <div className="live-mode-controls">
           <LiveScenarioButtons scenarios={run.scenarios} current={run.current} busy={run.busy} canRun={run.canRun} hint={hint} onStart={run.start} />
         </div>
       </section>

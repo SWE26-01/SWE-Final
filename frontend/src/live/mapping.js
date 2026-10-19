@@ -131,7 +131,7 @@ export function toActivity(event, devices) {
 export function toFlowCard(flow, devices) {
   const path = [flow.requester, flow.entry, ...flow.agents]
     .filter((id, index, all) => id && all.indexOf(id) === index)
-    .map(agentName);
+    .map((id) => agentName(id).replace(' Agent', ''));
   return {
     key: flow.flow,
     time: timeOf(flow.started_at),

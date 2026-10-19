@@ -27,7 +27,7 @@ export function LiveDecisionCard({ cards }) {
       <div className="card-title-row">
         <div className="mint-icon"><BrainCircuit size={22} /></div>
         <div><h2>Agent Decision</h2></div>
-        <span className="confidence">LIVE · {cards.length} REQUESTS</span>
+        <span className="confidence">{cards.length} REQUESTS</span>
       </div>
       {cards.length ? (
         <ol className="live-flow-list">
@@ -42,8 +42,7 @@ export function LiveDecisionCard({ cards }) {
             </li>
           ))}
         </ol>
-      ) : <p className="live-flow-empty">아직 요청이 없어요. scripts/scenario.sh를 돌리거나 에이전트에게 말을 걸어 보세요.</p>}
-      <div className="decision-footer"><span>요청 하나 = 에이전트를 넘나든 흐름 하나</span><span>Collector /flows <ChevronRight size={13} /></span></div>
+      ) : <p className="live-flow-empty">아직 요청이 없어요.</p>}
     </section>
   );
 }
@@ -142,12 +141,11 @@ const elapsedText = (run, now) => {
 export function LiveRunSummary({ run, now }) {
   if (!run) return null;
   const done = run.steps.filter((step) => step.status !== 'pending' && step.status !== 'running').length;
-  const tokens = run.steps.reduce((sum, step) => sum + (step.tokens || 0), 0);
+  const steps = run.steps.length > 1 ? ` · ${done}/${run.steps.length}` : '';
   return (
     <div className="live-run-summary">
-      <div><b>{run.scenario ? run.title : '직접 말하기'}</b><span>{elapsedText(run, now)} · 단계 {done}/{run.steps.length}</span></div>
+      <div><b>{run.scenario ? run.title : '직접 말하기'}</b><span>{elapsedText(run, now)}{steps}</span></div>
       <i><span style={{ width: `${(done / run.steps.length) * 100}%` }} /></i>
-      <small>실제 LLM · 답변은 매번 다를 수 있어요{tokens ? ` · 토큰 ${tokens.toLocaleString()}` : ''}</small>
     </div>
   );
 }
@@ -184,7 +182,7 @@ export function LiveRunSteps({ run }) {
           <div className="live-step-head">
             <span className={`agent-pill ${agentColor(step.agent)}`}>{agentName(step.agent).replace(' Agent', '')}</span>
             {step.setup && <em className="live-step-setup">준비</em>}
-            <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>
+            {step.status !== 'done' && <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>}
           </div>
           <p className="live-said"><User size={11} />{step.say}</p>
           {step.reply && <div className="live-reply"><Bot size={11} /><Markdown text={step.reply} /></div>}
