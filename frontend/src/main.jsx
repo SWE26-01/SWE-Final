@@ -35,6 +35,7 @@ import { useLiveHome } from './live/useLiveHome';
 import { useAgentChat } from './live/useAgentChat';
 import { NODE_AGENT, applyLiveDevices, liveOccupantRoom, toActivity, toAgentCard, toFlowCard, toLogRow } from './live/mapping';
 import AgentConsole, { HomeScenarioBar } from './live/AgentConsole';
+import AgentScene from './live/AgentScene';
 import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveLogRows, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
 
@@ -363,6 +364,7 @@ function App() {
   const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
   const liveAgents = useMemo(() => liveData.agents.map(toAgentCard), [liveData.agents]);
   const offlineAgents = new Set(liveAgents.filter((agent) => agent.checked && !agent.online).map((agent) => agent.id));
+  const agentScene = live ? <AgentScene events={liveEvents} devices={liveDevices} rooms={shownRooms} chat={agentChat} offline={offlineAgents} /> : null;
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -714,7 +716,7 @@ function App() {
               </div>
             </div>
 
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
             {live && (
               <HomeScenarioBar
                 chat={agentChat}
@@ -834,7 +836,7 @@ function App() {
 
         {activeTab === 'model' && (
           <section className="model-tab" aria-label="3D 스마트홈 모델">
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
           </section>
         )}
 

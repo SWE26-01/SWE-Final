@@ -86,6 +86,7 @@ function useAnimations(events) {
   const [busy, setBusy] = useState({});
   useEffect(() => {
     const maxId = events.reduce((max, e) => Math.max(max, e.id), 0);
+    if (!events.length) return; // snapshot not in yet
     if (lastId.current === null) { lastId.current = maxId; return; } // don't replay history
     const fresh = events.filter((e) => e.id > lastId.current);
     lastId.current = Math.max(lastId.current, maxId);

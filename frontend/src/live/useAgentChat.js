@@ -24,7 +24,7 @@ export function useAgentChat() {
       answer = { role: 'error', text: `보내지 못했어요: ${error.message}` };
     }
     append(agent, answer);
-    setLastRun((current) => (current?.id === run.id ? { ...current, answer } : current));
+    setLastRun((current) => (current?.id === run.id ? { ...current, answer, answeredAt: Date.now() } : current));
     setPending((current) => ({ ...current, [agent]: false }));
   };
   const runScenario = (scenario) => {
