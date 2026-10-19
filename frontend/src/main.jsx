@@ -10,6 +10,7 @@ import {
   CircleDot,
   CookingPot,
   Flame,
+  House,
   Lightbulb,
   Monitor,
   Moon,
@@ -21,6 +22,7 @@ import {
   ShowerHead,
   SlidersHorizontal,
   Sofa,
+  Smartphone,
   Sun,
   Droplets,
   RotateCcw,
@@ -160,6 +162,15 @@ const agentRoleMap = {
 const agentRole = (name) => agentRoleMap[name] || name;
 
 const chatAgents = ['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'];
+
+const AgentIcon = ({ agent, size = 17 }) => {
+  const normalizedAgent = agent.replace(' Agent', '');
+  if (normalizedAgent === 'Home') return <House size={size} />;
+  if (normalizedAgent === 'My Room') return <BedDouble size={size} />;
+  if (normalizedAgent === 'Desktop') return <Monitor size={size} />;
+  if (normalizedAgent === 'Mobile') return <Smartphone size={size} />;
+  return <Bot size={size} />;
+};
 
 const initialUserMessages = [
   {
@@ -924,7 +935,7 @@ function App() {
                 <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
               </div>
               <div className="agent-network">
-                {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><Bot size={17} /><span>{agent}</span></div>)}
+                {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index}`}><AgentIcon agent={agent} /><span>{agent}</span></div>)}
                 <svg className="agent-connection-map" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path d="M47 32 C90 4 110 4 150 32 S215 60 256 32" /><circle cx="111" cy="15" r="3" /><circle cx="218" cy="49" r="3" /></svg>
               </div>
               <div className="log-list">
@@ -1004,7 +1015,7 @@ function App() {
                   <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
                 </div>
                 <div className="agent-network">
-                  {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${liveRunId ? 'active' : ''}`}><Bot size={17} /><span>{agent}</span></div>)}
+                  {['Home', 'My Room', 'Desktop', 'Mobile'].map((agent, index) => <div key={agent} className={`agent-node node-${index} ${liveRunId ? 'active' : ''}`}><AgentIcon agent={agent} /><span>{agent}</span></div>)}
                   <svg className="agent-connection-map" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path d="M47 32 C90 4 110 4 150 32 S215 60 256 32" /><circle cx="111" cy="15" r="3" /><circle cx="218" cy="49" r="3" /></svg>
                 </div>
                 <div className="log-list">
@@ -1030,12 +1041,12 @@ function App() {
                 <div className="live-state"><i /> LIVE</div>
               </header>
               <div className="chat-participants" aria-label="연결된 에이전트">
-                {chatAgents.map((agent) => <span key={agent}><Bot size={14} />{agent.replace(' Agent', '')}</span>)}
+                {chatAgents.map((agent) => <span key={agent}><AgentIcon agent={agent} size={14} />{agent.replace(' Agent', '')}</span>)}
               </div>
               <div className="agent-chat-stream" aria-live="polite">
                 {logs.slice().reverse().map((log, index) => (
                   <article className="agent-chat-message" key={`${log.time}-${index}`}>
-                    <div className={`chat-avatar ${log.color}`}><Bot size={17} /></div>
+                    <div className={`chat-avatar ${log.color}`}><AgentIcon agent={log.from} /></div>
                     <div className="chat-message-body">
                       <div><b>{log.from}</b><span>{log.time}</span></div>
                       <div className="chat-message-flow">
@@ -1043,7 +1054,7 @@ function App() {
                         <span className="chat-route-line" aria-hidden="true" />
                         <span className={`chat-route-target target-${log.to.replace(' Agent', '').toLowerCase().replace(/\s+/g, '-')}`} title={log.to}>
                           <span>{log.to}</span>
-                          <i><Bot size={18} /></i>
+                          <i><AgentIcon agent={log.to} size={18} /></i>
                         </span>
                       </div>
                     </div>
@@ -1060,14 +1071,14 @@ function App() {
               <div className="chat-agent-selector" aria-label="대화할 에이전트 선택">
                 {chatAgents.map((agent) => (
                   <button type="button" className={selectedChatAgent === agent ? 'active' : ''} key={agent} onClick={() => setSelectedChatAgent(agent)}>
-                    <Bot size={13} />{agent.replace(' Agent', '')}
+                    <AgentIcon agent={agent} size={13} />{agent.replace(' Agent', '')}
                   </button>
                 ))}
               </div>
               <div className="user-chat-stream" aria-live="polite">
                 {userMessages.map((message) => (
                   <article className={`user-chat-message ${message.role}`} key={message.id}>
-                    <div className="chat-avatar">{message.role === 'user' ? <UserRound size={17} /> : <Bot size={17} />}</div>
+                    <div className="chat-avatar">{message.role === 'user' ? <UserRound size={17} /> : <AgentIcon agent={message.agent} />}</div>
                     <div className="chat-message-body">
                       <div><b>{message.role === 'user' ? '나' : message.agent}</b><span>{message.time}</span></div>
                       <p>{message.text}</p>
@@ -1146,7 +1157,7 @@ function App() {
                 <div className={`socket-state ${gatewayStatus === 'connected' ? '' : 'offline'}`}><Wifi size={13} /> {gatewayLabels[gatewayStatus] || 'OFFLINE'}</div>
               </div>
               <div className="expanded-network">
-                {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className={`expanded-agent agent-${index}`}><Bot size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
+                {['Home Agent', 'My Room Agent', 'Desktop Agent', 'Mobile Agent'].map((agent, index) => <React.Fragment key={agent}><div className={`expanded-agent agent-${index}`}><AgentIcon agent={agent} size={20} /><b>{agent}</b><span>ONLINE</span></div>{index < 3 && <ChevronRight size={16} />}</React.Fragment>)}
               </div>
               <div className="a2a-log-heading"><span>TIME</span><span>MESSAGE ROUTE</span><span>PAYLOAD</span></div>
               <div className="expanded-log-list">
