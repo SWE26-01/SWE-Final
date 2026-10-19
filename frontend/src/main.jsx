@@ -30,12 +30,16 @@ import {
   X,
 } from 'lucide-react';
 import Home3D from './Home3D';
+import Select from './Select';
 import { LIVE_AVAILABLE } from './live/config';
 import { useLiveHome } from './live/useLiveHome';
 import { useLiveRun } from './live/useLiveRun';
-import { NODE_AGENT, applyLiveDevices, eventsOfRun, expectRows, isRunLogEvent, liveOccupantRoom, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
-import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
+import { NODE_AGENT, applyLiveDevices, eventsOfRun, expectRows, isRunLogEvent, liveOccupantRoom, requestFlows, runPhase, toActivity, toAgentCard, toFlowCard, toLogRow, toRunLogRow } from './live/mapping';
+import AgentConsole from './live/AgentConsole';
+import AgentScene from './live/AgentScene';
+import { DataModeToggle, LiveAgentCards, LiveDecisionCard, LiveExpandedLog, LiveExpect, LiveLogRows, LiveRequestFlows, LiveRunSteps, LiveRunSummary, LiveSayForm, LiveScenarioButtons, LiveTimeline, SocketState } from './live/LiveViews';
 import './styles.css';
+import './controls.css';
 
 const initialRooms = [
   {
@@ -373,11 +377,11 @@ function App() {
   const liveExecs = liveEvents.filter((event) => event.dir === 'exec');
   const liveAgents = useMemo(() => liveData.agents.map(toAgentCard), [liveData.agents]);
   const offlineAgents = new Set(liveAgents.filter((agent) => agent.checked && !agent.online).map((agent) => agent.id));
-  // LIVE Live Simulation: runs from services/runner; what the agents did is the Collector's events during the run.
-  const liveRun = useLiveRun(live && activeTab === 'live');
+  // LIVE runs from services/runner (Live Simulation, the Agents tab chat, the 3D scene's thinking bubbles);
+  // what the agents did is the Collector's events during the run.
+  const liveRun = useLiveRun(live);
   const currentRun = liveRun.current;
   const runEvents = useMemo(() => eventsOfRun(liveData.collector.events, currentRun), [liveData.collector.events, currentRun]);
-  const runTimelineItems = useMemo(() => runEvents.filter((event) => event.dir === 'exec' || event.dir === 'rule').map((event) => toActivity(event, liveDevices)), [runEvents, liveDevices]);
   const runLogRows = useMemo(() => runEvents.filter(isRunLogEvent).map((event) => toRunLogRow(event, liveDevices)), [runEvents, liveDevices]);
   const runAgents = new Set([...(currentRun?.steps.map((step) => step.agent) || []), ...runEvents.map((event) => event.agent)]);
   const runPhaseBadge = runPhase(currentRun);
@@ -385,6 +389,8 @@ function App() {
   const runHint = liveRun.allowed ? 'Runner(services/runner)에 연결되면 실행할 수 있어요' : '루트 .env에 SIMULATOR_TOKEN이 있어야 실행할 수 있어요 (npm run dev 재시작)';
   const [runClock, setRunClock] = useState(() => Date.now());
   const runRunning = currentRun?.status === 'running';
+  const runFlows = useMemo(() => requestFlows(liveData.flows, runEvents, liveDevices), [liveData.flows, runEvents, liveDevices]);
+  const agentScene = live ? <AgentScene events={liveEvents} devices={liveDevices} rooms={shownRooms} run={currentRun} offline={offlineAgents} focusRoom={selectedRoom} /> : null;
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -721,6 +727,7 @@ function App() {
             ['live', 'Live Simulation'],
             ['test', 'Control Mode'],
             ['activity', 'Agent Activity'],
+            ['agents', 'Agents'],
           ].map(([key, label]) => (
             <button className={activeTab === key ? 'active' : ''} key={key} onClick={() => setActiveTab(key)}>{label}</button>
           ))}
@@ -737,7 +744,7 @@ function App() {
                 <div className="heading-label"><h2>Home Simulation</h2></div>
               </div>
               <div className="panel-heading-actions">
-                <p>{live ? '실제 기기 상태예요. 거실·침실 2·침실 3이 연결돼 있고, 기기는 에이전트가 제어해요.' : '공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.'}</p>
+                {!live && <p>공간을 선택하면 방 안으로 들어가 기기와 환경 상태를 제어할 수 있어요.</p>}
                 <div className="simulation-control">
                   {live ? <SocketState status={liveData.gateway.haConnected ? liveData.gateway.status : 'closed'} label="DEVICES" /> : (
                   <button onClick={toggleSimulation} className={running ? 'pause' : ''}>
@@ -749,8 +756,7 @@ function App() {
               </div>
             </div>
 
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
-
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
           </section>
 
           <aside className="side-column" ref={sideColumnRef}>
@@ -858,7 +864,7 @@ function App() {
 
         {activeTab === 'model' && (
           <section className="model-tab" aria-label="3D 스마트홈 모델">
-            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
+            <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
           </section>
         )}
 
@@ -893,12 +899,12 @@ function App() {
                 </div>
               </div>
               {live && (<>
-                {liveRun.status !== 'open' && <p className="live-banner">Runner(services/runner, 포트 8300)에 연결하는 중이에요. 연결되면 시나리오가 나타나요.</p>}
-                {liveRun.status === 'open' && !liveRun.allowed && <p className="live-banner">보기만 할 수 있어요. 루트 .env에 SIMULATOR_TOKEN이 있어야 실행할 수 있어요(넣은 뒤 npm run dev 재시작).</p>}
+                {liveRun.status !== 'open' && <p className="live-banner">시뮬레이터(Runner)에 연결하는 중이에요.</p>}
+                {liveRun.status === 'open' && !liveRun.allowed && <p className="live-banner">보기만 할 수 있어요. 실행하려면 루트 .env에 SIMULATOR_TOKEN을 넣고 npm run dev를 다시 시작하세요.</p>}
                 <LiveSayForm canRun={liveRun.canRun} busy={liveRun.busy} hint={runHint} onSay={liveRun.start} />
               </>)}
               {live ? (
-                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} />
+                <Home3D rooms={shownRooms} environment={environment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={liveOccupant} overlay={agentScene} />
               ) : (
                 <Home3D rooms={rooms} environment={liveEnvironment} selectedRoom={selectedRoom} onRoomSelect={setSelectedRoom} onBack={() => setSelectedRoom(null)} occupantRoom={occupantRoom} />
               )}
@@ -914,11 +920,7 @@ function App() {
                 <LiveRunSummary run={currentRun} now={runClock} />
                 <LiveExpect rows={runExpect} />
                 <LiveRunSteps run={currentRun} />
-                {currentRun && (
-                  <div className="timeline live-timeline live-run-actions" aria-label="에이전트 실행 기록">
-                    <LiveTimeline items={runTimelineItems} empty={runRunning ? '에이전트가 판단하는 중이에요.' : '이번 실행에서 기기 실행이나 규칙은 없었어요.'} />
-                  </div>
-                )}
+                {currentRun && <LiveRequestFlows items={runFlows} running={runRunning} />}
               </section>
 
               <section className="a2a-card panel">
@@ -1073,6 +1075,7 @@ function App() {
             </section>
           </div>
         )}
+        {activeTab === 'agents' && <AgentConsole live={live} liveData={liveData} events={liveEvents} run={liveRun} />}
       </main>
 
       {selectedGroup && (
@@ -1083,12 +1086,14 @@ function App() {
             <span className="device-control-icon"><DeviceIcon type={selectedGroup.type} /></span>
             <p>SMART HOME · DEVICE CONTROL</p>
             <h2 id="device-control-title">{selectedGroup.label}</h2>
-            <label className="device-target-select">제어할 위치
-              <select value={selectedTargetId} onChange={(event) => setSelectedTargetId(event.target.value)}>
-                <option value="all">전체 {selectedGroup.label}</option>
-                {selectedGroup.devices.map((device) => <option value={device.id} key={device.id}>{device.roomName} · {device.name}</option>)}
-              </select>
-            </label>
+            <div className="device-target-select"><span>제어할 위치</span>
+              <Select
+                value={selectedTargetId}
+                onChange={setSelectedTargetId}
+                label="제어할 위치"
+                options={[{ value: 'all', label: `전체 ${selectedGroup.label}` }, ...selectedGroup.devices.map((device) => ({ value: device.id, label: `${device.roomName} · ${device.name}` }))]}
+              />
+            </div>
             <div className={`connection-state ${targetConnectedCount ? '' : 'offline'}`}><i />{targetConnectedCount}/{selectedTargets.length} 연결됨<em>{targetConnectedCount ? `${targetOnCount}/${targetConnectedCount} ON` : 'OFFLINE'}</em></div>
             <div className="device-control-actions">
               {targetConnectedCount > 0 && <button className={targetOnCount === targetConnectedCount ? 'selected' : ''} onClick={() => setGroupPower(true)}><Power size={14} /> 켜기</button>}

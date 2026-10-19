@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { Bot, BrainCircuit, Check, ChevronRight, LoaderCircle, Minus, Play, Radio, Send, User, Wifi, WifiOff, X } from 'lucide-react';
 import { AGENTS, agentColor, agentName, socketLabel, stepText } from './mapping';
+import Markdown from './Markdown';
+import Select from '../Select';
 import './live.css';
 
 export function DataModeToggle({ mode, available, onChange }) {
@@ -26,7 +28,7 @@ export function LiveDecisionCard({ cards }) {
       <div className="card-title-row">
         <div className="mint-icon"><BrainCircuit size={22} /></div>
         <div><h2>Agent Decision</h2></div>
-        <span className="confidence">LIVE · {cards.length} REQUESTS</span>
+        <span className="confidence">{cards.length} REQUESTS</span>
       </div>
       {cards.length ? (
         <ol className="live-flow-list">
@@ -41,8 +43,7 @@ export function LiveDecisionCard({ cards }) {
             </li>
           ))}
         </ol>
-      ) : <p className="live-flow-empty">아직 요청이 없어요. scripts/scenario.sh를 돌리거나 에이전트에게 말을 걸어 보세요.</p>}
-      <div className="decision-footer"><span>요청 하나 = 에이전트를 넘나든 흐름 하나</span><span>Collector /flows <ChevronRight size={13} /></span></div>
+      ) : <p className="live-flow-empty">아직 요청이 없어요.</p>}
     </section>
   );
 }
@@ -106,6 +107,8 @@ export function LiveScenarioButtons({ scenarios, current, busy, canRun, hint, on
   });
 }
 
+const AGENT_OPTIONS = Object.entries(AGENTS).map(([value, item]) => ({ value, label: item.name }));
+
 export function LiveSayForm({ canRun, busy, hint, onSay }) {
   const [agent, setAgent] = useState('desktop');
   const [text, setText] = useState('');
@@ -117,9 +120,7 @@ export function LiveSayForm({ canRun, busy, hint, onSay }) {
   };
   return (
     <form className="live-say" onSubmit={submit} aria-label="에이전트에게 직접 말하기">
-      <select value={agent} onChange={(event) => setAgent(event.target.value)} disabled={!canRun} aria-label="말할 에이전트">
-        {Object.entries(AGENTS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
-      </select>
+      <Select value={agent} onChange={setAgent} disabled={!canRun} label="말할 에이전트" options={AGENT_OPTIONS} />
       <input
         value={text}
         maxLength={500}
@@ -141,12 +142,11 @@ const elapsedText = (run, now) => {
 export function LiveRunSummary({ run, now }) {
   if (!run) return null;
   const done = run.steps.filter((step) => step.status !== 'pending' && step.status !== 'running').length;
-  const tokens = run.steps.reduce((sum, step) => sum + (step.tokens || 0), 0);
+  const steps = run.steps.length > 1 ? ` · ${done}/${run.steps.length}` : '';
   return (
     <div className="live-run-summary">
-      <div><b>{run.scenario ? run.title : '직접 말하기'}</b><span>{elapsedText(run, now)} · 단계 {done}/{run.steps.length}</span></div>
+      <div><b>{run.scenario ? run.title : '직접 말하기'}</b><span>{elapsedText(run, now)}{steps}</span></div>
       <i><span style={{ width: `${(done / run.steps.length) * 100}%` }} /></i>
-      <small>실제 LLM · 답변은 매번 다를 수 있어요{tokens ? ` · 토큰 ${tokens.toLocaleString()}` : ''}</small>
     </div>
   );
 }
@@ -183,14 +183,33 @@ export function LiveRunSteps({ run }) {
           <div className="live-step-head">
             <span className={`agent-pill ${agentColor(step.agent)}`}>{agentName(step.agent).replace(' Agent', '')}</span>
             {step.setup && <em className="live-step-setup">준비</em>}
-            <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>
+            {step.status !== 'done' && <span className="live-step-status">{step.status === 'running' && <LoaderCircle size={11} className="live-spin" />}{stepText(step.status)}</span>}
           </div>
           <p className="live-said"><User size={11} />{step.say}</p>
-          {step.reply && <p className="live-reply"><Bot size={11} />{step.reply}</p>}
+          {step.reply && <div className="live-reply"><Bot size={11} /><Markdown text={step.reply} /></div>}
           {step.error && <p className="live-step-error">{step.error}</p>}
         </li>
       ))}
     </ol>
+  );
+}
+
+/** The requests a run set off: who asked whom (path) and what came of it. */
+export function LiveRequestFlows({ items, running }) {
+  return (
+    <div className="live-flows" aria-label="요청 흐름">
+      <span>요청 흐름</span>
+      {items.length ? (
+        <ol>
+          {items.map((item) => (
+            <li key={item.key}>
+              <div><b>{item.title}</b><small>{item.rule ? `${item.path[0]} · 자동 규칙` : item.path.join(' → ')}</small></div>
+              <em className={item.accepted ? 'ok' : 'no'}>{item.result}</em>
+            </li>
+          ))}
+        </ol>
+      ) : <p>{running ? '에이전트 사이에 요청이 오가면 여기에 나타나요.' : '이번 실행에서 기기 요청은 없었어요.'}</p>}
+    </div>
   );
 }
 

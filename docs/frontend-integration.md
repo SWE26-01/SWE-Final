@@ -7,6 +7,8 @@
 >   그리고 **Live Simulation 탭(2026-10-19)**: LIVE에서는 Runner의 시나리오를 실제 에이전트 LLM으로 돌린다(아래 8). Control Mode 탭은 그대로 가짜 데이터다.
 > - Agent Activity 탭의 에이전트 카드와 Home 탭의 에이전트 표시는 Collector가 확인한 실제 상태(ONLINE/OFFLINE, 역할·공간, 마지막 활동)다.
 > - LIVE에서는 화면에서 기기를 조작할 수 없다(안내만 뜬다).
+> - **3D 에이전트 장면과 Agents 탭(2026-10-19)**: Home·3D Model·Live Simulation의 3D 집 위에 에이전트가 말하고 기기가 바뀌는 모습을 보여 주고,
+>   Agents 탭에서 에이전트 지도·대화·현황판을 본다(아래 9).
 
 `frontend/`(시뮬레이터 화면)를 실제 시스템에 연결하는 방법이다. 화면은 데이터를 **`services/`의 Gateway와 Collector에서만 읽는다.**
 에이전트나 Home Assistant에 직접 붙지 않는다.
@@ -236,8 +238,9 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 **화면 (구현됨, 2026-10-19)**: `src/live/useLiveRun.js`(시나리오·실행·WebSocket), `LiveViews.jsx`의 `LiveScenarioButtons`·`LiveSayForm`·`LiveRunSummary`·`LiveExpect`·`LiveRunSteps`,
 `mapping.js`의 `eventsOfRun`·`toRunLogRow`·`runPhase`·`expectRows`.
 - 위: Runner 시나리오 버튼(실행 중에는 모두 잠김), 에이전트를 골라 직접 말하는 입력창. 3D 모델은 Gateway의 실제 기기 상태.
-- 오른쪽 Agent Activity: 실행 요약(경과 시간·단계·토큰), 기대 결과, 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
-  그 실행 동안의 기기 실행·자동화 규칙(Collector `exec`·`rule`).
+- 오른쪽 Agent Activity: 실행 요약(경과 시간, 여러 단계면 진행 수), 기대 결과, 단계별 대화(한 말 → LLM 답변, 준비 단계 표시),
+  그 실행이 일으킨 요청 흐름(`LiveRequestFlows`: 누가 누구에게 → 수락/거절, 자동 규칙 구분). 기기 실행·규칙은 요청 흐름에 들어 있어서 따로 나열하지 않는다.
+  LLM 답변은 마크다운으로 그린다(`Markdown.jsx`, react-markdown + remark-gfm, HTML은 그리지 않음).
 - 오른쪽 A2A Communication: 그 실행 동안 받은 메시지(`in`)와 상대에게 닿지 못한 메시지(`out-error`).
 - 상태 배지: `SETUP`(준비 단계) → `LLM`(답변 기다림) → `DONE`/`FAILED`.
 - 시작하려면 루트 `.env`에 `SIMULATOR_TOKEN`이 있으면 된다(`npm run dev`를 다시 실행). `vite.config.js`가 루트 `.env`에서 읽어
@@ -248,6 +251,7 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 - MOCK 모드는 예전 가짜 시나리오(SIMULATION 1~4) 그대로다.
 - 확인: 브라우저에서 desktop 에이전트 하나만 켠 채 "회의 시작"을 눌러, LLM 답변·A2A 로그("상대 응답 없음" 2건)·DONE까지 화면에 나오는 것을 봤다.
   에이전트 5개를 다 켠 전체 시나리오는 RAM이 넉넉한 PC에서 확인해야 한다(에이전트 하나가 약 1.2GB).
+  2026-10-19 에이전트 5개로 "회의 시작"(Desktop → Home → My Room 수락, 약 8초, Haiku 5.5)과 "권한 밖 요청"(Home이 권한 없음으로 거절)을 확인했다.
 
 | 할 일 | 호출 | 토큰 |
 |---|---|---|
@@ -262,3 +266,23 @@ Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
   에이전트의 `ts`는 호스트 시계라 Docker VM 시계와 몇 초씩 어긋날 수 있어서 묶는 데 쓰지 않는다(표시 순서에만 쓴다).
   상태 공유(`context.update`)에는 `request_id`가 없으므로 flow가 아니라 시각으로 묶는다.
 - 실행 요청(POST)은 브라우저가 토큰 없이 보내고 프록시가 시뮬레이터 토큰을 붙인다. 시나리오·진행 상황(GET, WebSocket)은 대시보드 토큰으로 읽는다.
+
+## 9. 3D 에이전트 장면과 Agents 탭
+
+**3D 장면 (`src/live/AgentScene.jsx`, `useAgentScene.js`, `scene.css`)**: LIVE의 Home·3D Model·Live Simulation 탭에서 `Home3D`의 `overlay`로 그린다.
+집과 같은 변환을 쓰는 별도 층이라 벽에 가리지 않고, 방을 눌러 확대하면 그 방의 에이전트만 원래 크기로 보인다.
+- 에이전트 자리: Home = 거실, My Room = 침실 3, 보호 방 = 침실 2, Desktop = 침실 3의 PC, Mobile = 복도. 이름표는 바닥 점에서 기둥으로 세운다.
+- 말풍선(`mapping.js`의 `sceneLine`): 보낸 부탁·상태 알림(`out`), 받은 부탁의 판단(`in`: 수락/거절, Home이 방에 넘긴 경우 "권한 확인 ✓ → 넘김"),
+  자동 규칙(`rule`). 거절은 빨간 글씨.
+- 메시지 점: 보낸 에이전트에서 받는 에이전트로 날아간다. 주황 = 기기 부탁(`device.control`), 파랑 = 상태 알림·조회.
+- 기기 변화(`sceneFlash`): `exec`가 오면 그 기기 핀에 고리와 "… ✓"/"… ✗ 이유" 표시, 방이 초록(수락)·주황(거절)으로 빛난다.
+- LLM: Runner 실행 중인 단계의 에이전트 위에 "한 말 · 생각하는 중…", 답이 오면 답 앞부분을 8초 보여 준다.
+- 한 요청의 이벤트는 수 ms 안에 몰려 오므로 `useAgentScene`이 모아서 부탁 → Home 판단 → 방에 전달 → 방 판단 → 자동 규칙 → 기기 순서로
+  약 1.1초씩 나눠 재생한다. 화면을 연 시점 이전의 기록은 재생하지 않는다.
+
+**Agents 탭 (`src/live/AgentConsole.jsx`)**: Runner 시나리오 버튼, 에이전트 사이 메시지 지도, 에이전트별 대화, 에이전트별 현황판(맡은 기기·최근 활동).
+- 대화는 Runner의 직접 말하기(`POST /runs {agent, say}`)로 보낸다. 대화 기록은 Runner가 기억하는 최근 실행(20개)에서 그 에이전트에게 한 말과 답이다.
+  Runner는 한 번에 실행 하나만 하므로 다른 실행 중에는 보낼 수 없다.
+
+**에이전트 말투**: 각 에이전트의 `AGENTS.md` "Always"에 사람에게 말하듯 쉬운 말로 답하고(기기 ID·필드 이름·사유 코드 대신 풀어 쓴 이유),
+상태를 묻기만 하면 `ambient_status`로 확인해 답만 하고 아무것도 보내거나 조작하지 않도록 적었다.

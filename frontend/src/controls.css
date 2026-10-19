@@ -1,0 +1,31 @@
+/* Form controls in the app's own style: drop-downs (Select.jsx), input focus, keyboard focus ring and
+   scrollbars. Loaded after styles.css. */
+
+.ui-select { position:relative; display:inline-flex; min-width:0; }
+.ui-select-button { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-width:0; padding:8px 10px; border:1px solid rgba(106,166,218,.25); border-radius:8px; background:var(--canvas); color:var(--black); font:inherit; font-size:10px; font-weight:500; text-align:left; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+.ui-select-button span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ui-select-button svg { flex:0 0 auto; color:#4d83aa; transition:transform .18s; }
+.ui-select-button:hover:not(:disabled) { border-color:rgba(106,166,218,.55); }
+.ui-select-button:disabled { opacity:.45; cursor:not-allowed; }
+.ui-select.open .ui-select-button { border-color:var(--cornflower); box-shadow:0 0 0 3px rgba(106,166,218,.15); }
+.ui-select.open .ui-select-button svg { transform:rotate(180deg); }
+.ui-select-list { position:absolute; top:calc(100% + 4px); left:0; z-index:60; min-width:100%; max-height:240px; margin:0; padding:4px; overflow-y:auto; list-style:none; border:1px solid rgba(106,166,218,.25); border-radius:10px; background:var(--canvas); box-shadow:0 14px 32px rgba(58,84,102,.16); outline:none; animation:ui-pop .14s ease-out; }
+.ui-select-list li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 9px; border-radius:7px; color:rgba(0,0,0,.68); font-size:10px; white-space:nowrap; cursor:pointer; }
+.ui-select-list li.active { background:rgba(106,166,218,.12); color:var(--black); }
+.ui-select-list li.selected { color:var(--black); font-weight:600; }
+.ui-select-list li svg { flex:0 0 auto; color:var(--cornflower); }
+@keyframes ui-pop { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
+
+/* text inputs focus like the drop-down */
+.live-say input:focus { outline:none; border-color:var(--cornflower); box-shadow:0 0 0 3px rgba(106,166,218,.15); }
+.live-say input::placeholder { color:rgba(0,0,0,.38); }
+
+/* keyboard focus ring for buttons (mouse clicks show none) */
+button:focus-visible { outline:2px solid rgba(106,166,218,.6); outline-offset:2px; }
+
+/* thin cornflower scrollbars everywhere */
+* { scrollbar-width:thin; scrollbar-color:rgba(106,166,218,.45) transparent; }
+
+/* device control dialog: the target drop-down spans the dialog */
+.device-target-select .ui-select { display:flex; width:100%; margin-top:6px; }
+.device-target-select .ui-select-button { padding:10px 11px; }

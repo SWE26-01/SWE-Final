@@ -96,7 +96,23 @@ function getDevicePinPosition(index, count, roomId) {
   return position;
 }
 
-export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null }) {
+/** A room's box on the house plan, in % of the house. */
+export const roomRect = (roomId) => layout[roomId];
+
+/** Where a device's pin stands, in % of the house plan, or null. */
+export function devicePinSpot(rooms, deviceId) {
+  for (const room of rooms) {
+    const index = room.devices.findIndex((device) => device.id === deviceId);
+    if (index < 0) continue;
+    const [left, top] = getDevicePinPosition(index, room.devices.length, room.id);
+    const box = layout[room.id];
+    return { room: room.id, x: box.left + (box.width * left) / 100, y: box.top + (box.height * top) / 100 };
+  }
+  return null;
+}
+
+// `overlay` is drawn on the house plan, above the house (LIVE: agents and their messages, live/AgentScene.jsx).
+export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null, overlay = null }) {
   const [rotation, setRotation] = useState(-33);
   const [tilt, setTilt] = useState(55);
   const [zoom, setZoom] = useState(1);
@@ -200,6 +216,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
   const selectedScale = selectedLayout ? Math.min(2.8, Math.max(2.08, 58 / Math.max(selectedLayout.width, selectedLayout.height))) : 1;
   const houseTransform = `${focus ? `translate(${focus[0]}, ${focus[1]})` : ''} scale(${selectedScale * modelBaseScale * zoom}) rotateX(${tilt}deg) rotateZ(${rotation}deg)`;
   const isTopView = tilt < 1;
+  const houseStyle = { transform: houseTransform, transformOrigin: `${center[0]}% ${center[1]}%`, '--counter-rotation': `${-rotation}deg`, '--counter-tilt': `${-tilt}deg`, '--label-scale': 1 / selectedScale };
 
   return (
     <div
@@ -224,7 +241,7 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
         </button>
       )}
       <div className="css-3d-stage">
-        <div className={`css-house ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={{ transform: houseTransform, transformOrigin: `${center[0]}% ${center[1]}%`, '--counter-rotation': `${-rotation}deg` }}>
+        <div className={`css-house ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={houseStyle}>
           <div className="house-base" />
           <div className={`hall-3d ${selectedRoom ? 'room-muted' : ''}`}><span className="stairs-3d"><i /><i /><i /><i /></span></div>
           {rooms.map((room) => {
@@ -252,6 +269,8 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
           })}
           {occupantPosition && <span className={`occupant-marker ${occupantVisible ? 'visible' : ''} ${occupantMoving ? 'moving' : ''} ${selectedRoom && selectedRoom !== occupantRoom ? 'room-muted' : ''}`} style={{ left: `${occupantPosition[0]}%`, top: `${occupantPosition[1]}%` }} role="img" aria-label={`사용자 위치 · ${rooms.find((item) => item.id === occupantRoom)?.name || '이동 중'}`}><UserRound size={11} /></span>}
         </div>
+        {/* same transform as the house, but its own layer, so walls never hide the overlay */}
+        {overlay && <div className={`css-house css-house-overlay ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
       </div>
       <div className="three-zoom" onPointerDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => adjustZoom(-.05)} aria-label="3D 모델 축소"><Minus size={12} /></button>
