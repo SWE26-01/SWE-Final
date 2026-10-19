@@ -654,6 +654,56 @@ h1,h2,h3,b,strong { font-weight:600; }
   background:transparent;
   box-shadow:0 0 0 2px rgba(79,113,154,.48);
 }
+.wall-opening-layer {
+  position:absolute;
+  display:block;
+  z-index:1;
+  pointer-events:none;
+  backface-visibility:visible;
+  transform-style:preserve-3d;
+}
+.wall-3d.wall-windowed {
+  -webkit-mask:linear-gradient(#000 0 0),linear-gradient(#000 0 0) 26% 18% / 48% 44% no-repeat;
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0),linear-gradient(#000 0 0) 26% 18% / 48% 44% no-repeat;
+  mask-composite:exclude;
+}
+.wall-3d.wall-window-left {
+  -webkit-mask-position:0 0,8% 18%;
+  mask-position:0 0,8% 18%;
+}
+.wall-3d.wall-window-right {
+  -webkit-mask-size:100% 100%,28% 44%;
+  -webkit-mask-position:0 0,64% 18%;
+  mask-size:100% 100%,28% 44%;
+  mask-position:0 0,64% 18%;
+}
+.wall-3d.wall-window-wide {
+  -webkit-mask-size:100% 100%,82% 44%;
+  -webkit-mask-position:0 0,9% 18%;
+  mask-size:100% 100%,82% 44%;
+  mask-position:0 0,9% 18%;
+}
+.wall-east.wall-windowed,.wall-west.wall-windowed {
+  -webkit-mask-size:100% 100%,62% 32%;
+  -webkit-mask-position:0 0,18% 34%;
+  mask-size:100% 100%,62% 32%;
+  mask-position:0 0,18% 34%;
+}
+.wall-east.wall-window-top,.wall-west.wall-window-top {
+  -webkit-mask-position:0 0,18% 8%;
+  mask-position:0 0,18% 8%;
+}
+.wall-east.wall-window-bottom,.wall-west.wall-window-bottom {
+  -webkit-mask-position:0 0,18% 62%;
+  mask-position:0 0,18% 62%;
+}
+.wall-east.wall-window-top.wall-window-bottom,.wall-west.wall-window-top.wall-window-bottom {
+  -webkit-mask:linear-gradient(#000 0 0),linear-gradient(#000 0 0) 18% 8% / 62% 32% no-repeat,linear-gradient(#000 0 0) 18% 62% / 62% 32% no-repeat;
+  -webkit-mask-composite:xor,xor;
+  mask:linear-gradient(#000 0 0),linear-gradient(#000 0 0) 18% 8% / 62% 32% no-repeat,linear-gradient(#000 0 0) 18% 62% / 62% 32% no-repeat;
+  mask-composite:exclude,exclude;
+}
 .window-3d::before {
   content:'';
   position:absolute;
