@@ -137,6 +137,17 @@ describe("flows", () => {
     expect(r.denied).toEqual(["pc_state"]);
   });
 
+  it("status() returns a copy: freezing it (as OpenClaw does with tool results) breaks nothing", async () => {
+    const deepFreeze = (o: any): any => { if (o && typeof o === "object") { Object.values(o).forEach(deepFreeze); Object.freeze(o); } return o; };
+    deepFreeze(await agents.desktop.status());
+    deepFreeze(await agents.room1.status());
+    deepFreeze(await agents.orchestrator.status());
+    const r = await agents.desktop.publish({ meeting_app_active: false });
+    expect(r.sequence).toBeGreaterThan(0);
+    expect((await agents.room1.inbound("t-d", { type: "context.update", source: "desktop", subject: "user1", sequence: Date.now() * 2,
+      expires_at: new Date(Date.now() + 60_000).toISOString(), data: { meeting_app_active: true } })).accepted).toBe(true);
+  });
+
   it("rejects bad tokens and spoofed requesters", async () => {
     expect((await agents.room1.inbound("nope", { type: "context.query" })).reason_code).toBe("UNAUTHORIZED");
     expect((await agents.room1.inbound("t-d", { type: "device.control", requester: "orchestrator", action: { command: "TURN_ON" } })).reason_code).toBe("UNAUTHORIZED");
