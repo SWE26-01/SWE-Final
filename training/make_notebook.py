@@ -32,6 +32,7 @@ md("""
 code("""
 !nvidia-smi --query-gpu=name,memory.total --format=csv
 !pip -q install "trl==1.16.0" "peft>=0.17" "transformers>=4.56" "accelerate>=1.10" "datasets>=4.0"
+!pip -q uninstall -y torchao   # Colab ships torchao 0.10; new PEFT refuses versions <= 0.16 and we don't use it
 """)
 
 md("## 1. 데이터 올리기와 Drive 연결 (결과를 Drive에 저장해서 런타임이 끊겨도 남게 한다)")

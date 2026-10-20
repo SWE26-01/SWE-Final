@@ -48,6 +48,7 @@ Colab 학습은 두 가지 방법이 있다.
 C=~/.local/bin/colab
 $C new -s ambient --gpu T4                                   # 무료 계정은 T4. Pro면 L4/A100
 $C install -s ambient "trl==1.16.0" "peft>=0.17" "transformers>=4.56" "accelerate>=1.10" "datasets>=4.0"
+echo 'pip uninstall -y torchao' | $C console -s ambient       # Colab의 torchao 0.10은 새 PEFT와 충돌한다(쓰지 않음)
 $C upload -s ambient ~/.ambient-a2a/training/ambient-dpo-data.zip /content/ambient-dpo-data.zip
 $C upload -s ambient training/train_colab.py /content/train_colab.py
 echo 'cd /content && nohup python3 -u train_colab.py > /content/train.log 2>&1 &' | $C console -s ambient
