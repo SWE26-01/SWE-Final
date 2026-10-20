@@ -41,11 +41,29 @@ caffeinate -i $PY training/build_dataset.py --teacher haiku --samples 3 --zip
 ~/.ambient-a2a/venvs/trl/bin/python training/smoke_test.py                 # 노트북 코드를 작은 모델로 미리 확인
 ```
 
-Colab:
+Colab 학습은 두 가지 방법이 있다.
+
+**A. 터미널 ([Colab CLI](https://github.com/googlecolab/google-colab-cli), 권장)**: `uv tool install google-colab-cli`로 설치한다. 처음 한 번은 `colab sessions`를 실행해 Google 로그인을 마친다.
+```bash
+C=~/.local/bin/colab
+$C new -s ambient --gpu T4                                   # 무료 계정은 T4. Pro면 L4/A100
+$C install -s ambient "trl==1.16.0" "peft>=0.17" "transformers>=4.56" "accelerate>=1.10" "datasets>=4.0"
+$C upload -s ambient ~/.ambient-a2a/training/ambient-dpo-data.zip /content/ambient-dpo-data.zip
+$C upload -s ambient training/train_colab.py /content/train_colab.py
+echo 'cd /content && nohup python3 -u train_colab.py > /content/train.log 2>&1 &' | $C console -s ambient
+# 진행 상황 보기 (학습은 VM 안의 별도 프로세스라 로컬 연결이 끊겨도 계속된다)
+echo 'print(open("/content/train.log").read()[-2000:])' | $C exec -s ambient
+$C download -s ambient /content/out/EXAONE-4.0-1.2B-ambient-dpo-Q8_0.gguf ~/.ambient-a2a/models/
+$C stop -s ambient
+```
+- `colab exec -f train_colab.py`로 바로 돌리면, 오래 걸리는 학습 중에 CLI의 응답 대기 시간이 끝나면서 실행도 같이 멈춘다. 그래서 `nohup`으로 띄운다.
+- `train_colab.py`는 `make_notebook.py`가 노트북과 같은 코드로 만든다. 직접 고치지 않는다.
+
+**B. 브라우저**:
 1. `training/ambient_dpo.ipynb`를 Colab에 올린다(파일 → 노트북 업로드).
 2. GPU 런타임을 켠다.
-3. 위에서부터 차례로 실행한다. 첫 셀에서 `~/.ambient-a2a/training/ambient-dpo-data.zip`을 고른다.
-4. 결과 GGUF를 `~/.ambient-a2a/models/`에 넣는다.
+3. 위에서부터 차례로 실행한다. 첫 셀에서 zip을 고른다.
+4. 마지막 셀에서 GGUF를 내려받아 `~/.ambient-a2a/models/`에 넣는다.
 
 평가:
 ```bash
