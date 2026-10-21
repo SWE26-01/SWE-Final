@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Appliance3D, Furniture3D } from './Furniture3D';
+import { Activity, AirVent, ArrowLeft, Bot, Droplets, Fan, Flame, Lightbulb, Map, Minus, Monitor, Moon, PanelsTopLeft, Plus, Thermometer, Tv, UserRound, WashingMachine, Wind } from 'lucide-react';
 
 const layout = {
   kitchen: { left: 1, top: 1, width: 41, height: 25, furniture: 'counter', pin: [18, 11], walls: { south: false }, windows: { north: ['left'] }, doors: { north: 'right' } },
@@ -28,38 +29,43 @@ const occupantRoutes = {
   'living>exit': [[24, 59], [31, 60], [38, 62], [42, 65], [47, 66], [50, 69], [51, 73], [51, 78], [50, 84], [50, 90], [50, 97]],
 };
 
-function Furniture({ type }) {
-  if (type === 'bed-desk') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /><div className="furniture desk-3d bedroom-desk-3d" /><div className="furniture chair-3d bedroom-chair-3d" /></>;
-  if (type === 'bed') return <><div className="furniture bed-3d"><i /><i /><span /></div><div className="furniture tower-3d wardrobe-3d" /></>;
-  if (type === 'desk') return <><div className="furniture desk-3d"><span /></div><div className="furniture chair-3d" /></>;
-  if (type === 'sofa') return <><div className="furniture sofa-3d"><i /><i /><span /></div><div className="furniture table-3d" /><div className="plant-3d"><i /><span /></div></>;
-  if (type === 'counter') return <><div className="furniture counter-3d"><i /><i /><i /><i /></div><div className="furniture island-3d" /><div className="furniture tower-3d fridge-3d" /></>;
-  if (type === 'dining') return <><div className="furniture dining-3d"><i /><i /><i /><i /></div><div className="furniture dining-sideboard-3d" /></>;
-  if (type === 'veranda') return <><div className="veranda-grid-3d" /><div className="plant-3d veranda-plant-a"><i /><span /></div><div className="plant-3d veranda-plant-b"><i /><span /></div></>;
-  return <><div className="furniture tub-3d"><span /></div><div className="furniture sink-3d" /></>;
+// Demo apartment rooms without an `appliances` list in their plan entry.
+const DEMO_APPLIANCES = { kitchen: ['hood'], living: ['tv', 'purifier'], veranda: ['washer'], bedroom3: ['humidifier', 'computer'] };
+
+// `kinds` (a plan room's `appliances`) picks them; without it the demo apartment's rooms are used.
+function RoomAppliances({ roomId, kinds }) {
+  const list = kinds || DEMO_APPLIANCES[roomId] || (roomId.startsWith('bedroom') ? ['humidifier'] : []);
+  return list.map((kind) => <Appliance3D key={kind} kind={kind} />);
 }
 
-function RoomAppliances({ roomId }) {
-  if (roomId === 'kitchen') return <div className="appliance-3d hood-3d"><i /><i /><i /></div>;
-  if (roomId === 'living') return <><div className="appliance-3d television-3d"><i /></div><div className="appliance-3d purifier-3d"><i /><i /><i /></div></>;
-  if (roomId === 'veranda') return <div className="appliance-3d washer-3d"><i /></div>;
-  if (roomId === 'bedroom3') return <><div className="appliance-3d humidifier-3d bedroom3-humidifier-3d"><i /></div><div className="appliance-3d computer-3d"><i /><span /></div></>;
-  if (roomId.startsWith('bedroom')) return <div className="appliance-3d humidifier-3d"><i /></div>;
-  return null;
+function WallOpenings({ side, windows = [] }) {
+  return <>{windows.map((position) => <i key={`${side}-${position}`} className={`window-3d window-${side} opening-${position}`} />)}</>;
 }
 
-function WallOpenings({ side, windows = [], door }) {
-  return <>{windows.map((position) => <i key={`${side}-${position}`} className={`window-3d window-${side} opening-${position}`} />)}{door && <i className={`door-gap door-${side} opening-${door}`} />}</>;
+function RoomWall({ side, windows = [], door }) {
+  const windowClasses = windows.map((position) => `wall-window-${position}`).join(' ');
+  return (
+    <>
+      <span className={`wall-3d wall-${side} ${windows.length ? `wall-windowed ${windowClasses}` : ''}`}>
+        {door && <i className={`door-gap door-${side} opening-${door}`} />}
+      </span>
+      {windows.length > 0 && (
+        <span className={`wall-opening-layer wall-${side}`}>
+          <WallOpenings side={side} windows={windows} />
+        </span>
+      )}
+    </>
+  );
 }
 
 function RoomWalls({ walls = {}, windows = {}, doors = {} }) {
   const visible = (side) => walls[side] !== false;
   return (
     <div className="room-walls" aria-hidden="true">
-      {visible('north') && <span className="wall-3d wall-north"><WallOpenings side="north" windows={windows.north} door={doors.north} /></span>}
-      {visible('south') && <span className="wall-3d wall-south"><WallOpenings side="south" windows={windows.south} door={doors.south} /></span>}
-      {visible('west') && <span className="wall-3d wall-west"><WallOpenings side="west" windows={windows.west} door={doors.west} /></span>}
-      {visible('east') && <span className="wall-3d wall-east"><WallOpenings side="east" windows={windows.east} door={doors.east} /></span>}
+      {visible('north') && <RoomWall side="north" windows={windows.north} door={doors.north} />}
+      {visible('south') && <RoomWall side="south" windows={windows.south} door={doors.south} />}
+      {visible('west') && <RoomWall side="west" windows={windows.west} door={doors.west} />}
+      {visible('east') && <RoomWall side="east" windows={windows.east} door={doors.east} />}
     </div>
   );
 }
@@ -96,27 +102,56 @@ function getDevicePinPosition(index, count, roomId) {
   return position;
 }
 
-/** A room's box on the house plan, in % of the house. */
-export const roomRect = (roomId) => layout[roomId];
+// The demo apartment (MOCK). LIVE passes the real house (live/housePlan.js) as `plan`.
+const DEMO_PLAN = { topRotation: -90, rooms: layout, hall: { left: 42, top: 22, width: 14, height: 77, stairs: true }, anchors: occupantAnchors, routes: occupantRoutes };
+
+/** A room's box on a house plan, in % of the house. */
+export const roomRect = (plan, roomId) => plan.rooms[roomId];
+
+// A room can have more rectangles: plan entries with `partOf: <room id>` (e.g. an L-shaped hallway).
+const partsOf = (plan, roomId) => Object.entries(plan.rooms).filter(([, part]) => part.partOf === roomId);
+
+/** The box around a room and its parts, in % of the house. */
+function roomBox(plan, roomId) {
+  const boxes = [plan.rooms[roomId], ...partsOf(plan, roomId).map(([, part]) => part)].filter(Boolean);
+  if (!boxes.length) return null;
+  const left = Math.min(...boxes.map((box) => box.left));
+  const top = Math.min(...boxes.map((box) => box.top));
+  const right = Math.max(...boxes.map((box) => box.left + box.width));
+  const bottom = Math.max(...boxes.map((box) => box.top + box.height));
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+// `join` lists the sides where a rectangle meets another rectangle of the same room: no outline there.
+const BORDER = { north: 'borderTopColor', south: 'borderBottomColor', west: 'borderLeftColor', east: 'borderRightColor' };
+const rectStyle = (box) => ({
+  left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`,
+  ...Object.fromEntries((box.join || []).map((side) => [BORDER[side], 'transparent'])),
+});
 
 /** Where a device's pin stands, in % of the house plan, or null. */
-export function devicePinSpot(rooms, deviceId) {
+export function devicePinSpot(plan, rooms, deviceId) {
   for (const room of rooms) {
     const index = room.devices.findIndex((device) => device.id === deviceId);
     if (index < 0) continue;
     const [left, top] = getDevicePinPosition(index, room.devices.length, room.id);
-    const box = layout[room.id];
+    const box = plan.rooms[room.id];
     return { room: room.id, x: box.left + (box.width * left) / 100, y: box.top + (box.height * top) / 100 };
   }
   return null;
 }
 
-// `overlay` is drawn on the house plan, above the house (LIVE: agents and their messages, live/AgentScene.jsx).
-export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null, overlay = null }) {
+// `plan` is the floor plan (default: the demo apartment). `overlay` is drawn on the plan, above the house
+// (LIVE: agents and their messages, live/AgentScene.jsx). `environment.rows` replaces temperature and
+// humidity in the environment card (LIVE has no such sensors).
+const ENV_ICON = { presence: UserRound, light: Lightbulb, sleep: Moon };
+
+export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect, onBack, occupantRoom = null, overlay = null, plan = DEMO_PLAN }) {
   const [rotation, setRotation] = useState(-33);
   const [tilt, setTilt] = useState(55);
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
+  const [hoveredRoom, setHoveredRoom] = useState(null); // a room with parts lights up as a whole
   const drag = useRef(null);
   const dragFrame = useRef(null);
   const pendingDrag = useRef(null);
@@ -137,9 +172,9 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
       previousOccupantRoom.current = null;
       return undefined;
     }
-    const destination = occupantAnchors[occupantRoom];
+    const destination = plan.anchors[occupantRoom];
     if (!destination) return undefined;
-    const route = occupantRoutes[`${previousRoom}>${occupantRoom}`];
+    const route = plan.routes[`${previousRoom}>${occupantRoom}`];
     if (!previousRoom || !route || !occupantPositionRef.current) {
       setOccupantPosition(destination);
       occupantPositionRef.current = destination;
@@ -208,9 +243,9 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
     setIsDragging(false);
     window.requestAnimationFrame(() => { wasDragged.current = false; });
   };
-  const topView = () => { setRotation(-90); setTilt(0); };
+  const topView = () => { setRotation(plan.topRotation ?? -90); setTilt(0); };
   const adjustZoom = (amount) => setZoom((current) => Math.min(1.5, Math.max(.5, Number((current + amount).toFixed(2)))));
-  const selectedLayout = selectedRoom ? layout[selectedRoom] : null;
+  const selectedLayout = selectedRoom ? roomBox(plan, selectedRoom) : null;
   const center = selectedLayout ? [selectedLayout.left + selectedLayout.width / 2, selectedLayout.top + selectedLayout.height / 2] : [50, 50];
   const focus = selectedLayout ? [`${(50 - center[0]) * 1.05}%`, `${(50 - center[1]) * 1.05}%`] : null;
   const selectedScale = selectedLayout ? Math.min(2.8, Math.max(2.08, 58 / Math.max(selectedLayout.width, selectedLayout.height))) : 1;
@@ -230,10 +265,15 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
     >
       <div className="model-environment" aria-label={environment.label === '평균' ? 'Environment' : `Environment - ${environment.label}`}>
         <strong>Environment{environment.label !== '평균' && <span> - {environment.label}</span>}</strong>
-        <span><Thermometer size={13} /><b>{environment.temp.toFixed(1)}°C</b></span>
-        <span><Droplets size={13} /><b>{Math.round(environment.humidity)}%</b></span>
-        <span><Activity size={13} /><b>센서 {environment.sensor}</b></span>
-        <span><UserRound size={13} /><b>{environment.presence || '거실'}</b></span>
+        {environment.rows ? environment.rows.map((row) => {
+          const Icon = ENV_ICON[row.icon] || Activity;
+          return <span key={row.icon}><Icon size={13} /><b>{row.text}</b></span>;
+        }) : (<>
+          <span><Thermometer size={13} /><b>{environment.temp.toFixed(1)}°C</b></span>
+          <span><Droplets size={13} /><b>{Math.round(environment.humidity)}%</b></span>
+          <span><Activity size={13} /><b>센서 {environment.sensor}</b></span>
+          <span><UserRound size={13} /><b>{environment.presence || '거실'}</b></span>
+        </>)}
       </div>
       {selectedRoom && (
         <button className="three-back" onPointerDown={(event) => event.stopPropagation()} onClick={onBack}>
@@ -241,36 +281,54 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
         </button>
       )}
       <div className="css-3d-stage">
-        <div className={`css-house ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={houseStyle}>
+        <div className={`css-house ${plan.className || ''} ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''} ${isTopView ? 'is-top-view' : ''}`} style={houseStyle}>
           <div className="house-base" />
-          <div className={`hall-3d ${selectedRoom ? 'room-muted' : ''}`}><span className="stairs-3d"><i /><i /><i /><i /></span></div>
+          {plan.hall && (
+            <div className={`hall-3d ${selectedRoom ? 'room-muted' : ''}`} style={{ left: `${plan.hall.left}%`, top: `${plan.hall.top}%`, width: `${plan.hall.width}%`, height: `${plan.hall.height}%` }}>
+              {plan.hall.stairs && <span className="stairs-3d"><i /><i /><i /><i /></span>}
+            </div>
+          )}
           {rooms.map((room) => {
-            const roomLayout = layout[room.id];
+            const roomLayout = plan.rooms[room.id];
             const active = room.devices.some((device) => device.on);
             const highTemp = room.temp > environmentLimits.temp;
             const highHumidity = room.humidity > environmentLimits.humidity;
-            const roomStyle = { left: `${roomLayout.left}%`, top: `${roomLayout.top}%`, width: `${roomLayout.width}%`, height: `${roomLayout.height}%` };
+            const parts = partsOf(plan, room.id);
+            const roomClass = `css-room css-room-${room.id} ${selectedRoom && selectedRoom !== room.id ? 'room-muted' : ''} ${selectedRoom === room.id ? 'room-selected' : ''} ${parts.length && hoveredRoom === room.id ? 'group-hover' : ''}`;
+            const select = () => { if (!wasDragged.current) onRoomSelect(room.id); };
+            const hover = parts.length ? { onMouseEnter: () => setHoveredRoom(room.id), onMouseLeave: () => setHoveredRoom(null) } : {};
             return (
-              <button className={`css-room css-room-${room.id} ${selectedRoom && selectedRoom !== room.id ? 'room-muted' : ''} ${selectedRoom === room.id ? 'room-selected' : ''}`} style={roomStyle} key={room.id} onClick={() => { if (!wasDragged.current) onRoomSelect(room.id); }} aria-label={`${room.name} 입장`}>
+              <React.Fragment key={room.id}>
+              <button className={roomClass} style={rectStyle(roomLayout)} onClick={select} {...hover} aria-label={`${room.name} 입장`}>
                 <RoomWalls walls={roomLayout.walls} windows={roomLayout.windows} doors={roomLayout.doors} />
-                <Furniture type={roomLayout.furniture} />
-                <RoomAppliances roomId={room.id} />
+                <Furniture3D type={roomLayout.furniture} items={roomLayout.items} />
+                {!roomLayout.items && <RoomAppliances roomId={room.id} kinds={roomLayout.appliances} />}
                 <span className="css-room-name"><b>{room.name}</b><small>{room.en}</small></span>
-                <span className={`css-room-temp ${active ? 'active' : ''}`}>
-                  <span className={`room-metric metric-temp ${highTemp ? 'is-alert-value' : ''}`}><Thermometer size={8} />{room.temp.toFixed(1)}°</span>
-                  <span className={`room-metric metric-humidity ${highHumidity ? 'is-alert-value' : ''}`}><Droplets size={8} />{Math.round(room.humidity)}%</span>
-                </span>
+                {room.temp != null && (
+                  <span className={`css-room-temp ${active ? 'active' : ''}`}>
+                    <span className={`room-metric metric-temp ${highTemp ? 'is-alert-value' : ''}`}><Thermometer size={8} />{room.temp.toFixed(1)}°</span>
+                    <span className={`room-metric metric-humidity ${highHumidity ? 'is-alert-value' : ''}`}><Droplets size={8} />{Math.round(room.humidity)}%</span>
+                  </span>
+                )}
                 {room.devices.map((device, index) => {
                   const [left, top] = getDevicePinPosition(index, room.devices.length, room.id);
                   return <Pin key={device.id} device={device} style={{ left: `${left}%`, top: `${top}%` }} />;
                 })}
               </button>
+              {parts.map(([partId, part]) => (
+                <button type="button" key={partId} className={`${roomClass} css-room-part`} style={rectStyle(part)} onClick={select} {...hover} tabIndex={-1} aria-hidden="true">
+                  <RoomWalls walls={part.walls} windows={part.windows} doors={part.doors} />
+                  <Furniture3D type={part.furniture} items={part.items} />
+                  {!part.items && <RoomAppliances roomId={room.id} kinds={part.appliances} />}
+                </button>
+              ))}
+              </React.Fragment>
             );
           })}
           {occupantPosition && <span className={`occupant-marker ${occupantVisible ? 'visible' : ''} ${occupantMoving ? 'moving' : ''} ${selectedRoom && selectedRoom !== occupantRoom ? 'room-muted' : ''}`} style={{ left: `${occupantPosition[0]}%`, top: `${occupantPosition[1]}%` }} role="img" aria-label={`사용자 위치 · ${rooms.find((item) => item.id === occupantRoom)?.name || '이동 중'}`}><UserRound size={11} /></span>}
         </div>
         {/* same transform as the house, but its own layer, so walls never hide the overlay */}
-        {overlay && <div className={`css-house css-house-overlay ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
+        {overlay && <div className={`css-house css-house-overlay ${plan.className || ''} ${selectedRoom ? 'room-focused' : ''} ${isDragging ? 'is-dragging' : ''}`} style={houseStyle}>{overlay}</div>}
       </div>
       <div className="three-zoom" onPointerDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => adjustZoom(-.05)} aria-label="3D 모델 축소"><Minus size={12} /></button>
@@ -287,6 +345,8 @@ export default function Home3D({ rooms, environment, selectedRoom, onRoomSelect,
         <span>{Math.round(zoom * 100)}%</span>
       </div>
       <button className="three-topview" onClick={topView} aria-label="완전 탑뷰로 전환"><Map size={13} /> TOP VIEW</button>
+      {/* flat corner of the view for things that are not in the house (AgentScene puts the phone here) */}
+      {overlay && <div className="scene-corner" />}
     </div>
   );
 }
