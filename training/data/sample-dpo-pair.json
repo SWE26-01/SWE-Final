@@ -1,0 +1,304 @@
+{
+ "설명": "DPO 선호 쌍 1개 예시. chosen = Haiku 5.5의 실제 응답, rejected = 같은 요청에 대한 기본 EXAONE 4.0 1.2B의 응답",
+ "id": "haiku1:t-desktop-000#0",
+ "split": "train",
+ "tools": [
+  {
+   "type": "function",
+   "function": {
+    "name": "ambient_publish",
+    "description": "Publish the user's current state to subscribed agents. Pass only the fields that changed. Never include raw personal data (titles, locations).",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "meeting_app_active": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "number"
+        }
+       ]
+      },
+      "pc_state": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "number"
+        }
+       ]
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "ambient_request",
+    "description": "Ask another Ambient-A2A agent to control a device (device.control). The target agent decides; the reply says accepted or rejected with reason_code.",
+    "parameters": {
+     "type": "object",
+     "required": [
+      "target",
+      "command"
+     ],
+     "properties": {
+      "target": {
+       "type": "string",
+       "description": "Agent id: desktop, smartphone, orchestrator, room1, room2"
+      },
+      "device": {
+       "type": "string",
+       "description": "HA entity id, e.g. input_boolean.living_tv_muted. Omit for ENERGY_SAVING."
+      },
+      "command": {
+       "anyOf": [
+        {
+         "type": "string",
+         "const": "TURN_ON"
+        },
+        {
+         "type": "string",
+         "const": "TURN_OFF"
+        },
+        {
+         "type": "string",
+         "const": "SET"
+        },
+        {
+         "type": "string",
+         "const": "ENERGY_SAVING"
+        }
+       ]
+      },
+      "value": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "description": "For SET: option (input_select) or number"
+      },
+      "reason_code": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "ambient_status",
+    "description": "Show this agent's devices, received context and subscriptions.",
+    "parameters": {
+     "type": "object",
+     "properties": {}
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "gateway",
+    "description": "Update OpenClaw with update.run on an explicit owner request or an operator-scheduled automation. Restart and completion notice are automatic. Never via shell.",
+    "parameters": {
+     "type": "object",
+     "required": [
+      "action"
+     ],
+     "properties": {
+      "action": {
+       "enum": [
+        "update.run"
+       ],
+       "type": "string"
+      },
+      "note": {
+       "type": "string",
+       "description": "Short human note for the post-update restart notice."
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "presence",
+    "description": "Read live people, connected devices, and observed activity on this Gateway. list (default): who is online, one entry per person. person: inspect me, a profile ID, or an unambiguous name. device: inspect a deviceId returned by presence. Include devices for recent activity and its source, network for IP addresses, or location for approximate IP geography (not GPS). Online means connected, not necessarily active. Unknown activity is not inactivity. Shared or unidentified machines remain separate from people; list with devices includes them. This is a current snapshot, not activity history or permission to control a device.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "anyOf": [
+        {
+         "type": "string",
+         "const": "list"
+        },
+        {
+         "type": "string",
+         "const": "person"
+        },
+        {
+         "type": "string",
+         "const": "device"
+        }
+       ],
+       "description": "List connected people (default), inspect a person, or inspect a connected device."
+      },
+      "person": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 320,
+       "description": "For person: me, a returned person/profile ID, or an exact unambiguous display name."
+      },
+      "deviceId": {
+       "type": "string",
+       "minLength": 1,
+       "description": "For device: the exact presence device ID returned by this tool."
+      },
+      "include": {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "type": "string",
+          "const": "devices"
+         },
+         {
+          "type": "string",
+          "const": "network"
+         },
+         {
+          "type": "string",
+          "const": "location"
+         }
+        ]
+       },
+       "uniqueItems": true,
+       "maxItems": 3,
+       "description": "Optional device details. Network includes IP; location includes approximate IP location without requesting GPS. Each option includes devices."
+      },
+      "limit": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100,
+       "description": "Maximum people returned (default 50, maximum 100); truncation is reported."
+      }
+     },
+     "additionalProperties": false
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "session_status",
+    "description": "Show visible-session model/usage/time/cost/tasks. `sessionKey=\"current\"` for current; UI labels are not keys. `model` overrides; `model=default` resets. Use for active model/session questions.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "user": {
+       "type": "string",
+       "description": "The person's requester_profile.id, required when several people have steered this turn."
+      },
+      "sessionKey": {
+       "type": "string"
+      },
+      "model": {
+       "type": "string"
+      },
+      "changesSince": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    }
+   }
+  }
+ ],
+ "prompt": [
+  {
+   "role": "system",
+   "content": "<!-- openclaw:attempt:STABLE -->\nYou are a personal assistant running inside OpenClaw.\n## Tooling\nTools policy-filtered. Names case-sensitive; call exact.\n- gateway: Read this Gateway's config/schema; owner-only self-update on explicit request; automatic restart and completion notice\n- session_status: Session/model/usage/time/status; model override\n- ambient_publish\n- ambient_request\n- ambient_sta … (시스템 프롬프트 총 10841자 중 앞 400자만 표시)"
+  },
+  {
+   "role": "user",
+   "content": "[Mon 2026-10-19 20:04 GMT+9] 회의 들어갈게\n\nRuntime: agent=main | session=agent:main:openai-user:conv:haiku1:t-desktop-000-86443f | host=yunsu의 MacBook Air | os=macOS 15.6.1 (arm64) | node=v24.22.0 | active_node=unknown | active_node_identity=unknown | model=lab/haiku | default_model=lab/haiku | shell=zsh | channel=webchat | capabilities=markdowndetails"
+  }
+ ],
+ "chosen": [
+  {
+   "role": "assistant",
+   "content": "",
+   "tool_calls": [
+    {
+     "type": "function",
+     "function": {
+      "name": "ambient_publish",
+      "arguments": {
+       "meeting_app_active": true,
+       "pc_state": "ACTIVE"
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "ambient_request",
+      "arguments": {
+       "target": "orchestrator",
+       "command": "TURN_ON",
+       "device": "input_boolean.living_tv_muted"
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "ambient_request",
+      "arguments": {
+       "target": "orchestrator",
+       "command": "SET",
+       "device": "input_select.room1_light_mode",
+       "value": "meeting"
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "rejected": [
+  {
+   "role": "assistant",
+   "content": "I'll help you start your meeting. Based on your message, I'll publish the meeting state and request TV mute permissions.\n",
+   "tool_calls": [
+    {
+     "type": "function",
+     "function": {
+      "name": "ambient_publish",
+      "arguments": {
+       "meeting_app_active": true,
+       "pc_state": "ACTIVE"
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "student_temperature": 0.0
+}
