@@ -38,18 +38,34 @@ function RoomAppliances({ roomId, kinds }) {
   return list.map((kind) => <Appliance3D key={kind} kind={kind} />);
 }
 
-function WallOpenings({ side, windows = [], door }) {
-  return <>{windows.map((position) => <i key={`${side}-${position}`} className={`window-3d window-${side} opening-${position}`} />)}{door && <i className={`door-gap door-${side} opening-${door}`} />}</>;
+function WallOpenings({ side, windows = [] }) {
+  return <>{windows.map((position) => <i key={`${side}-${position}`} className={`window-3d window-${side} opening-${position}`} />)}</>;
+}
+
+function RoomWall({ side, windows = [], door }) {
+  const windowClasses = windows.map((position) => `wall-window-${position}`).join(' ');
+  return (
+    <>
+      <span className={`wall-3d wall-${side} ${windows.length ? `wall-windowed ${windowClasses}` : ''}`}>
+        {door && <i className={`door-gap door-${side} opening-${door}`} />}
+      </span>
+      {windows.length > 0 && (
+        <span className={`wall-opening-layer wall-${side}`}>
+          <WallOpenings side={side} windows={windows} />
+        </span>
+      )}
+    </>
+  );
 }
 
 function RoomWalls({ walls = {}, windows = {}, doors = {} }) {
   const visible = (side) => walls[side] !== false;
   return (
     <div className="room-walls" aria-hidden="true">
-      {visible('north') && <span className="wall-3d wall-north"><WallOpenings side="north" windows={windows.north} door={doors.north} /></span>}
-      {visible('south') && <span className="wall-3d wall-south"><WallOpenings side="south" windows={windows.south} door={doors.south} /></span>}
-      {visible('west') && <span className="wall-3d wall-west"><WallOpenings side="west" windows={windows.west} door={doors.west} /></span>}
-      {visible('east') && <span className="wall-3d wall-east"><WallOpenings side="east" windows={windows.east} door={doors.east} /></span>}
+      {visible('north') && <RoomWall side="north" windows={windows.north} door={doors.north} />}
+      {visible('south') && <RoomWall side="south" windows={windows.south} door={doors.south} />}
+      {visible('west') && <RoomWall side="west" windows={windows.west} door={doors.west} />}
+      {visible('east') && <RoomWall side="east" windows={windows.east} door={doors.east} />}
     </div>
   );
 }
