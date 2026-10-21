@@ -67,9 +67,13 @@ sft = SFTTrainer(
                    completion_only_loss=True, report_to='none'))
 ids = sft.train_dataset[0]['input_ids']   # exactly one EOS at the end of every example
 assert ids[-1] == tok.eos_token_id and ids[-2] != tok.eos_token_id, tok.decode(ids[-5:])
-sft.train()
-sft_model = sft.model.merge_and_unload()
-sft_model.save_pretrained(f'{OUT}/sft-merged'); tok.save_pretrained(f'{OUT}/sft-merged')
+if os.path.exists(f'{OUT}/sft-merged/config.json'):
+    print('SFT checkpoint found, skipping SFT', flush=True)
+else:
+    sft.train()
+    sft_model = sft.model.merge_and_unload()
+    sft_model.save_pretrained(f'{OUT}/sft-merged'); tok.save_pretrained(f'{OUT}/sft-merged')
+    print('SFT DONE', flush=True)
 
 from trl import DPOConfig, DPOTrainer
 
@@ -78,7 +82,7 @@ policy = AutoModelForCausalLM.from_pretrained(f'{OUT}/sft-merged', dtype=DTYPE)
 dpo = DPOTrainer(
     model=policy, processing_class=tok, peft_config=lora,
     train_dataset=dpo_train, eval_dataset=dpo_eval,
-    args=DPOConfig(output_dir=f'{OUT}/dpo', num_train_epochs=2, learning_rate=5e-6, beta=0.1,
+    args=DPOConfig(output_dir=f'{OUT}/dpo', num_train_epochs=int(os.environ.get('DPO_EPOCHS', 2)), learning_rate=5e-6, beta=0.1,
                    per_device_train_batch_size=1, gradient_accumulation_steps=8,
                    gradient_checkpointing=True, max_length=MAXLEN, bf16=bf16, fp16=not bf16,
                    logging_steps=5, eval_strategy='epoch', save_strategy='epoch', save_total_limit=1,

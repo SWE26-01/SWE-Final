@@ -6,7 +6,8 @@ Model ids that OpenClaw asks for (provider `lab`, see lab-models.json5) map to b
   haiku       -> OpenRouter anthropic/claude-haiku-5.5
   sonnet      -> OpenRouter anthropic/claude-sonnet-5-5
   exaone      -> local llama-server :8090 (base EXAONE 4.0 1.2B)
-  exaone-dpo  -> local llama-server :8091 (trained model)
+  exaone-dpo  -> local llama-server :8091 (SFT + DPO)
+  exaone-sft  -> local llama-server :8092 (SFT only)
 Every call is appended as {ts, tag, model, request, response, usage}; response is the reassembled
 assistant message (content + tool_calls) even when the client streamed.
 Set the tag (which scenario is running) with:  curl -X POST 127.0.0.1:8300/tag -d 'scenario-id'
@@ -30,6 +31,7 @@ BACKENDS = {
     "sonnet": ("https://openrouter.ai/api/v1", "anthropic/claude-sonnet-5-5", "OPENROUTER_API_KEY"),
     "exaone": ("http://127.0.0.1:8090/v1", "exaone", None),
     "exaone-dpo": ("http://127.0.0.1:8091/v1", "exaone", None),
+    "exaone-sft": ("http://127.0.0.1:8092/v1", "exaone", None),
 }
 state = {"tag": "", "log": str(Path.home() / ".ambient-a2a/training/calls.jsonl")}
 client = httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10))
