@@ -2,6 +2,7 @@
  "tags": [
   "eval-exaone-base",
   "eval-exaone-sft",
+  "eval-exaone-dpo",
   "eval-haiku"
  ],
  "summary": {
@@ -10,6 +11,10 @@
    "total": 6
   },
   "eval-exaone-sft": {
+   "passed": 6,
+   "total": 6
+  },
+  "eval-exaone-dpo": {
    "passed": 6,
    "total": 6
   },
@@ -70,6 +75,40 @@
         "command": "SET",
         "device": "input_select.room1_light_mode",
         "value": "meeting"
+       }
+      }
+     ]
+    },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 22.8,
+     "reply": "회의 시작 처리했어요.\n\n- **거실 TV 음소거**: 허용됐어요.\n- **내 방 조명 회의 모드**: 허용됐어요.\n- PC 상태와 회의 중 상태도 함께 알려뒀어요.\n\n회의가 끝나면 말씀해 주세요. 종료해 주시다.",
+     "tool_calls": [
+      {
+       "name": "ambient_publish",
+       "arguments": {
+        "meeting_app_active": true,
+        "pc_state": "ACTIVE"
+       }
+      },
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "TURN_ON",
+        "device": "input_boolean.living_tv_muted",
+        "reason_code": "meeting"
+       }
+      },
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "SET",
+        "device": "input_select.room1_light_mode",
+        "value": "meeting",
+        "reason_code": "meeting"
        }
       }
      ]
@@ -136,6 +175,38 @@
      "fails": [],
      "latency_s": 8.4,
      "reply": "회의 시작 준비를 마쳤어요.\n\n- **거실 TV 음소거**: 허용됐어요.\n- **내 방 조명 회의 모드**: 허용됐어요.\n- PC 상태와 회의 중 표시도 함께 공유했어요.\n\n회의가 끝나면 말씀해 주세요. 그때 회의 상태를 다시 알려드릴게요.",
+     "tool_calls": [
+      {
+       "name": "ambient_publish",
+       "arguments": {
+        "meeting_app_active": true,
+        "pc_state": "ACTIVE"
+       }
+      },
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "TURN_ON",
+        "device": "input_boolean.living_tv_muted"
+       }
+      },
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "SET",
+        "device": "input_select.room1_light_mode",
+        "value": "meeting"
+       }
+      }
+     ]
+    },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 5.2,
+     "reply": "회의 시작 처리했어요.\n\n- **거실 TV 음소거**: 허용됐어요.\n- **내 방 조명 회의 모드**: 허용됐어요.\n- PC 상태와 회의 중 상태도 함께 알렸어요.\n\n이제 회의가 시작된 상태로 바뀌었어요. 회의가 끝나면 말씀해 주세요.",
      "tool_calls": [
       {
        "name": "ambient_publish",
@@ -232,6 +303,22 @@
      "fails": [],
      "latency_s": 9.8,
      "reply": "보호 방 에어컨은 끄지 못했어요. 이 기기는 제 쪽에서 요청할 권한이 없다고 해요. 보호 방 에어컨은 보호 방 관리 쪽에서 직접 끄셔야 할 것 같아요.",
+     "tool_calls": [
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "TURN_OFF",
+        "device": "input_boolean.room2_ac"
+       }
+      }
+     ]
+    },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 3.3,
+     "reply": "보호 방 에어컨은 끄지 못했어요. 이 기기는 제 쪽에서 조작할 권한이 없어서 거절됐어요. 보호 방 에어컨은 보호 방에 속한 사람이나 권한을 가진 사람이 직접 끄셔야 할 것 같아요.",
      "tool_calls": [
       {
        "name": "ambient_request",
@@ -947,6 +1034,30 @@
       }
      ]
     },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 4.6,
+     "reply": "보호 방 에어컨은 끄지 못했어요. 데스크톱 쪽에서는 이 기기를 끌 권한이 없다고 해요.\n\n내 방 조명은 끄지 못했어요. 마찬가지로 내 방 조명은 데스크톱 쪽에서 요청을 받을 권한이 없다고 해요.\n\n방 에어컨과 조명을 직접 끄셔야 할 것 같아요. 보호 방 에어컨은 보호 방 쪽에서, 내 방 조명은 내 방 조명 스위치를 직접 조작해 주세요.",
+     "tool_calls": [
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "TURN_OFF",
+        "device": "input_boolean.room1_ac"
+       }
+      },
+      {
+       "name": "ambient_request",
+       "arguments": {
+        "target": "orchestrator",
+        "command": "TURN_OFF",
+        "device": "input_boolean.living_light"
+       }
+      }
+     ]
+    },
     "eval-haiku": {
      "pass": true,
      "fails": [],
@@ -1033,6 +1144,32 @@
       }
      ]
     },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 12.2,
+     "reply": "데스크톱에서 회의 중입니다. 스마트폰 상태는 확인할 수 없었고, 지금 자리에 아무도 없어요.\n\n결론은 **회의 중이면 절전을 해도 괜찮아요.** 회의가 끝나면 절전을 실행해 드릴 수 있어요.",
+     "tool_calls": [
+      {
+       "name": "ambient_query",
+       "arguments": {
+        "target": "desktop",
+        "fields": [
+         "meeting_app_active"
+        ]
+       }
+      },
+      {
+       "name": "ambient_query",
+       "arguments": {
+        "target": "smartphone",
+        "fields": [
+         "presence"
+        ]
+       }
+      }
+     ]
+    },
     "eval-haiku": {
      "pass": true,
      "fails": [],
@@ -1087,6 +1224,20 @@
      "fails": [],
      "latency_s": 13.6,
      "reply": "나 나간다! 외출 상태를 집 쪽에도 알려뒀어요. 집에 도착하면 다시 알려드릴게요.",
+     "tool_calls": [
+      {
+       "name": "ambient_publish",
+       "arguments": {
+        "presence": "AWAY"
+       }
+      }
+     ]
+    },
+    "eval-exaone-dpo": {
+     "pass": true,
+     "fails": [],
+     "latency_s": 11.1,
+     "reply": "나가세요! 집에 오시면 \"집 도착\"이라고 말씀해 주세요.",
      "tool_calls": [
       {
        "name": "ambient_publish",

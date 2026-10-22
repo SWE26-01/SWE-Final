@@ -99,7 +99,7 @@ def run(s, tag):
     events = [json.loads(l) for l in EVENTS.read_text().splitlines()[n:]] if EVENTS.exists() else []
     infra = reply.startswith(("HTTP ", "ERROR "))
     fails = [f"infrastructure: {reply[:80]}"] if infra else judge(s, reply, events)
-    return {"id": s["id"], "tag": tag, "agent": s["agent"], "say": s["say"], "pass": not fails, "infra_error": infra,
+    return {"id": s["id"], "tag": tag, "ts": t0, "agent": s["agent"], "say": s["say"], "pass": not fails, "infra_error": infra,
             "fails": fails, "latency_s": lat, "reply": reply}
 
 

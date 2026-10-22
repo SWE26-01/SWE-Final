@@ -75,7 +75,7 @@
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
   아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
 - 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다(tool 직접 노출, 프롬프트 축소, 추론 끔, `scripts/say.sh`). 측정과 바꾼 설정은 `docs/performance.md`.
-- EXAONE 4.0 1.2B 학습 실험(`training/`, 문서 `docs/dpo-experiment.md`): 기본 모델은 평가 0/6, Haiku 정답으로 SFT한 뒤 자동 검사 6/6(내용까지 맞은 것 4/6). DPO는 진행 중. 기본 LLM은 계속 Haiku.
+- EXAONE 4.0 1.2B 학습 실험(`training/`, 문서 `docs/dpo-experiment.md`): 원본 0/6 → SFT 6/6(내용까지 4/6). DPO는 거의 차이 없음(검증 7개에서 SFT·DPO 모두 4/7, Haiku 7/7). 인사에 회의 시작 동작을 하는 등 아직 에이전트로 쓰기 이르다. 기본 LLM은 Haiku 유지.
 - frontend: LIVE/MOCK 전환. LIVE에서 Home·3D Model·Agent Activity 탭이 Gateway·Collector의 실제 데이터를 보여 준다(`frontend/src/live/`).
   에이전트 카드는 Collector가 5초마다 Agent Card를 확인한 실제 상태다(`GET /agents`, WebSocket `agents`).
   Live Simulation 탭은 LIVE에서 Runner로 실제 LLM을 돌리고(MOCK은 가짜 시나리오 그대로), Control Mode 탭은 데모용 가짜 데이터.
