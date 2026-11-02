@@ -10,7 +10,6 @@ ENV = {
     "SIMULATOR_TOKEN": "t-simulator",
     "HA_URL": "http://ha.test:8123",
     "HA_TOKEN": "t-ha",
-    "OPENCLAW_GATEWAY_TOKEN": "t-openclaw",
 }
 
 

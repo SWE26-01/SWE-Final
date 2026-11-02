@@ -1,8 +1,8 @@
 # Who may call the Gateway and the Event Collector. Loaded and checked by homeconfig.load_config().
 #
-# Agent ids and URLs match ../agents/shared.json5 `peers`. Tokens are not stored here: each
-# entry names the environment variable that holds it, so the services run with the root .env
-# (`--env-file ../.env`).
+# `url` is an agent's A2A base URL (the Collector checks its Agent Card there). Tokens are not
+# stored here: each entry names the environment variable that holds it, so the services run with
+# the root .env (`--env-file ../.env`).
 agents:
   desktop: {token_env: AMBIENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/ambient"}
   smartphone: {token_env: AMBIENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/ambient"}
@@ -14,8 +14,7 @@ agents:
 operators:
   dashboard: {token_env: DASHBOARD_TOKEN}
 
-# Live Simulation: may ask the Runner to say things to agents (config/scenarios.yaml or free text).
-# Agents still decide and their policies apply; this token commands no devices. Optional: without
-# SIMULATOR_TOKEN in the environment the Runner does not start and the screen stays read-only.
+# Simulator screen: reads devices like a dashboard and commands nothing. Optional: without
+# SIMULATOR_TOKEN in the environment the other services still start.
 simulators:
   simulator: {token_env: SIMULATOR_TOKEN}

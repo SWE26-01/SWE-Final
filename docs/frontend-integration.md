@@ -1,5 +1,9 @@
 # 프론트 연결 가이드
 
+> **2026-11-02 피봇**: OpenClaw 에이전트, `scripts/scenario.sh`, Runner(`services/runner`)를 지웠다. Gateway·Collector 연결(1~6)은
+> 그대로 맞고, 7의 시나리오 확인과 8~9의 Runner 부분은 피봇 전 기록이다. LIVE의 Live Simulation 실행과 Agents 탭 대화는
+> "연결 안 됨"으로 나온다. 시뮬레이터를 새로 만들 때 이 문서도 고친다.
+
 > **구현됨 (2026-10-18)**: `frontend/src/live/`에 이 가이드대로 연결해 두었다. 화면 오른쪽 위 **LIVE / MOCK** 전환으로 실제 데이터와
 > 데모용 가짜 시나리오를 오간다. 시작: `frontend/.env.example`을 `frontend/.env.local`로 복사해 토큰을 넣고 `npm run dev`.
 > - `src/live/config.js` 접속 주소·토큰, `socket.js` 자동 재연결, `useLiveHome.js` 데이터 훅, `mapping.js` 대응·문구 규칙, `LiveViews.jsx` 실제 데이터 패널
@@ -23,13 +27,11 @@
 ## 1. 실행
 
 ```bash
-scripts/run_all.sh                     # HA + Gateway(8100) + Collector(8200) + 에이전트 5개
+scripts/run_all.sh                     # HA + Gateway(8100) + Collector(8200)
 cd frontend && npm ci && npm run dev   # http://localhost:5173
-
-# 화면에 데이터가 흐르게 하려면 (다른 터미널)
-scripts/scenario.sh                                                     # 정해진 요청들
-scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"     # 사람 말로 (LLM)
 ```
+
+HA 화면에서 기기를 바꾸면 Gateway를 거쳐 화면에 바로 반영된다.
 
 시스템을 띄우지 않고 화면만 만들 때는 [6. 샘플 데이터](#6-샘플-데이터)를 쓴다.
 
@@ -241,7 +243,7 @@ Vite에서는 `import snapshot from '../../services/contracts/examples/gateway-s
 
 ## 8. Live Simulation: Runner (실제 LLM)
 
-Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다. 자세한 구조는 [integration.md](integration.md)의 Runner.
+Live Simulation 탭의 LIVE 모드는 Runner(`http://127.0.0.1:8300`)를 쓴다.
 
 **화면 (구현됨, 2026-10-19)**: `src/live/useLiveRun.js`(시나리오·실행·WebSocket), `LiveViews.jsx`의 `LiveScenarioButtons`·`LiveSayForm`·`LiveRunSummary`·`LiveExpect`·`LiveRunSteps`,
 `mapping.js`의 `eventsOfRun`·`toRunLogRow`·`runPhase`·`expectRows`.

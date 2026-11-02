@@ -1,19 +1,15 @@
-"""Typed models for config/agents.yaml, config/devices.yaml and config/scenarios.yaml."""
+"""Typed models for config/agents.yaml and config/devices.yaml."""
 
 from __future__ import annotations
 
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field
 
 # Home Assistant entity id, e.g. input_boolean.room1_light
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
-
-SAY_LIMIT = 500  # characters of one thing said to an agent (scenario step or free text)
-# What is said to an agent: trimmed, never blank (a blank message would still cost an LLM turn).
-Say = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=SAY_LIMIT)]
 
 
 class _Cfg(BaseModel):
@@ -24,9 +20,9 @@ class _Cfg(BaseModel):
 
 
 class Role(StrEnum):
-    AGENT = "agent"  # an agent in ../agents: commands the devices it owns, reports events
+    AGENT = "agent"  # commands the devices it owns, reports events
     OPERATOR = "operator"  # dashboards (the frontend's read-only token): read, command nothing
-    SIMULATOR = "simulator"  # Live Simulation: talks to agents through the Runner, commands nothing
+    SIMULATOR = "simulator"  # simulator screen: reads like a dashboard, commands nothing
 
 
 class CallerEntry(_Cfg):
@@ -64,28 +60,3 @@ class DevicesFile(_Cfg):
     spaces: list[str] = Field(min_length=1)
     devices: list[Device]
 
-
-# --- scenarios.yaml -----------------------------------------------------------
-
-
-class Step(_Cfg):
-    agent: CallerId = Field(description="agent the Runner talks to")
-    say: Say = Field(description="what the user says to that agent, as in a chat")
-    setup: bool = Field(
-        default=False, description="prepares the home for the scenario (said to the device owner)"
-    )
-
-
-class Scenario(_Cfg):
-    id: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
-    title: Annotated[str, Field(min_length=1, max_length=64)]
-    description: str = ""
-    steps: list[Step] = Field(min_length=1)
-    expect: dict[EntityId, str] = Field(
-        default_factory=dict,
-        description="device states expected afterwards, for dashboards to compare; not enforced",
-    )
-
-
-class ScenariosFile(_Cfg):
-    scenarios: list[Scenario] = Field(default_factory=list)

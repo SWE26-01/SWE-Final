@@ -1,7 +1,7 @@
 """Requests followed across agents: all events whose request_id starts with the same `<id>`.
 
-The agents keep one request_id through delegation, execution, energy saving (`<id>/<room>` per
-room) and automation rules (spec/ambient-a2a.md), so the part before the first `/` names a flow.
+Agents keep one request_id through delegation and execution and add `/<part>` for sub-requests,
+so the part before the first `/` names a flow.
 """
 
 from __future__ import annotations

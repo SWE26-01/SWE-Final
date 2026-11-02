@@ -1,8 +1,0 @@
-// Shared OpenClaw gateway/agent defaults; each profile sets its own port.
-{
-  mode: "local",
-  bind: "loopback",
-  auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
-  // Lets scripts/say.sh talk to the already-running gateway over HTTP (no CLI cold start). Loopback only.
-  http: { endpoints: { chatCompletions: { enabled: true } } },
-}

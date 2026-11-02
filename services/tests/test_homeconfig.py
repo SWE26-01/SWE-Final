@@ -101,12 +101,10 @@ def test_caller_cannot_be_agent_and_operator(cfg_dir):
 def test_simulator_is_optional():
     cfg = load_config(env=ENV)
     assert cfg.caller_by_token("t-simulator").role is Role.SIMULATOR
-    assert cfg.openclaw_token == "t-openclaw"
     assert cfg.optional_problems == []
-    env = {k: v for k, v in ENV.items() if k not in ("SIMULATOR_TOKEN", "OPENCLAW_GATEWAY_TOKEN")}
-    cfg = load_config(env=env)  # the Gateway and the Collector run without them
+    env = {k: v for k, v in ENV.items() if k != "SIMULATOR_TOKEN"}
+    cfg = load_config(env=env)  # the Gateway and the Collector run without it
     assert "simulator" not in cfg.callers
-    assert cfg.openclaw_token is None
     assert cfg.optional_problems == ["simulator: environment variable SIMULATOR_TOKEN is not set"]
 
 
@@ -115,67 +113,6 @@ def test_bad_simulator_token_does_not_stop_the_other_services():
     assert cfg.caller_by_token("t-dashboard").id == "dashboard"  # still read-only
     assert "simulator" not in cfg.callers
     assert cfg.optional_problems == ["simulator: same token as 'dashboard'"]
-
-
-def test_blank_step_is_rejected(cfg_dir):
-    (cfg_dir / "scenarios.yaml").write_text(
-        "scenarios:\n  - {id: a, title: A, steps: [{agent: room1, say: '   '}]}\n"
-    )
-    assert "scenarios.yaml: scenarios.0.steps.0.say" in problems(cfg_dir)
-
-
-def test_repo_scenarios_load():
-    scenarios = load_config(env=ENV).scenarios
-    assert list(scenarios) == ["meeting", "away", "energy-check", "unauthorized", "reset"]
-    away = scenarios["away"]
-    assert [(s.agent, s.setup) for s in away.steps] == [
-        ("room1", True),
-        ("room2", True),
-        ("orchestrator", True),
-        ("smartphone", False),
-    ]
-    assert away.expect["input_boolean.room2_ac"] == "on"  # kept by room2's sleep policy
-
-
-def test_scenarios_file_is_optional(cfg_dir):
-    assert load_config(cfg_dir, ENV).scenarios == {}
-
-
-def test_scenario_checks(cfg_dir):
-    step = {"agent": "room1", "say": "조명 켜 줘"}
-    (cfg_dir / "scenarios.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "scenarios": [
-                    {"id": "a", "title": "A", "steps": [step]},
-                    {"id": "a", "title": "A again", "steps": [step]},
-                    {"id": "b", "title": "B", "steps": [{"agent": "dashboard", "say": "hi"}]},
-                    {
-                        "id": "c",
-                        "title": "C",
-                        "steps": [step],
-                        "expect": {"input_boolean.attic_light": "on"},
-                    },
-                ]
-            },
-            allow_unicode=True,
-        )
-    )
-    found = problems(cfg_dir)
-    assert "duplicate scenario 'a'" in found
-    assert "scenario 'b': 'dashboard' is not an agent" in found
-    assert "scenario 'c': expects unknown device 'input_boolean.attic_light'" in found
-
-
-def test_scenario_expect_must_quote_on_off(cfg_dir):
-    (cfg_dir / "scenarios.yaml").write_text(
-        "scenarios:\n"
-        "  - id: a\n"
-        "    title: A\n"
-        "    steps: [{agent: room1, say: hi}]\n"
-        "    expect: {input_boolean.room1_light: on}\n"  # YAML reads `on` as true
-    )
-    assert "scenarios.yaml: scenarios.0.expect.input_boolean.room1_light" in problems(cfg_dir)
 
 
 def test_unknown_keys_rejected(cfg_dir):

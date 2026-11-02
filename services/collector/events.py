@@ -1,7 +1,6 @@
 """Event Collector record: one line of an agent's event log (WBS W8-4).
 
-The agents' plugin (agents/ambient-a2a-plugin/src/agent.ts, `log()`) writes one JSON object per
-A2A message, execution and automation rule. Agents POST the same object here. Only the fields
+Agents POST one JSON object per A2A message, execution and automation rule. Only the fields
 below are stored; anything else in the object is dropped, so a new log field can never leak
 data into the audit log by accident. Context values (calendar, presence ...) are never logged.
 """

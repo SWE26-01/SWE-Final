@@ -1,9 +1,0 @@
-SWE-Final ccdb7b1
-HA 2026.10.2
-node v24.22.0
-OpenClaw 2026.10.4 (383c124)
-model openrouter/anthropic/claude-sonnet-5-5
-python(services) 3.13.5
-a2a-sdk(probe) 1.2.2
-docker 28.0.1
-macOS 26.5.1

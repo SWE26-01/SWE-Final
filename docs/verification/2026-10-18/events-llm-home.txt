@@ -1,6 +1,0 @@
-63 orchestrator out smartphone context.query ['presence']  
-64 orchestrator out desktop context.query ['meeting_app_active']  
-65 desktop in orchestrator context.query ['meeting_app_active'] True OK
-66 smartphone in orchestrator context.query ['presence'] True OK
-67 orchestrator out-result desktop context.query  True OK
-68 orchestrator out-result smartphone context.query  True OK

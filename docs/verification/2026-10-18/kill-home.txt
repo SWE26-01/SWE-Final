@@ -1,6 +1,0 @@
-TASK_STATE_COMPLETED {
-  "reason_code": "OK",
-  "message": "OK",
-  "accepted": true
-}
-room1_light_mode=meeting (expect meeting)

@@ -5,6 +5,5 @@ COPY common common
 COPY homeconfig homeconfig
 COPY gateway gateway
 COPY collector collector
-COPY runner runner
 COPY config config
 RUN pip install --no-cache-dir -e .

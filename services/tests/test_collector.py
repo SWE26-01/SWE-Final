@@ -25,8 +25,7 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
 
 
 def received(**kw) -> dict:
-    """room1's log line (agents/ambient-a2a-plugin/src/agent.ts `log()`) for a request Home
-    delegated on behalf of Desktop."""
+    """room1's log line for a request Home delegated on behalf of Desktop."""
     return {
         "ts": "2026-10-18T01:00:00.123Z",
         "agent": "room1",
@@ -209,7 +208,7 @@ TOKENS = {"orchestrator": HOME, "room1": ROOM1, "room2": bearer("t-room2")}
 LIGHT_MODE = {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"}
 SAVE = {"command": "ENERGY_SAVING"}
 
-# What the agents log, in order, for three requests (agents/ambient-a2a-plugin/src/agent.ts):
+# What the agents log, in order, for three requests:
 SCENARIO = [
     # Desktop asks Home for room1's light mode; Home delegates and room1 executes.
     line("orchestrator", "out", "req-1", 1, to="room1", type="device.control", action=LIGHT_MODE),

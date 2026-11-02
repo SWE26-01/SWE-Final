@@ -1,6 +1,6 @@
 """Load and cross-check config/*.yaml plus the secrets they name in the environment.
 
-The Gateway, the Event Collector and the Runner read configuration only through `load_config()`.
+The Gateway and the Event Collector read configuration only through `load_config()`.
 """
 
 from __future__ import annotations
@@ -16,15 +16,7 @@ from urllib.parse import urlsplit, urlunsplit
 import yaml
 from pydantic import BaseModel, ValidationError
 
-from homeconfig.models import (
-    AgentsFile,
-    Caller,
-    Device,
-    DevicesFile,
-    Role,
-    Scenario,
-    ScenariosFile,
-)
+from homeconfig.models import AgentsFile, Caller, Device, DevicesFile, Role
 
 DEFAULT_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 DEFAULT_HA_URL = "http://127.0.0.1:8123"
@@ -47,11 +39,8 @@ class HomeConfig:
     spaces: list[str]
     ha_url: str  # the real Home Assistant (env HA_URL)
     ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
-    openclaw_token: str | None = field(repr=False)  # env OPENCLAW_GATEWAY_TOKEN; only the Runner
-    scenarios: dict[str, Scenario]  # scenario id -> scenario (config/scenarios.yaml, optional)
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
-    # Problems with optional callers (simulators). They never stop the Gateway or the Collector;
-    # the Runner refuses to start with them.
+    # Problems with optional callers (simulators). They never stop the Gateway or the Collector.
     optional_problems: list[str]
     _by_token: dict[str, str] = field(repr=False)
 
@@ -103,21 +92,14 @@ _ARTICLE = {Role.AGENT: "an agent", Role.OPERATOR: "an operator", Role.SIMULATOR
 def load_config(
     config_dir: Path | str | None = None, env: Mapping[str, str] | None = None
 ) -> HomeConfig:
-    """Read agents.yaml, devices.yaml and (if present) scenarios.yaml from `config_dir`, resolve
-    tokens from `env` (default: the process environment) and check everything.
-    Raises ConfigError."""
+    """Read agents.yaml and devices.yaml from `config_dir`, resolve tokens from `env`
+    (default: the process environment) and check everything. Raises ConfigError."""
     base = Path(config_dir) if config_dir is not None else DEFAULT_CONFIG_DIR
     env = os.environ if env is None else env
     problems: list[str] = []
     agents_f = _read(base / "agents.yaml", AgentsFile, problems)
     devices_f = _read(base / "devices.yaml", DevicesFile, problems)
-    scenarios_path = base / "scenarios.yaml"
-    scenarios_f = (
-        _read(scenarios_path, ScenariosFile, problems)
-        if scenarios_path.exists()
-        else ScenariosFile()
-    )
-    if agents_f is None or devices_f is None or scenarios_f is None:
+    if agents_f is None or devices_f is None:
         raise ConfigError(problems)
 
     callers: dict[str, Caller] = {}
@@ -133,7 +115,7 @@ def load_config(
             problems.append(f"{caller_id!r} is listed as both {first} and {_ARTICLE[role]}")
             continue
         roles[caller_id] = role
-        # A simulator is optional: without a usable token only the Live Simulation stays read-only.
+        # A simulator is optional: without a usable token the other services still start.
         found = optional_problems if role is Role.SIMULATOR else problems
         token = env.get(entry.token_env, "")
         if not token:
@@ -156,18 +138,6 @@ def load_config(
             problems.append(f"device {d.entity!r}: owner {d.owner!r} is not an agent")
         devices[d.entity] = d
 
-    scenarios: dict[str, Scenario] = {}
-    for s in scenarios_f.scenarios:
-        if s.id in scenarios:
-            problems.append(f"duplicate scenario {s.id!r}")
-        for step in s.steps:
-            if step.agent not in agents_f.agents:
-                problems.append(f"scenario {s.id!r}: {step.agent!r} is not an agent")
-        for entity in s.expect:
-            if entity not in devices:
-                problems.append(f"scenario {s.id!r}: expects unknown device {entity!r}")
-        scenarios[s.id] = s
-
     cors_origins = [o.strip() for o in env.get("AMBIENT_CORS_ORIGINS", "").split(",") if o.strip()]
     for origin in cors_origins:
         if not re.fullmatch(r"https?://[^/\s]+", origin):
@@ -181,8 +151,6 @@ def load_config(
         spaces=list(devices_f.spaces),
         ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
         ha_token=env.get("HA_TOKEN") or None,
-        openclaw_token=env.get("OPENCLAW_GATEWAY_TOKEN") or None,
-        scenarios=scenarios,
         cors_origins=cors_origins,
         optional_problems=optional_problems,
         _by_token=by_token,

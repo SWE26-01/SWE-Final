@@ -1,26 +1,11 @@
 #!/usr/bin/env bash
-# One-time setup: Node 24 + OpenClaw, plugin deps, Python probe venv, .env with fresh tokens,
+# One-time setup: Python venv for the helpers, .env with fresh tokens,
 # Home Assistant container + long-lived token. Safe to re-run; finished steps are skipped.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-OPENCLAW_VERSION=2026.10.4
 say() { printf '\033[1;36m▸ %s\033[0m\n' "$*"; }
 
-say "Node 24 (OpenClaw needs >=24.16)"
-export NVM_DIR=${NVM_DIR:-$HOME/.nvm}
-[ -s "$NVM_DIR/nvm.sh" ] || { echo "nvm not found at $NVM_DIR — install Node 24.16+ manually" >&2; exit 1; }
-. "$NVM_DIR/nvm.sh"
-nvm install 24 >/dev/null && nvm use 24 >/dev/null
-node -v
-
-say "OpenClaw $OPENCLAW_VERSION"
-[ "$(openclaw --version 2>/dev/null | grep -o '[0-9.]*' | head -1)" = "$OPENCLAW_VERSION" ] || npm i -g "openclaw@$OPENCLAW_VERSION"
-command -v pnpm >/dev/null || npm i -g pnpm
-
-say "plugin dependencies"
-(cd "$ROOT/agents/ambient-a2a-plugin" && pnpm install --frozen-lockfile --silent)
-
-say "python venv for the a2a-sdk probe"
+say "python venv for the HA token helper"
 [ -x "$ROOT/.venv/bin/python" ] || python3 -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/pip" install -q -r "$ROOT/scripts/requirements.txt"
 
@@ -46,7 +31,4 @@ if [ -z "${HA_TOKEN:-}" ]; then
 fi
 
 say "done"
-if grep -q '^OPENROUTER_API_KEY=$' "$ENV"; then
-  echo "→ put your key in .env: OPENROUTER_API_KEY=sk-or-..."
-fi
 echo "→ then: scripts/run_all.sh"

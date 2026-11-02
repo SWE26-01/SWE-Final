@@ -1,4 +1,4 @@
-# Virtual devices only (no real hardware). Each entity has exactly one owning agent — see agents/*/openclaw.json5 `owned`.
+# Virtual devices only (no real hardware). Each entity has exactly one owning agent — see services/config/devices.yaml.
 default_config:
 
 input_boolean:

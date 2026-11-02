@@ -68,8 +68,8 @@ class EventStore:
 
     def add(self, event: AgentEvent) -> StoredEvent:
         raw, flow = event.stored(), flow_of(event.request_id)
-        # The Collector's own clock, shared with the Runner: dashboards match events to runs with it
-        # (an agent's `ts` comes from the host, which can drift from the Docker VM's clock).
+        # The Collector's own clock: an agent's `ts` comes from its host, which can drift from the
+        # Docker VM's clock.
         received_at = datetime.now(UTC).isoformat()
         with self._db:
             cur = self._db.execute(

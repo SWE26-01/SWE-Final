@@ -1,7 +1,7 @@
 [project]
 name = "a2a-agentic-home"
 version = "0.1.0"
-description = "A2A based Agentic Home: Device Gateway, Event Collector and Runner for the Ambient-A2A smart home agents"
+description = "Agent Hub & Studio: Device Gateway and Event Collector for the virtual home"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
@@ -17,7 +17,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["common", "homeconfig", "gateway", "collector", "runner"]
+packages = ["common", "homeconfig", "gateway", "collector"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -26,7 +26,6 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["spikes"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

@@ -4,63 +4,38 @@
 
 ## 무엇을 만드나
 
-**A2A based Agentic Home**: A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분산 스마트홈 제어 시스템.
-한양대 CSE406 소프트웨어공학 Phase 2 텀 프로젝트이고, 주제는 LG전자 IC-PBL "Proactive Agentic Home"이다. 학기 말에 LG 데모를 한다.
+**Agent Hub & Studio**: A2A 기반 스마트홈 에이전트 생성·연결 플랫폼. 개발 계획은 루트 `AGENT_HUB_STUDIO_DEV_PLAN.md`.
+한양대 CSE406 소프트웨어공학 텀 프로젝트이고, 주제는 LG전자 IC-PBL "Proactive Agentic Home"이다. 학기 말에 LG 데모를 한다.
 
-- 기획서: 루트 `plan.md`. 세부 기획서: https://claude.ai/code/artifact/149b9ec3-d478-4a2e-8de2-2b0fb944c111
+- Studio: 자연어 요구 → 확인 질문 → 구조화된 에이전트 명세(`AgentSpec`) → 검증·미리보기
+- Hub: 명세와 실행 주소 등록, 탐색, 연결 승인(`ConnectionBinding`), 중지·연결 해제
+- 공통 실행기가 명세를 실행하고, 생성된 에이전트는 Home Agent와 A2A로 작업을 주고받는다(Home-A2A: 상태 구독, 환경 변경 요청)
+- 첫 시연: 운동 코치 에이전트(`session_assistant` 템플릿) + 가상 스마트홈
 
-## 레포 구성 (2026-10-18 통합)
+## 피봇 (2026-11-02, 브랜치 `hub-studio`)
 
-팀 레포 세 개를 커밋 기록째 이 레포(SWE26-01/SWE-Final) 하나로 합쳤다.
-
-**작업 흐름**
-- **2026-10-18부터 모든 작업을 SWE-Final에서 한다.** 에이전트 경로(`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`)도 여기서 바로 고친다.
-  A2A-agents는 이 시점까지의 커밋이 모두 들어온 상태(미반영 0건)에서 개발을 멈췄다. 그쪽에 PR을 올리지 않고, `tools/sync_upstream.sh`도 더 쓰지 않는다.
-- 프론트(SWE-frontend)와 a2a-agentic-home도 더 이상 쓰지 않는다. `frontend/`, `services/`도 여기서 바로 작업한다.
-- 각자 브랜치에서 작업하고 PR로 `main`에 합친다(예: `nsu102/dev`, `frontend`).
-
-| 폴더 | 원래 레포 | 담당 | 내용 |
-| --- | --- | --- | --- |
-| 루트 (`agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, orchestrator(=Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `ambient-a2a`에 확장 규칙이 들어 있다 |
-| `services/` | a2a-agentic-home | jwsong05, sjounng | Device Gateway(HA 앞 주인 재확인), Event Collector(통신 기록 모음), 연동 확인 |
-| `frontend/` | SWE-frontend (연결 끊음) | lahee3423(원작), 실제 데이터 연결은 SWE-Final 관리자 | 시뮬레이터 화면(React). 실제 데이터 연결 방법: `docs/frontend-integration.md` |
-
-`services/`는 처음에 Python(a2a-sdk) 에이전트를 만들다가, A2A-agents가 같은 시스템을 OpenClaw로 먼저 끝까지 구현해서
-에이전트를 그쪽으로 일원화하고 Gateway·Collector만 남겼다.
+A2A based Agentic Home(OpenClaw 에이전트 5개가 Ambient-A2A 확장으로 상태를 공유하고 방별로 기기를 나눠 제어)에서 방향을 바꿨다.
+지운 것: OpenClaw 에이전트와 TS 플러그인(`agents/`), Ambient-A2A 명세(`spec/`), Runner(`services/runner`), a2a-sdk 실험(`services/spikes`),
+EXAONE 학습 실험(`training/`), 예전 기획서(`plan.md`)와 실행·검증·성능 문서.
+모두 피봇 직전 커밋 `216840e`에 있다. 예: `git show 216840e:services/spikes/02_subscription_scope_chain.py`(a2a-sdk 1.2.2 서버·클라이언트 예제).
 
 ## 확정된 결정
 
-- **예측 모델은 만들지 않는다.** 외부 기기의 현재 상태와 공간별 정책으로 판단한다.
-- **LLM**: 모든 에이전트가 LLM을 쓰고, 에이전트마다 다른 컨텍스트(역할 지침 `AGENTS.md`, 자기 상태)를 가진다.
-  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter의 `anthropic/claude-haiku-5.5`(`AMBIENT_MODEL`, 2026-10-19에 Sonnet 5.5에서 바꿈. 비교는 `docs/performance.md`)이고 에이전트별로 바꿀 수 있다.
-- **분산 제어**: 각 기기는 담당 에이전트가 하나다. Home도 방 기기는 주인 에이전트에게 넘기기만 한다(`on_behalf_of`).
-- **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
-  Collector는 정해진 필드만 저장하며, Gateway는 `services/config/devices.yaml`에 있는 엔티티만 보여 준다.
-- **에이전트는 Gateway를 거쳐 HA를 쓰고, 기록을 Collector로 보낸다.** SWE-Final에서는 `scripts/run_all.sh`가 둘을 함께 띄워 기본으로 켜진다
-  (`AMBIENT_SERVICES=off`로 끔, A2A-agents#1·#2). 켜면 에이전트는 HA 토큰 대신 자기 토큰을 쓰고, HA 토큰은 Gateway와 설정 스크립트만 쓴다.
-- **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
-- **대시보드는 `frontend/`에서 만든다.** 데이터는 `services/`(Gateway·Collector)에서만 읽는다(`docs/frontend-integration.md`).
-- **Live Simulation은 실제 LLM으로 돈다(2026-10-19).** 화면은 `services/runner`에 시나리오나 자유 입력을 보내고, Runner가 사용자처럼
-  에이전트의 LLM(OpenClaw chat 엔드포인트)에 말을 건다. Runner는 기기를 직접 움직이지 않는다. 실행은 시뮬레이터 토큰(`SIMULATOR_TOKEN`)으로만
-  하고 대시보드 토큰은 읽기 전용 그대로다. 시나리오 준비도 주인 에이전트에게 말로 시킨다(`services/config/scenarios.yaml`).
+- **실행기와 Home Agent는 Python으로 새로 만든다(OpenClaw를 쓰지 않음, 2026-11-02).** 생성된 에이전트는 명세 인스턴스라서
+  Python 프로세스 하나가 a2a-sdk로 여러 개를 띄우는 편이 맞다. OpenClaw는 에이전트마다 Node 프로세스(약 1.2GB)가 떠야 하고,
+  세션·타이머 로직도 결국 TS 플러그인 코드로 써야 했다. 생성 서비스·Hub·검증기와 언어도 맞춘다.
+- **가상 기기는 Home Assistant + Device Gateway를 그대로 쓴다(2026-11-02).** HA 엔티티는 새 시나리오(재실, 온도, 조명, 냉방, TV)로 바꾼다.
+- **새 Python 구성 요소는 `services/`에 넣는다.** pyproject, CI(ruff, pytest, contracts 검사), Dockerfile, 토큰 인증(`common/auth.py`)을 같이 쓴다.
+- Event Collector는 통합 로그와 요청 ID 추적에, `frontend/`는 시뮬레이터 화면에 재사용한다.
+- 계획서의 원칙: LLM은 명세(와 실행 중 안내 문구)만 만든다. 인증·권한·타이머·세션 전이는 코드가 한다.
+  Agent Card는 검증된 명세와 실행 주소에서 결정적으로 만든다. 명세와 집별 연결 정보·자격 증명은 분리한다.
 
 ## 아직 정할 것
 
-- **방 LLM의 판단 범위**: 지금 LLM은 사람이 그 에이전트에게 말할 때만 일한다. 다른 에이전트가 보낸 요청은
-  플러그인 코드의 규칙이 LLM 없이 처리한다. "방 LLM이 요청을 보고 판단하고 규칙이 마지막에 막는" 구조로 바꿀지 정해야 한다.
-- **사용자 승인(Human Approval, P1)**: 아직 없다. 메시지 규칙과 흐름은 에이전트 쪽, 승인 토큰 검사와 기록은 `services/` 쪽.
-- **services/ 범위 확대 후보**: 사용자 승인 전체, 검증 자동화 + LLM 안전성 평가, Python 방 에이전트(상호 운용성), Desktop 실제 신호.
-
-## services/ 구현 메모
-
-- Gateway는 HA REST API와 같은 경로를 받는다(`GET /api/states/<entity>`, `POST /api/services/<domain>/<service>`).
-  그래서 플러그인의 `ha.ts`는 고치지 않고 주소와 토큰만 바꾸면 된다. 허용하는 서비스는 `input_boolean` on/off/toggle,
-  `input_select.select_option`, `input_number.set_value`뿐이다. `entity_id`의 쉼표 목록과 `all`도 하나씩 검사한다.
-- Gateway는 HA WebSocket(`state_changed`)을 구독한다. 다시 연결되면 전체 상태를 다시 읽어 대시보드에 `snapshot`을 다시 보낸다.
-- 테스트는 가짜 HA(`httpx.MockTransport`, 가짜 WebSocket)로 돌아서 CI에 HA가 필요 없다.
-- 실제 환경 확인(2026-10-18, 로컬): HA + 에이전트 5개 + `services/docker-compose.yml`로 띄운 Gateway·Collector에서
-  `scripts/scenario.sh` 결과가 그대로이고, `services/scripts/verify_integration.py` 세 항목이 모두 통과했다.
-- `scripts/setup.sh`를 HA 초기 설정 뒤에 다시 돌리면 멈추던 문제는 A2A-agents#2에서 고쳤다.
+- 생성 모델: Claude와 Gemini 중 구조화 출력을 쓸 모델 하나(계획서 4장). 모델 ID·옵션은 설정에 기록하고 실험 중 고정한다.
+- A2A SDK 버전 고정: 사전 실험은 a2a-sdk 1.2.2로 했다(아래).
+- Studio UI: `frontend/`에 TypeScript로 넣을지, 별도 앱으로 둘지.
+- Hub 인증 방식과 연결 해제 시 토큰 무효화 방법(MVP는 통제된 개발 네트워크).
 
 ## 사전 실험에서 확인한 것 (A2A v1.0, a2a-sdk 1.2.2)
 
@@ -69,19 +44,25 @@
 - 권한 검사를 에이전트 로직 안에서만 하면 Task 조회·취소로 우회될 수 있다. HTTP 계층에서 토큰으로 막아야 한다.
 - 에이전트 사이 왕복 지연은 로컬에서 약 20ms이고, 느려지는 원인은 LLM 호출뿐이다.
 
-## 현재 상태
+## services/ 구현 메모
 
-- 에이전트 5개, Ambient-A2A 확장 1~4, HA 가상 기기, 검증 시나리오: 동작한다(`scripts/scenario.sh`).
-- services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트 완료, 에이전트와 연결 완료(검증 통과),
-  아키텍처 문서 초안 `docs/architecture-services.md`(영문, #5의 services 부분), 검증 결과 보고서 `docs/verification-report.md`(#6).
-- 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다(tool 직접 노출, 프롬프트 축소, 추론 끔, `scripts/say.sh`). 측정과 바꾼 설정은 `docs/performance.md`.
-- EXAONE 4.0 1.2B 학습 실험(`training/`, 문서 `docs/dpo-experiment.md`): 기본 모델은 평가 0/6, Haiku 정답으로 SFT한 뒤 자동 검사 6/6(내용까지 맞은 것 4/6). DPO는 진행 중. 기본 LLM은 계속 Haiku.
-- frontend: LIVE/MOCK 전환. LIVE에서 Home·3D Model·Agent Activity 탭이 Gateway·Collector의 실제 데이터를 보여 준다(`frontend/src/live/`).
-  에이전트 카드는 Collector가 5초마다 Agent Card를 확인한 실제 상태다(`GET /agents`, WebSocket `agents`).
-  Live Simulation 탭은 LIVE에서 Runner로 실제 LLM을 돌리고(MOCK은 가짜 시나리오 그대로), Control Mode 탭은 데모용 가짜 데이터.
-  화면에서 기기 조작은 막혀 있다(대시보드 토큰은 읽기 전용).
-- 다음(services): 사용자 승인 토큰 검사(#2, 승인 방식이 정해진 뒤). 검증 보고서의 한계 항목(새 방 연결 시험 등)은 필요할 때 보강.
-- Runner(`services/runner`, 2026-10-19): 시나리오 5개, 자유 입력, 한 번에 실행 하나, WebSocket 진행 상황. 단위 테스트는 가짜 OpenClaw,
-  실제로는 Docker 안 Runner → desktop 에이전트 → LLM 답변까지 확인. Live Simulation 탭 LIVE 모드도 Runner에 연결함(`docs/frontend-integration.md` 8).
-  에이전트의 chat 엔드포인트는 `agents/gateway.json5`에 켜져 있다(`scripts/say.sh`와 같이 씀).
-  남은 것: 시나리오 전체를 에이전트 5개로 돌려 보기(RAM 8GB PC로는 부족).
+- Gateway는 HA REST API와 같은 경로를 받는다(`GET /api/states/<entity>`, `POST /api/services/<domain>/<service>`).
+  그래서 HA 클라이언트는 주소와 토큰만 바꾸면 된다. 허용하는 서비스는 `input_boolean` on/off/toggle,
+  `input_select.select_option`, `input_number.set_value`뿐이다. `entity_id`의 쉼표 목록과 `all`도 하나씩 검사한다.
+- Gateway는 HA WebSocket(`state_changed`)을 구독한다. 다시 연결되면 전체 상태를 다시 읽어 대시보드에 `snapshot`을 다시 보낸다.
+- 테스트는 가짜 HA(`httpx.MockTransport`, 가짜 WebSocket)로 돌아서 CI에 HA가 필요 없다.
+- Collector는 정해진 필드만 저장하고(`collector/events.py`), `request_id`의 첫 `/` 앞부분(flow)이 같은 기록을 `GET /flows`로 묶는다.
+
+## 현재 상태 (2026-11-02)
+
+- `services/`: Gateway·Collector 동작, 테스트 82개 통과.
+- 가상 집 설정(HA 엔티티, `services/config/devices.yaml`, `agents.yaml`)은 아직 예전 집이다(거실·내 방·보호 방, 에이전트 ID
+  `orchestrator`·`room1`·`room2`·`desktop`·`smartphone`). 새 시나리오의 집과 Home Agent 하나(`home`)로 바꿔야 한다.
+- `frontend/`: LIVE의 Home·3D Model·Agent Activity는 Gateway·Collector를 그대로 읽는다. Live Simulation 실행과 Agents 탭 대화는
+  지운 Runner를 부르므로 LIVE에서 "연결 안 됨"으로 나온다. MOCK은 그대로다. 시뮬레이터를 새로 만들 때 바꾼다.
+
+## 다음 (계획서 8장 1주차 전반)
+
+1. `AgentSpec`, `ConnectionBinding`, 도구 카탈로그, `session_assistant` 템플릿을 공통 JSON 예제로 합의한다.
+2. 손으로 쓴 운동 명세가 Pydantic + 의미 검증을 통과하게 한다.
+3. 가상 집을 새 시나리오로 바꾸고(HA 엔티티, `devices.yaml`, `agents.yaml`), Home Agent와 공통 실행기를 붙인다.
