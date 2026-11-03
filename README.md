@@ -17,7 +17,6 @@ A2A 기반 스마트홈 에이전트 생성·연결 플랫폼 (한양대 CSE406 
 |---|---|
 | [services/](services/) | Python. Device Gateway(HA 앞에서 기기 주인 확인), Event Collector(통신 기록, 요청 흐름). Hub, 생성 서비스, 명세 검증기, 실행기, Home Agent도 여기에 추가한다 |
 | [homeassistant/](homeassistant/) | 가상 기기(HA `input_*` helper)와 Lovelace 대시보드. 실제 가전 연동은 없다 |
-| [frontend/](frontend/) | 시뮬레이터 화면(React). LIVE/MOCK 전환, 실제 데이터 연결은 [docs/frontend-integration.md](docs/frontend-integration.md) |
 | [scripts/](scripts/) | `setup.sh`(최초 1회: `.env` 토큰, HA 컨테이너와 토큰), `run_all.sh`(HA + Gateway + Collector) |
 
 ## 실행
@@ -26,7 +25,7 @@ A2A 기반 스마트홈 에이전트 생성·연결 플랫폼 (한양대 CSE406 
 scripts/setup.sh                                    # 최초 1회. 다시 실행해도 안전함
 scripts/run_all.sh                                  # HA + Gateway(8100) + Collector(8200)
 cd services && pip install -e ".[dev]" && pytest    # Python 테스트
-cd frontend && npm ci && npm run dev                # 시뮬레이터 (http://localhost:5173)
 ```
 
-HA 로그인은 `admin` / `.env`의 `HA_ADMIN_PASSWORD`다.
+HA 로그인은 `admin` / `.env`의 `HA_ADMIN_PASSWORD`다. 아직 화면(UI)이 없으니 사용자 역할(거실 재실, 온도, TV)은
+HA의 Ambient Home 대시보드에서 바꾼다.

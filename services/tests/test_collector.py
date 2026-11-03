@@ -8,7 +8,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
-from support import DASHBOARD, ENV, HOME, ROOM1, bearer
+from support import COACH, CONFIG, DASHBOARD, ENV, HOME, bearer
 
 import collector.main
 from collector.events import TEXT_LIMIT
@@ -16,28 +16,33 @@ from collector.main import create_app
 from common.hub import Hub
 from homeconfig import load_config
 
+# Message types and reason codes in these tests are examples; Home-A2A will define the real ones.
+BRIGHTNESS = "input_number.living_light_brightness"
+AC_TARGET = "input_number.living_ac_target"
+DIM = {"device": BRIGHTNESS, "command": "SET", "value": 80}
+TOKENS = {"home": HOME, "coach": COACH}
+
 
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
-    app = create_app(load_config(env=ENV), str(tmp_path / "events.sqlite"), watch_agents=False)
+    app = create_app(load_config(CONFIG, ENV), str(tmp_path / "events.sqlite"), watch_agents=False)
     with TestClient(app) as c:
         yield c
 
 
 def received(**kw) -> dict:
-    """room1's log line for a request Home delegated on behalf of Desktop."""
+    """Home's log line for the workout coach's request to change the light."""
     return {
         "ts": "2026-10-18T01:00:00.123Z",
-        "agent": "room1",
+        "agent": "home",
         "dir": "in",
-        "from": "orchestrator",
-        "type": "device.control",
+        "from": "coach",
+        "type": "environment.request",
         "request_id": "scn-A1",
-        "on_behalf_of": "desktop",
-        "action": {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"},
+        "action": DIM,
         "accepted": True,
         "reason_code": "OK",
-        "message": "SET input_select.room1_light_mode=meeting",
+        "message": f"SET {BRIGHTNESS}=80",
         **kw,
     }
 
@@ -59,7 +64,7 @@ def test_requires_token(client):
 
 def test_stores_the_agents_own_log_line(client):
     before = datetime.now(UTC)
-    assert post(client, ROOM1, received()).json() == {"id": 1}
+    assert post(client, HOME, received()).json() == {"id": 1}
     (stored,) = events(client)
     received_at = datetime.fromisoformat(stored.pop("received_at"))  # the Collector's own clock
     assert before <= received_at <= datetime.now(UTC)
@@ -68,38 +73,37 @@ def test_stores_the_agents_own_log_line(client):
 
 LINES = [
     {
+        "agent": "coach",
         "dir": "out",
-        "to": "room1",
-        "type": "device.control",
+        "to": "home",
+        "type": "environment.request",
         "request_id": "scn-A1",
-        "action": {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"},
+        "action": DIM,
     },
     {
+        "agent": "coach",
         "dir": "out-result",
-        "to": "room2",
-        "type": "device.control",
+        "to": "home",
+        "type": "environment.request",
         "accepted": False,
-        "reason_code": "SAFETY_POLICY",
+        "reason_code": "DEVICE_IN_USE",
     },
-    {"dir": "out-error", "to": "room2", "type": "device.control", "error": "fetch failed"},
+    {"agent": "coach", "dir": "out-error", "to": "home", "error": "connection refused"},
     {
+        "agent": "home",
         "dir": "exec",
-        "action": {"device": "input_boolean.living_tv_muted", "command": "TURN_ON"},
+        "action": DIM,
+        "on_behalf_of": "coach",
         "accepted": True,
         "reason_code": "OK",
     },
+    {"agent": "coach", "dir": "rule", "rule": "occupancy=false", "accepted": True},
     {
-        "dir": "rule",
-        "rule": 'presence="AWAY"',
-        "action": {"macro": "energy_saving"},
-        "accepted": False,
-        "reason_code": "PARTIAL",
-    },
-    {
+        "agent": "home",
         "dir": "in",
         "from": "?",  # unknown bearer token
-        "type": "context.query",
-        "fields": ["pc_state"],
+        "type": "state.subscribe",
+        "fields": ["occupancy"],
         "accepted": False,
         "reason_code": "UNAUTHORIZED",
     },
@@ -108,24 +112,24 @@ LINES = [
 
 @pytest.mark.parametrize("line", LINES)
 def test_every_kind_of_log_line(client, line):
-    body = {"ts": "2026-10-18T01:00:00Z", "agent": "orchestrator", **line}
-    assert post(client, HOME, body).status_code == 201
+    body = {"ts": "2026-10-18T01:00:00Z", **line}
+    assert post(client, TOKENS[line["agent"]], body).status_code == 201
 
 
 def test_unknown_fields_are_dropped(client):
-    # A future log field must never carry context values into the audit log.
-    post(client, ROOM1, received(data={"meeting_title": "1:1 with boss"}, extra=1))
+    # A future log field must never carry personal data into the audit log.
+    post(client, HOME, received(data={"heart_rate": 142}, extra=1))
     (stored,) = events(client)
     assert "data" not in stored and "extra" not in stored
 
 
 def test_long_text_is_cut(client):
-    post(client, ROOM1, received(message="x" * 1000))
+    post(client, HOME, received(message="x" * 1000))
     assert len(events(client)[0]["message"]) == TEXT_LIMIT
 
 
 def test_agent_must_report_as_itself(client):
-    assert post(client, HOME, received()).status_code == 403
+    assert post(client, COACH, received()).status_code == 403
 
 
 def test_dashboard_cannot_post(client):
@@ -141,17 +145,17 @@ def test_dashboard_cannot_post(client):
         {"ts": "2026-10-18T01:00:00"},  # naive datetime
         {"reason_code": "ok"},
         {"accepted": "maybe"},
-        {"fields": "pc_state"},
+        {"fields": "occupancy"},
     ],
 )
 def test_invalid_event_rejected(client, bad):
-    assert post(client, ROOM1, received(**bad)).status_code == 422
+    assert post(client, HOME, received(**bad)).status_code == 422
 
 
 def test_get_pages_and_is_operator_only(client):
     for i in range(5):
-        post(client, ROOM1, received(request_id=f"r{i}"))
-    assert client.get("/events", headers=ROOM1).status_code == 403
+        post(client, HOME, received(request_id=f"r{i}"))
+    assert client.get("/events", headers=HOME).status_code == 403
 
     page = client.get("/events", params={"limit": 2}, headers=DASHBOARD).json()
     assert [e["id"] for e in page] == [1, 2]
@@ -164,21 +168,21 @@ def test_get_pages_and_is_operator_only(client):
 def test_websocket_snapshot_then_live(client, monkeypatch):
     monkeypatch.setattr(collector.main, "SNAPSHOT_SIZE", 2)
     for i in range(3):
-        post(client, ROOM1, received(request_id=f"r{i}"))
+        post(client, HOME, received(request_id=f"r{i}"))
 
     with client.websocket_connect("/ws?token=t-dashboard") as ws:
         snap = ws.receive_json()
         assert snap["type"] == "snapshot"
         assert [e["id"] for e in snap["events"]] == [2, 3]
 
-        post(client, HOME, {"ts": "2026-10-18T01:00:00Z", "agent": "orchestrator", "dir": "exec"})
+        post(client, HOME, {"ts": "2026-10-18T01:00:00Z", "agent": "home", "dir": "exec"})
         msg = ws.receive_json()
         assert msg["type"] == "event"
         assert (msg["event"]["id"], msg["event"]["dir"]) == (4, "exec")
         assert "to" not in msg["event"]  # unset fields are left out
 
 
-@pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])
+@pytest.mark.parametrize("query", ["", "?token=t-home", "?token=nope"])
 def test_websocket_is_operator_only(client, query):
     with pytest.raises(WebSocketDisconnect) as exc:
         with client.websocket_connect(f"/ws{query}") as ws:
@@ -204,34 +208,32 @@ def line(agent: str, dir: str, rid: str | None, at: int, **kw) -> dict:
     return body | ({"request_id": rid} if rid else {})
 
 
-TOKENS = {"orchestrator": HOME, "room1": ROOM1, "room2": bearer("t-room2")}
-LIGHT_MODE = {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"}
-SAVE = {"command": "ENERGY_SAVING"}
+RESTORE = {"command": "RESTORE"}
 
 # What the agents log, in order, for three requests:
 SCENARIO = [
-    # Desktop asks Home for room1's light mode; Home delegates and room1 executes.
-    line("orchestrator", "out", "req-1", 1, to="room1", type="device.control", action=LIGHT_MODE),
-    line("room1", "exec", "req-1", 2, action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("room1", "in", "req-1", 2, **{"from": "orchestrator"}, type="device.control",
-         on_behalf_of="desktop", action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("orchestrator", "out-result", "req-1", 3, to="room1", type="device.control",
+    # The coach asks Home to change the light for the workout; Home does it for the coach.
+    line("coach", "out", "req-1", 1, to="home", type="environment.request", action=DIM),
+    line("home", "exec", "req-1", 2, action=DIM, on_behalf_of="coach", accepted=True,
+         reason_code="OK"),
+    line("home", "in", "req-1", 2, **{"from": "coach"}, type="environment.request", action=DIM,
          accepted=True, reason_code="OK"),
-    line("orchestrator", "in", "req-1", 3, **{"from": "desktop"}, type="device.control",
-         action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    # Context updates carry no request_id and belong to no flow.
-    line("room1", "in", None, 4, **{"from": "desktop"}, type="context.update", accepted=True),
-    # Energy saving: each room gets `<id>/<room>`; room2 keeps its AC on.
-    line("room2", "in", "req-2/room2", 5, **{"from": "orchestrator"}, type="device.control",
-         action=SAVE, accepted=False, reason_code="PARTIAL"),
-    line("room1", "in", "req-2/room1", 5, **{"from": "orchestrator"}, type="device.control",
-         action=SAVE, accepted=True, reason_code="OK"),
-    line("orchestrator", "in", "req-2", 6, **{"from": "desktop"}, type="device.control",
-         action=SAVE, accepted=False, reason_code="PARTIAL"),
-    # A rule room1 fired by itself.
-    line("room1", "exec", "r-3", 7, action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("room1", "rule", "r-3", 7, rule="meeting_app_active=true", action=LIGHT_MODE,
-         accepted=True, reason_code="OK"),
+    line("coach", "out-result", "req-1", 3, to="home", type="environment.request", accepted=True,
+         reason_code="OK"),
+    # State updates carry no request_id and belong to no flow.
+    line("coach", "in", None, 4, **{"from": "home"}, type="state.update", fields=["occupancy"],
+         accepted=True),
+    # Session end: Home restores each device the session changed (`<id>/<device>`); the user set
+    # the AC by hand meanwhile, so that one stays.
+    line("coach", "out", "req-2", 5, to="home", type="environment.restore", action=RESTORE),
+    line("home", "exec", "req-2/brightness", 6, action=DIM | {"value": 50}, accepted=True,
+         reason_code="OK"),
+    line("home", "exec", "req-2/ac", 6, action={"device": AC_TARGET, "command": "SET", "value": 26},
+         accepted=False, reason_code="USER_CHANGED"),
+    line("home", "in", "req-2", 7, **{"from": "coach"}, type="environment.restore", action=RESTORE,
+         accepted=False, reason_code="PARTIAL"),
+    # A rule the coach fired by itself: the user left, so it paused the session.
+    line("coach", "rule", "r-3", 8, rule="occupancy=false", accepted=True, reason_code="OK"),
 ]
 
 
@@ -244,19 +246,19 @@ def test_flows_follow_requests_across_agents(client):
     play(client)
     flows = client.get("/flows", headers=DASHBOARD).json()
     assert [f["flow"] for f in flows] == ["r-3", "req-2", "req-1"]  # most recent first
-    rule, saving, delegated = flows
+    rule, restore, dimmed = flows
 
-    assert delegated["requester"] == "desktop" and delegated["entry"] == "orchestrator"
-    assert delegated["agents"] == ["orchestrator", "room1"]
-    assert (delegated["events"], delegated["accepted"], delegated["reason_code"]) == (5, True, "OK")
-    assert delegated["action"]["device"] == "input_select.room1_light_mode"
-    assert delegated["started_at"] == "2026-10-18T01:00:01Z"
+    assert dimmed["requester"] == "coach" and dimmed["entry"] == "home"
+    assert dimmed["agents"] == ["coach", "home"]
+    assert (dimmed["events"], dimmed["accepted"], dimmed["reason_code"]) == (4, True, "OK")
+    assert dimmed["action"]["device"] == BRIGHTNESS
+    assert dimmed["started_at"] == "2026-10-18T01:00:01Z"
 
-    assert (saving["requester"], saving["entry"]) == ("desktop", "orchestrator")
-    assert saving["agents"] == ["room2", "room1", "orchestrator"]
-    assert (saving["accepted"], saving["reason_code"]) == (False, "PARTIAL")
+    assert (restore["requester"], restore["entry"]) == ("coach", "home")
+    assert restore["agents"] == ["coach", "home"]
+    assert (restore["accepted"], restore["reason_code"]) == (False, "PARTIAL")
 
-    assert (rule["requester"], rule["entry"], rule["accepted"]) == ("room1", "room1", True)
+    assert (rule["requester"], rule["entry"], rule["accepted"]) == ("coach", "coach", True)
 
     assert len(client.get("/flows", params={"limit": 1}, headers=DASHBOARD).json()) == 1
 
@@ -265,15 +267,16 @@ def test_flow_detail_and_events_carry_their_flow(client):
     play(client)
     detail = client.get("/flows/req-2", headers=DASHBOARD).json()
     assert detail["flow"]["flow"] == "req-2"
-    assert [e["request_id"] for e in detail["events"]] == ["req-2/room2", "req-2/room1", "req-2"]
+    ids = [e["request_id"] for e in detail["events"]]
+    assert ids == ["req-2", "req-2/brightness", "req-2/ac", "req-2"]
     assert client.get("/flows/nope", headers=DASHBOARD).status_code == 404
     flows_of = {e["id"]: e.get("flow") for e in events(client)}
-    assert flows_of[6] is None and flows_of[7] == "req-2"
+    assert flows_of[5] is None and flows_of[7] == "req-2"
 
 
 def test_flows_are_operator_only(client):
-    assert client.get("/flows", headers=ROOM1).status_code == 403
-    assert client.get("/flows/req-1", headers=ROOM1).status_code == 403
+    assert client.get("/flows", headers=HOME).status_code == 403
+    assert client.get("/flows/req-1", headers=HOME).status_code == 403
     assert client.get("/flows").status_code == 401
 
 
@@ -282,44 +285,38 @@ def test_old_database_gets_flows(tmp_path):
     conn = sqlite3.connect(db)  # schema before flows existed
     with conn:
         conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT)")
-        for body in SCENARIO[:5]:
+        for body in SCENARIO[:4]:
             conn.execute("INSERT INTO events (json) VALUES (?)", (json.dumps(body),))
     conn.close()
-    with TestClient(create_app(load_config(env=ENV), str(db), watch_agents=False)) as c:
+    with TestClient(create_app(load_config(CONFIG, ENV), str(db), watch_agents=False)) as c:
         (flow,) = c.get("/flows", headers=DASHBOARD).json()
-        assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 5, "desktop")
+        assert (flow["flow"], flow["events"], flow["requester"]) == ("req-1", 4, "coach")
         old = events(c)
         assert all("received_at" not in e for e in old)  # arrival time was never recorded
-        assert post(c, ROOM1, received()).status_code == 201
+        assert post(c, HOME, received()).status_code == 201
         assert "received_at" in events(c)[-1]
 
 
 def test_flow_follows_event_time_not_arrival(client):
-    # Agents post concurrently, so lines can arrive out of order: here Home's final answer and
-    # room1's execution arrive before room1's own answer.
-    at = {2: "01:00:02.500", 3: "01:00:03.100", 4: "01:00:03.900"}  # real lines have ms
+    # Agents post concurrently, so lines can arrive out of order: here the coach's result and
+    # Home's answer arrive before Home's execution.
+    at = {1: "01:00:02.100", 2: "01:00:02.500", 3: "01:00:03.100"}  # real lines have ms
     timed = [b | {"ts": f"2026-10-18T{at[i]}Z"} if i in at else b for i, b in enumerate(SCENARIO)]
-    late = [timed[4], timed[0], timed[2], timed[3], timed[1]]
+    late = [timed[3], timed[0], timed[2], timed[1]]
     for body in late:
         assert post(client, TOKENS[body["agent"]], body).status_code == 201
     detail = client.get("/flows/req-1", headers=DASHBOARD).json()
     order = [(e["agent"], e["dir"]) for e in detail["events"]]
-    assert order == [
-        ("orchestrator", "out"),
-        ("room1", "exec"),
-        ("room1", "in"),
-        ("orchestrator", "out-result"),
-        ("orchestrator", "in"),
-    ]
+    assert order == [("coach", "out"), ("home", "exec"), ("home", "in"), ("coach", "out-result")]
     summary = detail["flow"]
-    assert (summary["requester"], summary["entry"]) == ("desktop", "orchestrator")
-    assert (summary["first_id"], summary["last_id"]) == (1, 5)
+    assert (summary["requester"], summary["entry"]) == ("coach", "home")
+    assert (summary["first_id"], summary["last_id"]) == (1, 4)
     assert summary["started_at"] == "2026-10-18T01:00:01Z"
 
 
 def test_collector_cors_only_for_configured_origins(tmp_path):
     env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173"}
-    app = create_app(load_config(env=env), str(tmp_path / "e.sqlite"), watch_agents=False)
+    app = create_app(load_config(CONFIG, env), str(tmp_path / "e.sqlite"), watch_agents=False)
     with TestClient(app) as c:
         r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://localhost:5173"})
         assert r.headers["access-control-allow-origin"] == "http://localhost:5173"

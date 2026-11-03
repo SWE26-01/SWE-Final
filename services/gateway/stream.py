@@ -11,7 +11,7 @@ class DeviceState(BaseModel):
     entity: str = Field(description="Home Assistant entity id, from config/devices.yaml")
     space: str
     owner: str = Field(description="the only agent that may command this device")
-    state: str | None = Field(description="HA state ('on', 'meeting', ...); null if unknown")
+    state: str | None = Field(description="HA state ('on', '24.0', ...); null if unknown")
     attributes: dict[str, Any] = Field(
         default_factory=dict, description="HA attributes, e.g. friendly_name, options"
     )

@@ -1,8 +1,8 @@
-"""Event Collector record: one line of an agent's event log (WBS W8-4).
+"""Event Collector record: one line of an agent's event log.
 
 Agents POST one JSON object per A2A message, execution and automation rule. Only the fields
 below are stored; anything else in the object is dropped, so a new log field can never leak
-data into the audit log by accident. Context values (calendar, presence ...) are never logged.
+data into the audit log by accident. Personal data and secrets are never logged.
 """
 
 from __future__ import annotations
@@ -38,14 +38,13 @@ class Direction(StrEnum):
 
 
 class Action(BaseModel):
-    """`device.control` action ({device?, command, value?}) or a rule macro ({macro})."""
+    """What was asked or done to a device: {device?, command, value?}."""
 
     model_config = ConfigDict(extra="ignore")
 
     device: Annotated[str, Field(max_length=128)] | None = None
     command: Name | None = None
     value: StrictBool | int | float | Name | None = None
-    macro: Name | None = None
 
 
 class AgentEvent(BaseModel):
@@ -58,13 +57,13 @@ class AgentEvent(BaseModel):
     from_: AgentId | None = Field(
         default=None, alias="from", description="peer of an `in` event ('?' if unknown token)"
     )
-    type: Name | None = Field(default=None, description="Ambient-A2A message type")
+    type: Name | None = Field(default=None, description="A2A message type")
     request_id: Annotated[str, Field(max_length=128)] | None = None
     on_behalf_of: AgentId | None = Field(default=None, description="original requester")
     action: Action | None = None
     fields: Annotated[list[Name], Field(max_length=32)] | None = None
     accepted: bool | None = None
-    reason_code: Code | None = Field(default=None, description="OK, NOT_OWNER, SAFETY_POLICY ...")
+    reason_code: Code | None = Field(default=None, description="machine-readable reason, e.g. OK")
     message: Text | None = None
     rule: Text | None = Field(default=None, description="rule events: the field=value that fired")
     error: Text | None = Field(default=None, description="out-error events")

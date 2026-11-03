@@ -5,7 +5,7 @@ import pytest
 
 from gateway.ha import StateStream, websocket_url
 
-LIGHT = "input_boolean.room1_light"
+LIGHT = "input_boolean.living_light"
 HELLO = {"type": "auth_required", "ha_version": "2026.10.0"}
 AUTH_OK = {"type": "auth_ok"}
 SUBSCRIBED = {"id": 1, "type": "result", "success": True, "result": None}

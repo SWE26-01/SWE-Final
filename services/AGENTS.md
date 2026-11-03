@@ -4,6 +4,8 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
 
 - Device IDs (Home Assistant entity ids) follow `../homeassistant`. A device change touches the HA
   config and `config/devices.yaml` together; each device's owner is an agent in `config/agents.yaml`.
+- Tests use their own config (`tests/config`: `home` owns the devices, `coach` owns none), so the repo
+  config can change freely; `tests/test_homeconfig.py` checks the repo config and the HA helpers.
 - Read config only through `homeconfig.load_config()`. Tokens are never written in `config/`; each
   entry names an environment variable (the root `.env`).
 - The Gateway is the only Home Assistant client that should hold the HA token. It forwards a service

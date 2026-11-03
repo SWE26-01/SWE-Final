@@ -1,20 +1,11 @@
 # Who may call the Gateway and the Event Collector. Loaded and checked by homeconfig.load_config().
 #
-# `url` is an agent's A2A base URL (the Collector checks its Agent Card there). Tokens are not
-# stored here: each entry names the environment variable that holds it, so the services run with
-# the root .env (`--env-file ../.env`).
+# Tokens are not stored here: each entry names the environment variable that holds it, so the
+# services run with the root .env (`--env-file ../.env`). An optional `url` is the agent's A2A base
+# URL; the Collector checks its Agent Card there.
 agents:
-  desktop: {token_env: AMBIENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/ambient"}
-  smartphone: {token_env: AMBIENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/ambient"}
-  orchestrator: {token_env: AMBIENT_TOKEN_ORCHESTRATOR, url: "http://127.0.0.1:19040/plugins/ambient"}
-  room1: {token_env: AMBIENT_TOKEN_ROOM1, url: "http://127.0.0.1:19160/plugins/ambient"}
-  room2: {token_env: AMBIENT_TOKEN_ROOM2, url: "http://127.0.0.1:19280/plugins/ambient"}
+  home: {token_env: AMBIENT_TOKEN_HOME}  # Home Agent
 
-# Dashboards and the simulator: read device states and events, command nothing.
+# Dashboards: read device states and events, command nothing.
 operators:
   dashboard: {token_env: DASHBOARD_TOKEN}
-
-# Simulator screen: reads devices like a dashboard and commands nothing. Optional: without
-# SIMULATOR_TOKEN in the environment the other services still start.
-simulators:
-  simulator: {token_env: SIMULATOR_TOKEN}

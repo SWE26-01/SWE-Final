@@ -1,7 +1,7 @@
 {
   "$defs": {
     "Action": {
-      "description": "`device.control` action ({device?, command, value?}) or a rule macro ({macro}).",
+      "description": "What was asked or done to a device: {device?, command, value?}.",
       "properties": {
         "device": {
           "anyOf": [
@@ -50,19 +50,6 @@
           ],
           "default": null,
           "title": "Value"
-        },
-        "macro": {
-          "anyOf": [
-            {
-              "maxLength": 64,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Macro"
         }
       },
       "title": "Action",

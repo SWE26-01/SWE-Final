@@ -10,7 +10,6 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
 
 import httpx
 from pydantic import AwareDatetime, BaseModel, Field
@@ -19,7 +18,6 @@ from homeconfig.models import Caller
 
 log = logging.getLogger(__name__)
 
-EXT_PREFIX = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/"
 CHECK_EVERY = 5.0  # seconds between card checks
 
 
@@ -29,29 +27,10 @@ class AgentStatus(BaseModel):
     checked_at: AwareDatetime | None = Field(
         default=None, description="last check; null before the first"
     )
-    role: str | None = Field(default=None, description="external, home or room (from the card)")
-    space: str | None = None
-    owned_devices: list[str] = Field(default_factory=list)
-    provided_fields: list[str] = Field(default_factory=list)
     last_event_at: AwareDatetime | None = Field(
         default=None, description="`ts` of its latest event in the Collector"
     )
     events: int = Field(default=0, description="events it has reported")
-
-
-def from_card(agent_id: str, card: dict[str, Any], checked_at: datetime) -> AgentStatus:
-    extensions = card.get("capabilities", {}).get("extensions", [])
-    ext = next((e for e in extensions if str(e.get("uri", "")).startswith(EXT_PREFIX)), {})
-    params = ext.get("params") or {}
-    return AgentStatus(
-        id=agent_id,
-        online=True,
-        checked_at=checked_at,
-        role=params.get("role"),
-        space=params.get("space"),
-        owned_devices=params.get("owned_devices") or [],
-        provided_fields=params.get("provided_fields") or [],
-    )
 
 
 class AgentWatcher:
@@ -76,7 +55,8 @@ class AgentWatcher:
         try:
             resp = await self._http.get(f"{agent.url}/.well-known/agent-card.json")
             resp.raise_for_status()
-            return from_card(agent.id, resp.json(), now)
+            resp.json()  # an Agent Card is JSON
+            return AgentStatus(id=agent.id, online=True, checked_at=now)
         except (httpx.HTTPError, ValueError) as e:
             log.debug("agent %s is down: %r", agent.id, e)
             last = self.statuses[agent.id]

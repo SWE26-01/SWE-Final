@@ -25,7 +25,7 @@
               "type": "null"
             }
           ],
-          "description": "HA state ('on', 'meeting', ...); null if unknown",
+          "description": "HA state ('on', '24.0', ...); null if unknown",
           "title": "State"
         },
         "attributes": {

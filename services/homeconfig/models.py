@@ -7,7 +7,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Home Assistant entity id, e.g. input_boolean.room1_light
+# Home Assistant entity id, e.g. input_boolean.living_light
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
 
@@ -21,8 +21,7 @@ class _Cfg(BaseModel):
 
 class Role(StrEnum):
     AGENT = "agent"  # commands the devices it owns, reports events
-    OPERATOR = "operator"  # dashboards (the frontend's read-only token): read, command nothing
-    SIMULATOR = "simulator"  # simulator screen: reads like a dashboard, commands nothing
+    OPERATOR = "operator"  # dashboards: read, command nothing
 
 
 class CallerEntry(_Cfg):
@@ -33,7 +32,6 @@ class CallerEntry(_Cfg):
 class AgentsFile(_Cfg):
     agents: dict[CallerId, CallerEntry]
     operators: dict[CallerId, CallerEntry] = Field(default_factory=dict)
-    simulators: dict[CallerId, CallerEntry] = Field(default_factory=dict)
 
 
 class Caller(_Cfg):

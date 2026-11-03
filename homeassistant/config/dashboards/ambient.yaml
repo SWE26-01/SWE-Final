@@ -3,15 +3,12 @@ views:
   - title: Home
     cards:
       - type: entities
-        title: "거실 (orchestrator)"
-        entities: [input_boolean.living_light, input_boolean.living_tv, input_boolean.living_tv_muted]
+        title: "거실 상태 (사용자 역할로 바꾸기)"
+        entities: [input_boolean.living_occupied, input_number.living_temperature, input_boolean.living_tv]
       - type: entities
-        title: "내 방 (room1)"
-        entities: [input_boolean.room1_light, input_select.room1_light_mode, input_boolean.room1_ac, input_boolean.room1_occupied]
-      - type: entities
-        title: "보호 방 (room2)"
-        entities: [input_boolean.room2_sleep_mode, input_boolean.room2_light, input_boolean.room2_ac]
+        title: "거실 기기 (home)"
+        entities: [input_boolean.living_light, input_number.living_light_brightness, input_boolean.living_ac, input_number.living_ac_target]
       - type: logbook
         title: "최근 변경"
         hours_to_show: 2
-        entities: [input_boolean.living_tv_muted, input_select.room1_light_mode, input_boolean.room1_light, input_boolean.room1_ac, input_boolean.room2_ac, input_boolean.room2_light]
+        entities: [input_boolean.living_occupied, input_number.living_temperature, input_boolean.living_tv, input_boolean.living_light, input_number.living_light_brightness, input_boolean.living_ac, input_number.living_ac_target]

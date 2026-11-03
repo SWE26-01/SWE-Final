@@ -14,6 +14,9 @@ setenv() { # key value — replace KEY=... in .env
   "$ROOT/.venv/bin/python" -c 'import re,sys;p,k,v=sys.argv[1:];s=open(p).read();open(p,"w").write(re.sub(rf"(?m)^{k}=.*$",lambda _:f"{k}={v}",s))' "$ENV" "$1" "$2"
 }
 [ -f "$ENV" ] || cp "$ROOT/.env.example" "$ENV"
+for k in $(grep -oE '^[A-Z0-9_]+' "$ROOT/.env.example"); do # keys added since this .env was made
+  grep -q "^$k=" "$ENV" || { [ -z "$(tail -c1 "$ENV")" ] || echo >> "$ENV"; grep "^$k=" "$ROOT/.env.example" >> "$ENV"; }
+done
 for k in $(grep -oE '^[A-Z0-9_]+=change-me' "$ENV" | cut -d= -f1); do setenv "$k" "$(openssl rand -hex 24)"; done
 set -a; . "$ENV"; set +a
 

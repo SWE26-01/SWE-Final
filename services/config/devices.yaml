@@ -1,19 +1,15 @@
-# Home Assistant entities and the one agent that may command each (plan 5.4 Room Ownership).
-# Loaded and checked by homeconfig.load_config().
+# Home Assistant entities and the one agent that may command each. Loaded and checked by
+# homeconfig.load_config(). Must match ../homeassistant/config/configuration.yaml.
 #
-# Must match ../homeassistant/config/configuration.yaml and each agent's
-# `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
-# The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
-spaces: [living_room, my_room, protected_room]
+# Only the Home Agent commands devices; other agents ask it over A2A. The Gateway enforces this
+# table itself, so a bug in another caller cannot move a device.
+spaces: [living_room]
 
 devices:
-  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.room1_light, space: my_room, owner: room1}
-  - {entity: input_select.room1_light_mode, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_ac, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1}
-  - {entity: input_boolean.room2_light, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2}
+  - {entity: input_boolean.living_occupied, space: living_room, owner: home}
+  - {entity: input_number.living_temperature, space: living_room, owner: home}
+  - {entity: input_boolean.living_light, space: living_room, owner: home}
+  - {entity: input_number.living_light_brightness, space: living_room, owner: home}
+  - {entity: input_boolean.living_ac, space: living_room, owner: home}
+  - {entity: input_number.living_ac_target, space: living_room, owner: home}
+  - {entity: input_boolean.living_tv, space: living_room, owner: home}

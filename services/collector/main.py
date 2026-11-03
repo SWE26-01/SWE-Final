@@ -1,6 +1,6 @@
-"""Event Collector (WBS W8-4): one audit log of every agent's A2A traffic and decisions.
+"""Event Collector: one audit log of every agent's A2A traffic and decisions.
 
-The agents (../agents) POST each event-log line here with their own token. Dashboards read the log
+Agents POST each event-log line here with their own token. Dashboards read the log
 with GET /events or live over WebSocket /ws, and whole requests with GET /flows
 (collector/flows.py).
 

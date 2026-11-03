@@ -1,9 +1,0 @@
-/* The real house (LIVE, live/housePlan.js), traced from a 59 m² apartment plan. Its outline is not a
-   rectangle, so the floor slab is hidden and only the rooms are drawn. */
-.css-house.plan-live { height:min(74%,560px); aspect-ratio:.92; }
-.plan-live .house-base { display:none; }
-/* a room made of two rectangles (kitchen with its nook, the L-shaped hallway) lights up as one */
-.plan-live .css-room.group-hover { background:rgba(247,249,240,.98); border-color:rgba(106,166,218,.65); }
-/* the 3D Model and Control Mode tabs size the demo apartment larger; this one keeps fitting */
-.model-tab .css-house.plan-live { height:min(78%,620px); }
-.test-model .css-house.plan-live { height:min(76%,600px); }

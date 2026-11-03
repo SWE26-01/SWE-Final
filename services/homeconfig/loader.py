@@ -40,8 +40,6 @@ class HomeConfig:
     ha_url: str  # the real Home Assistant (env HA_URL)
     ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
-    # Problems with optional callers (simulators). They never stop the Gateway or the Collector.
-    optional_problems: list[str]
     _by_token: dict[str, str] = field(repr=False)
 
     def caller_by_token(self, token: str) -> Caller | None:
@@ -86,7 +84,7 @@ def _read(path: Path, model: type[M], problems: list[str]) -> M | None:
         return None
 
 
-_ARTICLE = {Role.AGENT: "an agent", Role.OPERATOR: "an operator", Role.SIMULATOR: "a simulator"}
+_ARTICLE = {Role.AGENT: "an agent", Role.OPERATOR: "an operator"}
 
 
 def load_config(
@@ -105,24 +103,20 @@ def load_config(
     callers: dict[str, Caller] = {}
     roles: dict[str, Role] = {}
     by_token: dict[str, str] = {}
-    optional_problems: list[str] = []
     entries = [(Role.AGENT, i, e) for i, e in agents_f.agents.items()]
     entries += [(Role.OPERATOR, i, e) for i, e in agents_f.operators.items()]
-    entries += [(Role.SIMULATOR, i, e) for i, e in agents_f.simulators.items()]
     for role, caller_id, entry in entries:
         if caller_id in roles:
             first = _ARTICLE[roles[caller_id]]
             problems.append(f"{caller_id!r} is listed as both {first} and {_ARTICLE[role]}")
             continue
         roles[caller_id] = role
-        # A simulator is optional: without a usable token the other services still start.
-        found = optional_problems if role is Role.SIMULATOR else problems
         token = env.get(entry.token_env, "")
         if not token:
-            found.append(f"{caller_id}: environment variable {entry.token_env} is not set")
+            problems.append(f"{caller_id}: environment variable {entry.token_env} is not set")
             continue
         if token in by_token:
-            found.append(f"{caller_id}: same token as {by_token[token]!r}")
+            problems.append(f"{caller_id}: same token as {by_token[token]!r}")
             continue
         url = _on_host(entry.url, env.get("AMBIENT_AGENTS_HOST") or None)
         callers[caller_id] = Caller(id=caller_id, role=role, token=token, url=url)
@@ -152,6 +146,5 @@ def load_config(
         ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
         ha_token=env.get("HA_TOKEN") or None,
         cors_origins=cors_origins,
-        optional_problems=optional_problems,
         _by_token=by_token,
     )

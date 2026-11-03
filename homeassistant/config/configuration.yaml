@@ -1,25 +1,18 @@
 # Virtual devices only (no real hardware). Each entity has exactly one owning agent — see services/config/devices.yaml.
+# Living room, the workout space of the first demo (AGENT_HUB_STUDIO_DEV_PLAN.md 9). Until there is
+# a simulator screen, play the user by changing occupancy, temperature and the TV here in HA.
 default_config:
 
 input_boolean:
-  # living room — orchestrator (Home)
+  living_occupied: { name: "거실 재실", icon: mdi:account }
   living_light: { name: "거실 조명", icon: mdi:ceiling-light }
+  living_ac: { name: "거실 에어컨", icon: mdi:air-conditioner }
   living_tv: { name: "거실 TV", icon: mdi:television }
-  living_tv_muted: { name: "거실 TV 음소거", icon: mdi:volume-off }
-  # room1 — My Room
-  room1_light: { name: "내 방 조명", icon: mdi:lightbulb }
-  room1_ac: { name: "내 방 에어컨", icon: mdi:air-conditioner }
-  room1_occupied: { name: "내 방 재실", icon: mdi:account }
-  # room2 — protected room (sleep policy)
-  room2_light: { name: "보호 방 조명", icon: mdi:lightbulb-night }
-  room2_ac: { name: "보호 방 에어컨", icon: mdi:air-conditioner }
-  room2_sleep_mode: { name: "보호 방 수면 모드", icon: mdi:sleep }
 
-input_select:
-  room1_light_mode:
-    name: "내 방 조명 모드"
-    options: [normal, meeting, eco]
-    icon: mdi:lightbulb-auto
+input_number:
+  living_temperature: { name: "거실 온도", min: 10, max: 35, step: 0.5, initial: 26, unit_of_measurement: "°C", icon: mdi:thermometer }
+  living_light_brightness: { name: "거실 조명 밝기", min: 0, max: 100, step: 10, initial: 50, unit_of_measurement: "%", icon: mdi:brightness-6 }
+  living_ac_target: { name: "거실 에어컨 희망 온도", min: 18, max: 30, step: 1, initial: 24, unit_of_measurement: "°C", icon: mdi:thermostat }
 
 lovelace:
   dashboards:

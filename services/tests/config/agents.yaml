@@ -1,0 +1,8 @@
+# Test callers, independent of ../../config: the Home Agent and `coach`, a generated agent that
+# owns no device.
+agents:
+  home: {token_env: AMBIENT_TOKEN_HOME, url: "http://127.0.0.1:9100"}
+  coach: {token_env: AMBIENT_TOKEN_COACH, url: "http://127.0.0.1:9200"}
+
+operators:
+  dashboard: {token_env: DASHBOARD_TOKEN}

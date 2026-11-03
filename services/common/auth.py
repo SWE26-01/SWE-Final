@@ -22,8 +22,6 @@ class Auth:
     caller: Any  # any known token
     agent: Any  # agents only
     operator: Any  # operators only
-    simulator: Any  # simulators only
-    dashboard: Any  # operators or simulators (screens, never agents)
 
 
 def make_auth(config: HomeConfig) -> Auth:
@@ -49,8 +47,6 @@ def make_auth(config: HomeConfig) -> Auth:
         caller=Annotated[Caller, Depends(caller)],
         agent=Annotated[Caller, Depends(role(Role.AGENT))],
         operator=Annotated[Caller, Depends(role(Role.OPERATOR))],
-        simulator=Annotated[Caller, Depends(role(Role.SIMULATOR))],
-        dashboard=Annotated[Caller, Depends(role(Role.OPERATOR, Role.SIMULATOR))],
     )
 
 

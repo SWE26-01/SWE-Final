@@ -1,0 +1,6 @@
+spaces: [living_room]
+
+devices:
+  - {entity: input_boolean.living_light, space: living_room, owner: home}
+  - {entity: input_number.living_light_brightness, space: living_room, owner: home}
+  - {entity: input_boolean.living_tv, space: living_room, owner: home}

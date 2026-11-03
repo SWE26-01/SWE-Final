@@ -1,9 +1,9 @@
-"""Device Gateway: checks who may move which device, in front of Home Assistant (plan 5.4).
+"""Device Gateway: checks who may move which device, in front of Home Assistant.
 
-The agents (../agents) call it exactly like the Home Assistant REST API: their `ha.url` points here
-and they send their own agent token instead of the shared HA token. For every command the Gateway
-checks that the caller owns each target entity (config/devices.yaml), and only then forwards it
-with the one real HA token. Dashboards read device states over WebSocket /ws.
+The Home Agent calls it exactly like the Home Assistant REST API, with its own agent token instead
+of the HA token. For every command the Gateway checks that the caller owns each target entity
+(config/devices.yaml), and only then forwards it with the one real HA token. Dashboards read device
+states over WebSocket /ws.
 
 Run: uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 """
@@ -35,7 +35,6 @@ log = logging.getLogger(__name__)
 # Services an agent may call, per entity domain, with the data keys each one takes.
 SERVICES: dict[str, dict[str, frozenset[str]]] = {
     "input_boolean": {"turn_on": frozenset(), "turn_off": frozenset(), "toggle": frozenset()},
-    "input_select": {"select_option": frozenset({"option"})},
     "input_number": {"set_value": frozenset({"value"})},
 }
 
@@ -73,7 +72,7 @@ def targets(config: HomeConfig, agent_id: str, domain: str, service: str, body: 
         if owner is None:
             raise Blocked(403, f"{entity} is not a home device")
         if owner != agent_id:
-            raise Blocked(403, f"{entity} is owned by {owner}; send device.control to {owner}")
+            raise Blocked(403, f"{entity} is owned by {owner}")
         if not entity.startswith(f"{domain}."):
             raise Blocked(400, f"{entity} is not an {domain} entity")
     return entities

@@ -24,7 +24,7 @@
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest
+pytest   # 테스트는 자체 설정(tests/config)을 쓰고, 실제 설정은 tests/test_homeconfig.py가 확인한다
 
 # 루트 .env(../scripts/setup.sh가 만듦: 에이전트 토큰, HA_URL, HA_TOKEN, DASHBOARD_TOKEN)를 읽는다
 uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
