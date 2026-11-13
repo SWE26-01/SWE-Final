@@ -1,6 +1,6 @@
 # Virtual devices only (no real hardware). Each entity has exactly one owning agent — see services/config/devices.yaml.
-# Living room, the workout space of the first demo (AGENT_HUB_STUDIO_DEV_PLAN.md 9). Until there is
-# a simulator screen, play the user by changing occupancy, temperature and the TV here in HA.
+# One living room as demo devices (docs/HANDOFF.md). Until there is a UI, play the user by
+# changing occupancy, temperature and the TV here in HA.
 default_config:
 
 input_boolean:

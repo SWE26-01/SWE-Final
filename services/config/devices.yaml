@@ -1,8 +1,8 @@
 # Home Assistant entities and the one agent that may command each. Loaded and checked by
 # homeconfig.load_config(). Must match ../homeassistant/config/configuration.yaml.
 #
-# Only the Home Agent commands devices; other agents ask it over A2A. The Gateway enforces this
-# table itself, so a bug in another caller cannot move a device.
+# An agent commands only the devices it owns; other agents ask the owner over A2A. The Gateway
+# enforces this table itself, so a bug in another caller cannot move a device.
 spaces: [living_room]
 
 devices:

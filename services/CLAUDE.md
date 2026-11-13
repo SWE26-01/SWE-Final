@@ -1,4 +1,4 @@
-# Rules for `services/` (Python: Device Gateway, Event Collector; Hub, Studio, runtime and Home Agent go here too)
+# Rules for `services/` (Python: Device Gateway, Event Collector; new Python services such as the Hub go here too)
 
 The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`.
 

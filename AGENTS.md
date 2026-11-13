@@ -1,27 +1,33 @@
-Read `docs/HANDOFF.md` first for project context and decisions, then `AGENT_HUB_STUDIO_DEV_PLAN.md`.
+Read `docs/HANDOFF.md` first for project context and decisions, then `docs/PROPOSAL.md`.
 
 # Rules for AI coding tools (Claude Code, Copilot, Cursor …)
 
-Monorepo: `services/` (Python: Device Gateway + Event Collector; the Hub, Studio generation service,
-spec validator, runtime and Home Agent are added here; its own rules are in `services/CLAUDE.md`),
-`homeassistant/` (virtual devices), `scripts/` (setup, run). There is no UI yet; the Studio, Hub and
-simulator screens will be React + TypeScript.
+Monorepo: `services/` (Python: Device Gateway + Event Collector; new Python services such as the Hub
+go here too; its own rules are in `services/CLAUDE.md`), `homeassistant/` (virtual devices),
+`scripts/` (setup, run). There is no UI yet; the Studio and Hub screens will be React +
+TypeScript.
 
+- Agents run on the Python runtime (a2a-sdk): A2A server, Agent Card, Skills, permission checks,
+  device calls and timers are Python. OpenClaw is used only for an agent's chat replies to the
+  user; never move permission checks or device access into OpenClaw.
 - A2A **v1.0 only**. Do not write v0.3 code:
   - methods are `SendMessage`, `GetTask` … (not `message/send`, `tasks/get`)
   - enums are `TASK_STATE_COMPLETED`, `ROLE_USER` … (not `completed`, `user`)
   - a `Part` holds exactly one of `text` / `raw` / `url` / `data`; there is no `kind` field
-- The LLM writes specs (Studio) and guidance text (runtime) only. Authentication, permissions,
-  timers and session transitions are code.
-- Contracts before code: `AgentSpec`, `ConnectionBinding`, the tool catalog and Home-A2A messages are
-  agreed as shared JSON examples first. Never invent ad-hoc JSON shapes between components.
-- An Agent Card is generated deterministically from a validated spec and its endpoint; it is neither
-  code nor a permission grant.
-- A shared spec never holds per-home data or secrets. Home id, space mapping, approved permissions and
-  credential references live in the `ConnectionBinding`.
-- Only the Home Agent commands devices (through the Device Gateway). Other agents ask it over A2A, and
-  it checks the connection's approved permissions and its policies on every request.
-- Never put tokens or passwords in specs, Agent Cards or logs; trace a flow by its request id instead.
+- Authentication, permissions and connection approval are code, never left to an LLM prompt.
+- Skills are provided by the platform in code; there is no Skill Marketplace.
+- Contracts before code: the agent definition (Studio output), Skills, Hub records and messages
+  between agents are agreed as shared JSON examples first. Never invent ad-hoc JSON shapes between
+  components.
+- An Agent Card is generated deterministically from a validated agent definition and its endpoint;
+  it is neither code nor a permission grant.
+- A shared agent definition or Skill never holds per-deployment data or secrets. Approved
+  permissions, endpoints and credential references live in the Hub's connection record.
+- An agent commands only the devices it owns, through the Device Gateway
+  (`services/config/devices.yaml`); for other devices it asks their owner over A2A. Nothing else
+  holds the HA token.
+- Never put tokens or passwords in agent definitions, Skills, Agent Cards or logs; trace a flow by
+  its request id instead.
 - Device IDs (HA entity ids) and owners must agree across `homeassistant/config/configuration.yaml`
   and `services/config/devices.yaml` (`services/tests/test_homeconfig.py` checks it).
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).

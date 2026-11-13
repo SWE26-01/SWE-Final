@@ -4,7 +4,7 @@
 # services run with the root .env (`--env-file ../.env`). An optional `url` is the agent's A2A base
 # URL; the Collector checks its Agent Card there.
 agents:
-  home: {token_env: AMBIENT_TOKEN_HOME}  # Home Agent
+  home: {token_env: AMBIENT_TOKEN_HOME}  # owner of the living-room devices
 
 # Dashboards: read device states and events, command nothing.
 operators:

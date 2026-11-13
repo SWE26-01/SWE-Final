@@ -1,7 +1,7 @@
 # services — Device Gateway · Event Collector
 
-가상 집(Home Assistant) 앞에서 두 가지를 맡는 Python 서비스. Hub, 생성 서비스, 공통 실행기, Home Agent도 여기에 Python으로 추가한다
-(`../AGENT_HUB_STUDIO_DEV_PLAN.md`).
+가상 기기(Home Assistant) 앞에서 두 가지를 맡는 Python 서비스. Hub처럼 새로 만드는 Python 서비스도 여기에 추가한다
+(제안서 `../docs/PROPOSAL.md`, 맥락 `../docs/HANDOFF.md`).
 
 - **Device Gateway** (`gateway/`): 에이전트는 Home Assistant 대신 Gateway를 부른다. Gateway는 요청한 에이전트가 그 기기의
   주인인지 다시 확인하고, 통과한 명령만 HA에 넘긴다. 대시보드에는 기기 상태를 WebSocket으로 보낸다.
