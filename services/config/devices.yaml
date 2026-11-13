@@ -4,16 +4,17 @@
 # Must match ../homeassistant/config/configuration.yaml and each agent's
 # `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
 # The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
+# `kind` says what the device is; Marketplace skills (skills.yaml) refer to kinds, not entity ids.
 spaces: [living_room, my_room, protected_room]
 
 devices:
-  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator}
-  - {entity: input_boolean.room1_light, space: my_room, owner: room1}
-  - {entity: input_select.room1_light_mode, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_ac, space: my_room, owner: room1}
-  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1}
-  - {entity: input_boolean.room2_light, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2}
-  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2}
+  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator, kind: light}
+  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator, kind: tv}
+  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator, kind: tv_muted}
+  - {entity: input_boolean.room1_light, space: my_room, owner: room1, kind: light}
+  - {entity: input_select.room1_light_mode, space: my_room, owner: room1, kind: light_mode}
+  - {entity: input_boolean.room1_ac, space: my_room, owner: room1, kind: ac}
+  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1, kind: occupancy}
+  - {entity: input_boolean.room2_light, space: protected_room, owner: room2, kind: light}
+  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2, kind: ac}
+  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2, kind: sleep_mode}

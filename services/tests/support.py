@@ -8,6 +8,8 @@ ENV = {
     "AMBIENT_TOKEN_ROOM2": "t-room2",
     "DASHBOARD_TOKEN": "t-dashboard",
     "SIMULATOR_TOKEN": "t-simulator",
+    "HOME_USER_TOKEN": "t-user",
+    "STUDIO_TOKEN": "t-studio",
     "HA_URL": "http://ha.test:8123",
     "HA_TOKEN": "t-ha",
     "OPENCLAW_GATEWAY_TOKEN": "t-openclaw",
@@ -24,3 +26,5 @@ HOME = bearer("t-orchestrator")
 DESKTOP = bearer("t-desktop")
 DASHBOARD = bearer("t-dashboard")
 SIMULATOR = bearer("t-simulator")
+USER = bearer("t-user")
+STUDIO = bearer("t-studio")

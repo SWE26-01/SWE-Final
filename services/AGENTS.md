@@ -1,4 +1,4 @@
-# Rules for `services/` (Device Gateway, Event Collector, Runner)
+# Rules for `services/` (Device Gateway, Event Collector, Runner, Agent Hub, Studio)
 
 The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`.
 
@@ -25,3 +25,14 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   the scenario models in `homeconfig/models.py`, run `python scripts/export_schemas.py` and commit `contracts/`.
 - Service modules that declare FastAPI routes with `common.auth` types must not use
   `from __future__ import annotations` (FastAPI reads those annotations at runtime).
+- Agent Hub (`agenthub/`): every device has one owner among active connections; `POST /connections`
+  refuses a device another connected agent holds. Store only the sha256 of a Hub-issued token and
+  show the token once. Platform agents (config/agents.yaml) can be disconnected, never removed.
+- Studio (`studio/`): the LLM only fills the slot form (`studio/slots.py`, enums from the catalogs).
+  It never writes rules, device ids, tools or paths: rules come from `config/skills.yaml` through
+  `studio/compile.py`, and `harness.check_rendered` must pass before a profile is written or
+  registered. Generated agents get only the Ambient-A2A tools. New dangerous patterns go in
+  `harness._RULES` with a test in `tests/test_studio_harness.py`.
+- The home user (`HOME_USER_TOKEN`) creates, connects and disconnects agents; Studio's service token
+  (`STUDIO_TOKEN`) only registers agents in the Hub. Neither commands a device.
+

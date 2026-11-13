@@ -1,7 +1,8 @@
-# Device Gateway, Event Collector and Runner. Tokens, HA_URL and HA_TOKEN come from the root .env
-# (scripts/setup.sh writes it). Set AMBIENT_ENV to use another file.
-# The Runner needs SIMULATOR_TOKEN and OPENCLAW_GATEWAY_TOKEN; without them it exits and the other
-# two keep running.
+# Device Gateway, Event Collector, Runner, Agent Hub and Studio (+ PostgreSQL for the last two).
+# Tokens, HA_URL, HA_TOKEN and POSTGRES_PASSWORD come from the root .env (scripts/setup.sh writes
+# it). Set AMBIENT_ENV to use another file.
+# The Runner needs SIMULATOR_TOKEN and OPENCLAW_GATEWAY_TOKEN; without them it exits and the others
+# keep running. Studio and the Hub write only with HOME_USER_TOKEN and STUDIO_TOKEN.
 services:
   gateway:
     build: .
@@ -30,5 +31,47 @@ services:
     extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["8300:8300"]
 
+  postgres:
+    image: postgres:16-alpine
+    env_file: ${AMBIENT_ENV:-../.env}  # POSTGRES_PASSWORD
+    environment:
+      POSTGRES_USER: ambient
+      POSTGRES_DB: hub
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./config/postgres-init.sql:/docker-entrypoint-initdb.d/10-studio.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ambient -d hub"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    # No published port: only the Hub and Studio reach it, inside this Compose network.
+  hub:
+    build: .
+    command: uvicorn agenthub.main:build --factory --host 0.0.0.0 --port 8400
+    env_file: ${AMBIENT_ENV:-../.env}
+    environment:
+      POSTGRES_HOST: postgres
+      HUB_AGENTS_HOST: host.docker.internal  # read the agents' cards on the host
+      HUB_COLLECTOR_URL: http://collector:8200  # request flows for GET /agents/{id}/activity
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ["8400:8400"]
+  studio:
+    build: .
+    command: uvicorn studio.main:build --factory --host 0.0.0.0 --port 8500
+    env_file: ${AMBIENT_ENV:-../.env}  # OPENROUTER_API_KEY, STUDIO_LLM, STUDIO_MODEL
+    environment:
+      POSTGRES_HOST: postgres
+      STUDIO_HUB_URL: http://hub:8400
+      STUDIO_GENERATED_DIR: /generated
+    volumes: ["../agents/generated:/generated"]  # approved agents' OpenClaw profiles
+    depends_on:
+      postgres: {condition: service_healthy}
+      hub: {condition: service_started}
+    ports: ["8500:8500"]
+
 volumes:
   collector-data:
+  postgres-data:
