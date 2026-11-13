@@ -24,6 +24,8 @@ class Auth:
     operator: Any  # operators only
     simulator: Any  # simulators only
     dashboard: Any  # operators or simulators (screens, never agents)
+    user: Any  # the home user (Studio and Hub screens)
+    service: Any  # backend services (Studio calling the Hub)
 
 
 def make_auth(config: HomeConfig) -> Auth:
@@ -51,6 +53,8 @@ def make_auth(config: HomeConfig) -> Auth:
         operator=Annotated[Caller, Depends(role(Role.OPERATOR))],
         simulator=Annotated[Caller, Depends(role(Role.SIMULATOR))],
         dashboard=Annotated[Caller, Depends(role(Role.OPERATOR, Role.SIMULATOR))],
+        user=Annotated[Caller, Depends(role(Role.USER))],
+        service=Annotated[Caller, Depends(role(Role.SERVICE))],
     )
 
 

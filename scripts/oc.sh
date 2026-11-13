@@ -4,11 +4,14 @@
 #   scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-id=${1:?usage: oc.sh <desktop|smartphone|orchestrator|room1|room2> <openclaw args...>}; shift
+id=${1:?usage: oc.sh <desktop|smartphone|orchestrator|room1|room2|generated id> <openclaw args...>}; shift
 case $id in
   desktop|smartphone) dir=externel/$id ;;
   orchestrator|room1|room2) dir=internel/$id ;;
-  *) echo "unknown agent: $id" >&2; exit 1 ;;
+  *) # an agent made in Studio (services/studio), approved into agents/generated/<id>/
+     [[ $id =~ ^[a-z0-9][a-z0-9_-]*$ && -f "$ROOT/agents/generated/$id/openclaw.json5" ]] \
+       || { echo "unknown agent: $id" >&2; exit 1; }
+     dir=generated/$id ;;
 esac
 # run_all.sh loads .env itself and may adjust it (services URLs); keep what it passes down.
 [ -z "${AMBIENT_ENV_LOADED:-}" ] && [ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }

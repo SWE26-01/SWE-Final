@@ -4,7 +4,8 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 
 Monorepo: `agents/` (OpenClaw agents + the `ambient-a2a` plugin, TypeScript), `spec/` (Ambient-A2A
 extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, checks), `services/`
-(Device Gateway + Event Collector + Runner, Python; its own rules are in `services/CLAUDE.md`),
+(Device Gateway + Event Collector + Runner + Agent Hub + Studio, Python; its own rules are in
+`services/CLAUDE.md`),
 `frontend/` (simulator UI, React; developed here, see `docs/frontend-integration.md`).
 
 - A2A **v1.0 only**. Do not write v0.3 code:

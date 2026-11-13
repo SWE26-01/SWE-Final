@@ -29,6 +29,10 @@ setenv() { # key value — replace KEY=... in .env
   "$ROOT/.venv/bin/python" -c 'import re,sys;p,k,v=sys.argv[1:];s=open(p).read();open(p,"w").write(re.sub(rf"(?m)^{k}=.*$",lambda _:f"{k}={v}",s))' "$ENV" "$1" "$2"
 }
 [ -f "$ENV" ] || cp "$ROOT/.env.example" "$ENV"
+# Keys added to .env.example after this .env was made (e.g. the Hub and Studio tokens).
+grep -E '^[A-Z0-9_]+=' "$ROOT/.env.example" | while IFS= read -r line; do
+  grep -q "^${line%%=*}=" "$ENV" || echo "$line" >> "$ENV"
+done
 for k in $(grep -oE '^[A-Z0-9_]+=change-me' "$ENV" | cut -d= -f1); do setenv "$k" "$(openssl rand -hex 24)"; done
 set -a; . "$ENV"; set +a
 

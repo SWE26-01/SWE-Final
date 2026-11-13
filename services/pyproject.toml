@@ -1,7 +1,7 @@
 [project]
 name = "a2a-agentic-home"
 version = "0.1.0"
-description = "A2A based Agentic Home: Device Gateway, Event Collector and Runner for the Ambient-A2A smart home agents"
+description = "A2A based Agentic Home: Device Gateway, Event Collector, Runner, Agent Hub and Studio for the Ambient-A2A smart home agents"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
@@ -11,13 +11,20 @@ dependencies = [
   "httpx>=0.27",
   "websockets>=13",  # Home Assistant event stream (websockets.asyncio)
   "python-dotenv>=1",  # scripts/verify_integration.py --env-file
+  "sqlalchemy>=2.0",  # Agent Hub and Studio tables (PostgreSQL in Docker, SQLite elsewhere)
+  "psycopg[binary]>=3.2",
+  "langchain-core>=1.0",  # Studio: structured output from the LLM
+  "langchain-openai>=1.0",  # Studio: OpenAI-compatible chat API (OpenRouter)
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["common", "homeconfig", "gateway", "collector", "runner"]
+packages = ["common", "homeconfig", "gateway", "collector", "runner", "agenthub", "studio"]
+
+[tool.setuptools.package-data]
+studio = ["guides/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,70 @@
+# Skill Marketplace: reusable skills that Studio adds to the agents it creates.
+# Loaded and checked by homeconfig.load_config(); the Agent Hub lists them at GET /skills.
+#
+# A skill names device kinds (devices.yaml `kind`), never entity ids. Studio's compiler
+# (studio/compile.py) maps them to the devices of the chosen space, so one skill fits any room.
+# Actions on kinds the room does not have are dropped; `needs_all` / `needs_any` say what the room
+# must have for the skill to make sense. `subscribes` names platform agents and their context fields.
+skills:
+  - id: meeting_mode
+    name: Meeting Mode
+    description: Switches the room to a quiet meeting setup while a meeting app runs on the desktop.
+    category: context
+    templates: [room_agent]
+    needs_any: [light_mode, tv_muted]
+    subscribes: {desktop: [meeting_app_active]}
+    rules:
+      - field: meeting_app_active
+        equals: true
+        actions: [{kind: light_mode, command: SET, value: meeting}, {kind: tv_muted, command: TURN_ON}]
+      - field: meeting_app_active
+        equals: false
+        actions: [{kind: light_mode, command: SET, value: normal}, {kind: tv_muted, command: TURN_OFF}]
+    keywords: [회의, 미팅, 화상, 조용, meeting, zoom]
+
+  - id: sleep_mode
+    name: Sleep Mode
+    description: While sleep mode is on, refuses to turn the air conditioner off or the lights on, whoever asks.
+    category: safety
+    templates: [room_agent]
+    needs_all: [sleep_mode]
+    policies:
+      - when: {kind: sleep_mode, state: "on"}
+        deny: {kinds: [ac], commands: [TURN_OFF]}
+        message: Temperature regulation must remain enabled while sleeping.
+      - when: {kind: sleep_mode, state: "on"}
+        deny: {kinds: [light], commands: [TURN_ON]}
+        message: Lights stay off while sleeping.
+    keywords: [수면, 잠, 취침, 아기, sleep]
+
+  - id: energy_saving
+    name: Energy Saving
+    description: Turns the room's lights, air conditioner and TV off when the Home Agent asks the whole home to save energy.
+    category: energy
+    templates: [room_agent]
+    needs_any: [light, ac, tv]
+    energy_saving: [{kind: light, command: TURN_OFF}, {kind: ac, command: TURN_OFF}, {kind: tv, command: TURN_OFF}]
+    keywords: [절전, 에너지, 전기, 아껴, energy]
+
+  - id: location_aware
+    name: Location-Aware Automation
+    description: Turns the room's lights, air conditioner and TV off when the phone reports that the user left home.
+    category: context
+    templates: [room_agent]
+    needs_any: [light, ac, tv]
+    subscribes: {smartphone: [presence]}
+    rules:
+      - field: presence
+        equals: AWAY
+        actions: [{kind: light, command: TURN_OFF}, {kind: ac, command: TURN_OFF}, {kind: tv, command: TURN_OFF}]
+    keywords: [외출, 나가, 집을 비, 귀가, 위치, away]
+
+  - id: temperature_monitoring
+    name: Temperature Monitoring
+    description: Watches the room temperature with a temperature sensor and keeps the air conditioner in range.
+    category: monitoring
+    templates: [room_agent]
+    # No room in devices.yaml has a temperature sensor yet, so Studio reports this skill as
+    # unavailable instead of creating an agent that cannot do it.
+    needs_all: [temperature, ac]
+    keywords: [온도, 더우, 덥, 추우, temperature]

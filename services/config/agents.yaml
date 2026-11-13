@@ -19,3 +19,13 @@ operators:
 # SIMULATOR_TOKEN in the environment the Runner does not start and the screen stays read-only.
 simulators:
   simulator: {token_env: SIMULATOR_TOKEN}
+
+# The home user on the Studio and Hub screens: creates agents, approves and revokes connections.
+# Commands no devices. Optional: without HOME_USER_TOKEN, Studio and Hub stay read-only.
+users:
+  home_user: {token_env: HOME_USER_TOKEN}
+
+# Backend services calling each other: Studio registers the agents it creates in the Hub.
+# Optional: without STUDIO_TOKEN, Studio can draft agents but not register them.
+services:
+  studio: {token_env: STUDIO_TOKEN}
