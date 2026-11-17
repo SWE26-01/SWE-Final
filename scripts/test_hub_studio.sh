@@ -91,7 +91,7 @@ echo "Studio drafts"
 call POST "$STUDIO/drafts" "$USER_T" "$(json request "$MEETING")"
 expect "natural language -> ready room agent" '.status == "ready" and .spec.space == "my_room"' 201
 draft=$(jq -r .id <<<"$resp") agent=$(jq -r .agent_id <<<"$resp")
-expect "it uses Marketplace skill meeting_mode" '.spec.skills | index("meeting_mode")' 201
+expect "it uses the built-in skill meeting_mode" '.spec.skills | index("meeting_mode")' 201
 expect "it asks to read desktop.meeting_app_active" '.permissions | index("context:desktop.meeting_app_active")' 201
 expect "OpenClaw profile keeps only the Ambient-A2A tools" \
   '(.files["openclaw.json5"] | contains("\"profile\": \"minimal\"") and (contains("\"exec\"") | not))' 201
@@ -104,22 +104,16 @@ call POST "$STUDIO/drafts" "$USER_T" "$(json request '회의 중에는 조용하
 expect "Studio asks which room" '.status == "clarify" and .question != null' 201
 call POST "$STUDIO/drafts/$(jq -r .id <<<"$resp")/answer" "$USER_T" "$(json answer '내 방')"
 expect "the answer completes the draft" '.status == "ready"' 200
-call POST "$STUDIO/drafts" "$USER_T" '{"skills":["meeting_mode"],"space":"my_room"}'
-expect "Marketplace picks alone make a draft without the LLM" \
-  '.status == "ready" and .attempts == 1 and .spec.skills == ["meeting_mode"]' 201
+call POST "$STUDIO/drafts" "$USER_T" '{"request":"회의 중에는 조용하게 해 주는 에이전트 만들어줘","space":"my_room"}'
+expect "a room picked on screen answers which room" '.status == "ready" and .spec.space == "my_room"' 201
 call POST "$STUDIO/drafts" "$USER_T" "$(jq -cn --arg r "$MEETING" '{request: $r, skills: ["energy_saving"]}')"
-expect "a picked skill stays next to what the request asks for" \
-  '.status == "ready" and (.spec.skills | index("energy_saving") and index("meeting_mode"))' 201
+expect "users cannot pick skills (no Marketplace)" 'true' 422
 call POST "$STUDIO/drafts/$draft/approve" "$USER_T"
 expect "approval registers the agent" '.status == "registered" and .port >= 19400' 200
 
 echo "Agent Hub"
 call GET "$HUB/skills" "$USER_T"
-expect "Marketplace lists the skills" 'length >= 5' 200
-call GET "$HUB/skills?q=$(jq -rn --arg v 회의 '$v|@uri')" "$USER_T"
-expect "Marketplace search: 회의 -> meeting_mode" '[.[].id] == ["meeting_mode"]' 200
-call GET "$HUB/skills/temperature_monitoring" "$USER_T"
-expect "it says no room can run Temperature Monitoring" '.available_spaces == []' 200
+expect "the Hub has no Skill Marketplace" 'true' 404
 call GET "$HUB/agents?skill=meeting_mode" "$USER_T"
 expect "search by skill finds the new agent" "[.[].id] | index(\"$agent\")" 200
 call POST "$HUB/connections" "$USER_T" "$(json agent_id "$agent")"

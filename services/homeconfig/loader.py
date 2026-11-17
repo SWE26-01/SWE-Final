@@ -20,7 +20,6 @@ from pydantic import BaseModel, ValidationError
 from homeconfig.models import (
     AgentsFile,
     Caller,
-    CatalogSkill,
     Device,
     DevicesFile,
     Role,
@@ -53,7 +52,7 @@ class HomeConfig:
     ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
     openclaw_token: str | None = field(repr=False)  # env OPENCLAW_GATEWAY_TOKEN; only the Runner
     scenarios: dict[str, Scenario]  # scenario id -> scenario (config/scenarios.yaml, optional)
-    skills: dict[str, Skill]  # skill id -> skill (config/skills.yaml, optional): the marketplace
+    skills: dict[str, Skill]  # skill id -> built-in skill (config/skills.yaml, optional)
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
     # Problems with optional callers (simulators, users, services). They never stop the Gateway or
     # the Collector; the Runner, the Hub and Studio report them.
@@ -76,41 +75,6 @@ class HomeConfig:
 
     def devices_in(self, space: str) -> list[Device]:
         return [d for d in self.devices.values() if d.space == space]
-
-    def spaces_for(self, skill: Skill) -> list[str]:
-        """Spaces whose devices meet the skill's `needs_all` and `needs_any`."""
-        found = []
-        for space in self.spaces:
-            kinds = {d.kind for d in self.devices_in(space) if d.kind}
-            if set(skill.needs_all) <= kinds and (
-                not skill.needs_any or kinds & set(skill.needs_any)
-            ):
-                found.append(space)
-        return found
-
-    def search_skills(
-        self,
-        q: str | None = None,
-        category: str | None = None,
-        template: str | None = None,
-        space: str | None = None,
-    ) -> list[CatalogSkill]:
-        """The Marketplace search: text in id, name, description or keywords; category; template;
-        and `space` keeps only skills that space can run."""
-        found = []
-        for skill in self.skills.values():
-            text = " ".join([skill.id, skill.name, skill.description, *skill.keywords]).lower()
-            spaces = self.spaces_for(skill)
-            if q and q.strip().lower() not in text:
-                continue
-            if (category and skill.category != category) or (
-                template and template not in skill.templates
-            ):
-                continue
-            if space and space not in spaces:
-                continue
-            found.append(CatalogSkill(**skill.model_dump(), available_spaces=spaces))
-        return found
 
 
 def _on_host(url: str | None, host: str | None) -> str | None:

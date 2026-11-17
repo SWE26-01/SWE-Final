@@ -2,7 +2,7 @@
 
 LangChainFiller asks the model for structured output in the slot schema (studio/slots.py), so its
 answer is parsed and type-checked before Studio sees it. RuleFiller needs no API key: it matches
-the Marketplace `keywords` and serves tests, demos and the .sh checks."""
+the built-in skills' `keywords` and serves tests, demos and the .sh checks."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def catalog_text(config: HomeConfig) -> str:
     for space in config.spaces:
         kinds = sorted({d.kind for d in config.devices_in(space) if d.kind})
         lines.append(f"- {space} ({SPACE_NAMES.get(space, space)}): {', '.join(kinds)}")
-    lines.append("Marketplace skills:")
+    lines.append("Skills:")
     for s in config.skills.values():
         needs = s.needs_all + ([f"one of {'/'.join(s.needs_any)}"] if s.needs_any else [])
         lines.append(f"- {s.id} ({s.name}): {s.description} Needs: {', '.join(needs) or '-'}")
@@ -138,7 +138,7 @@ class RuleFiller:
         if not skills and not kinds:
             return self._slots(
                 outcome="unsupported",
-                reason="스마트홈 기기나 Marketplace 스킬과 관련된 요청을 찾지 못했어요.",
+                reason="스마트홈 기기나 지원하는 스킬과 관련된 요청을 찾지 못했어요.",
             )
         if space is None:
             names = ", ".join(SPACE_NAMES.get(s, s) for s in self._config.spaces)

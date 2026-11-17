@@ -4,7 +4,7 @@
 # Must match ../homeassistant/config/configuration.yaml and each agent's
 # `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
 # The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
-# `kind` says what the device is; Marketplace skills (skills.yaml) refer to kinds, not entity ids.
+# `kind` says what the device is; the built-in skills (skills.yaml) refer to kinds, not entity ids.
 spaces: [living_room, my_room, protected_room]
 
 devices:

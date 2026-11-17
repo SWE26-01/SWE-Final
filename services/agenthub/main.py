@@ -3,8 +3,6 @@
 - Registry and discovery: platform agents (config/agents.yaml) are seeded at startup; Studio
   registers the agents it creates (POST /agents); an external agent signs up with its Agent Card
   URL (POST /agents/discover). GET /agents searches by name, skill, space and role.
-- Skill Marketplace: GET /skills searches config/skills.yaml and says which rooms can run each
-  skill.
 - Connections: the user approves an agent's permissions (POST /connections). The Hub checks that
   every device has exactly one owner, issues a per-agent token and stores only its hash.
   DELETE /connections/{id} revokes the token, the permissions and the device ownership at once.
@@ -50,7 +48,7 @@ from common.cors import allow_dashboards
 from common.db import database_url, make_engine
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
-from homeconfig.models import Caller, CatalogSkill, EntityId, FieldName, Role
+from homeconfig.models import Caller, EntityId, FieldName, Role
 
 log = logging.getLogger("agenthub")
 
@@ -372,24 +370,6 @@ def create_app(
     @app.get("/health")
     async def health() -> dict:
         return {"ok": True}
-
-    @app.get("/skills")
-    async def list_skills(
-        _: auth.caller,
-        q: Annotated[str | None, Query(max_length=80)] = None,
-        category: str | None = None,
-        template: str | None = None,
-        space: str | None = None,
-    ) -> list[CatalogSkill]:
-        """Marketplace search. `space` keeps only the skills that room's devices can run."""
-        return config.search_skills(q, category, template, space)
-
-    @app.get("/skills/{skill_id}")
-    async def get_skill(skill_id: str, _: auth.caller) -> CatalogSkill:
-        skill = config.skills.get(skill_id)
-        if skill is None:
-            raise _problem(404, "UNKNOWN_SKILL", f"no skill {skill_id!r}")
-        return CatalogSkill(**skill.model_dump(), available_spaces=config.spaces_for(skill))
 
     @app.get("/spaces")
     def list_spaces(db: DB, _: auth.caller) -> list[SpaceOut]:
