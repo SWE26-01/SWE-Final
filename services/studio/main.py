@@ -1,14 +1,15 @@
-"""Agent Studio (Main 2): a natural-language request becomes a checked OpenClaw agent, which the
-user approves and Studio registers in the Agent Hub.
+"""Agent Studio (Main 2): a natural-language request becomes a checked agent, which the user
+approves and Studio registers in the Agent Hub.
 
 POST /drafts runs "structure first, then fill in" (each step is in its own module):
 1. input guard (harness.check_request): dangerous commands or injection -> `blocked`, no LLM call
 2. fill the slots (filler.py): LangChain structured output, or the offline keyword filler
-3. compile (compile.py): Marketplace skills -> devices, rules and policies of the chosen space
-4. render (render.py) + capability lock (harness.check_rendered)
+3. compile (compile.py): built-in skills -> a runtime-neutral AgentSpec for the chosen space
+4. build for the runtime (runtime.py; today OpenClaw: render.py + harness.check_rendered)
    Problems from 2-4 go back to the filler, at most MAX_REPAIRS more times, then `invalid`.
 5. the user reviews the summary and files; POST /drafts/{id}/approve registers the agent in the
    Hub and writes agents/generated/<agent_id>/. Connecting it (permissions, token) is the Hub's job.
+STUDIO_RUNTIME picks the runtime (runtime.py). No Skill Marketplace: users pick a room only.
 
 Run: uvicorn studio.main:build --factory --port 8500 --env-file ../.env
      (database: PostgreSQL with POSTGRES_HOST, else studio.sqlite; see common/db.py)
@@ -35,22 +36,19 @@ from common.cors import allow_dashboards
 from common.db import database_url, make_engine
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
-from homeconfig.models import Caller, CatalogSkill, Role
+from homeconfig.models import Caller, Role
 from studio.compile import AgentSpec, Picks, apply_picks, compile_spec, summarize
 from studio.filler import Filler, LangChainFiller, RuleFiller
-from studio.harness import PORT_RANGE, REQUEST_LIMIT, check_rendered, check_request, check_text
+from studio.harness import REQUEST_LIMIT, check_request, check_text
 from studio.hubclient import HubClient, HubError
-from studio.render import render
+from studio.runtime import OpenClawRuntime, Runtime, choose_runtime
 from studio.slots import Slots
 from studio.store import Base, DraftRow, now
-from studio.templates import SPACE_NAMES, TEMPLATES
+from studio.templates import TEMPLATES
 
 log = logging.getLogger("studio")
 
 MAX_REPAIRS = 2  # extra attempts after the first, with the problems fed back to the filler
-PORT_STEP = (
-    120  # OpenClaw gateways sit 120 ports apart, like the platform agents (scripts/run_all.sh)
-)
 DEFAULT_GENERATED_DIR = Path(__file__).resolve().parents[2] / "agents" / "generated"
 
 
@@ -59,10 +57,7 @@ class _In(BaseModel):
 
 
 class DraftRequest(_In):
-    request: Annotated[str, Field(max_length=2000)] = ""  # the harness enforces 500
-    skills: Annotated[list[str], Field(max_length=5)] = Field(
-        default=[], description="skills picked in the Marketplace; kept whatever the LLM says"
-    )
+    request: Annotated[str, Field(max_length=2000)]  # the harness enforces 500
     space: str | None = Field(default=None, description="room picked on screen")
 
 
@@ -145,7 +140,9 @@ def create_app(
     hub: HubClient,
     db_url: URL | str = "sqlite://",
     generated_dir: Path = DEFAULT_GENERATED_DIR,
+    runtime: Runtime | None = None,
 ) -> FastAPI:
+    runtime = runtime or OpenClawRuntime(config)
     engine = make_engine(db_url)
     sessions = sessionmaker(engine, expire_on_commit=False)
     auth = make_auth(config)
@@ -180,7 +177,7 @@ def create_app(
 
     def next_port(db: Session) -> int:
         used = set(db.scalars(select(DraftRow.port).where(DraftRow.status == "registered")).all())
-        for port in range(PORT_RANGE.start, PORT_RANGE.stop, PORT_STEP):
+        for port in runtime.ports:
             if port not in used:
                 return port
         raise _problem(507, "NO_PORT", "no free port for another generated agent")
@@ -211,19 +208,11 @@ def create_app(
             return
         picks = Picks.model_validate(row.picks or {})
         feedback: list[str] = []
-        # Without a request no LLM is asked, so a retry would give the same answer.
-        for attempt in range(1, MAX_REPAIRS + 2 if row.request else 2):
+        for attempt in range(1, MAX_REPAIRS + 2):
             row.attempts = attempt
             try:
-                if row.request:
-                    filled = filler.fill(row.request + picks.hint(config), feedback)
-                    slots = Slots.model_validate(filled.model_dump())
-                else:  # only Marketplace picks: nothing for an LLM to read
-                    names = ", ".join(SPACE_NAMES.get(s, s) for s in config.spaces)
-                    slots = Slots(
-                        outcome="clarify", question=f"어느 공간의 에이전트를 만들까요? ({names})"
-                    )
-                slots = apply_picks(slots, picks, config)
+                filled = filler.fill(row.request + picks.hint(), feedback)
+                slots = apply_picks(Slots.model_validate(filled.model_dump()), picks)
             except ValidationError as e:
                 feedback = [f"form: {err['loc']}: {err['msg']}" for err in e.errors()][:5]
                 continue
@@ -246,8 +235,7 @@ def create_app(
             )
             if spec is not None:
                 port = next_port(db)
-                profile, files = render(spec, port, config, row.id)
-                problems = check_rendered(profile, spec.agent_id, spec.owned, files["AGENTS.md"])
+                files, problems = runtime.build(spec, port, row.id)
                 if not problems:
                     row.status = "ready"
                     row.spec, row.files, row.port = spec.model_dump(), files, port
@@ -266,7 +254,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict:
-        return {"ok": True, "filler": filler_name}
+        return {"ok": True, "filler": filler_name, "runtime": runtime.name}
 
     @app.get("/templates")
     async def list_templates(_: Reader) -> list[TemplateOut]:
@@ -275,16 +263,6 @@ def create_app(
             for t in TEMPLATES.values()
         ]
 
-    @app.get("/skills")
-    async def list_skills(
-        _: Reader,
-        q: Annotated[str | None, Query(max_length=80)] = None,
-        category: str | None = None,
-        space: str | None = None,
-    ) -> list[CatalogSkill]:
-        """The Marketplace, for picking skills into a draft (same search as the Hub's)."""
-        return config.search_skills(q, category, None, space)
-
     @app.post("/harness/check")
     async def harness_check(body: CheckRequest, _: Reader) -> list[FindingOut]:
         """What the input guard would refuse in `text` (for the screen and for demos)."""
@@ -292,18 +270,15 @@ def create_app(
 
     @app.post("/drafts", status_code=status.HTTP_201_CREATED)
     def create_draft(body: DraftRequest, db: DB, _: auth.user) -> DraftOut:
-        """From a sentence, from Marketplace picks (skills, room), or both."""
-        if not body.request.strip() and not body.skills:
-            raise _problem(422, "EMPTY", "write a request or pick at least one skill")
-        unknown = [s for s in body.skills if s not in config.skills]
-        if unknown:
-            raise _problem(422, "UNKNOWN_SKILL", f"not in the Marketplace: {', '.join(unknown)}")
+        """From a sentence, optionally with a room picked on screen."""
+        if not body.request.strip():
+            raise _problem(422, "EMPTY", "write a request")
         if body.space is not None and body.space not in config.spaces:
             raise _problem(422, "UNKNOWN_SPACE", f"no space {body.space!r}")
         row = DraftRow(
             id=secrets.token_hex(8),
             request=body.request.strip(),
-            picks=Picks(skills=list(dict.fromkeys(body.skills)), space=body.space).model_dump(),
+            picks=Picks(space=body.space).model_dump(),
             status="new",
             filler=filler_name,
             suffix=secrets.token_hex(2),
@@ -337,14 +312,13 @@ def create_app(
 
     @app.post("/drafts/{draft_id}/approve")
     def approve_draft(draft_id: str, db: DB, _: auth.user) -> DraftOut:
-        """The user approves: register in the Hub, then write the OpenClaw profile."""
+        """The user approves: register in the Hub, then write the runtime's files."""
         row = find_draft(db, draft_id)
         if row.status != "ready" or row.spec is None:
             raise _problem(409, "NOT_READY", f"draft {draft_id} is {row.status}, not ready")
         spec = AgentSpec.model_validate(row.spec)
         port = next_port(db)  # another draft may have taken the previewed port meanwhile
-        profile, files = render(spec, port, config, row.id)
-        problems = check_rendered(profile, spec.agent_id, spec.owned, files["AGENTS.md"])
+        files, problems = runtime.build(spec, port, row.id)
         if problems:
             raise _problem(
                 422, "HARNESS", "the rendered agent breaks a harness rule", problems=problems
@@ -363,7 +337,7 @@ def create_app(
                     "description": spec.description,
                     "role": spec.role,
                     "space": spec.space,
-                    "url": f"http://127.0.0.1:{port}/plugins/ambient",
+                    "url": runtime.url(spec, port),
                     "skills": spec.skills,
                     "owned_devices": spec.owned,
                     "permissions": spec.permissions,
@@ -405,4 +379,5 @@ def build() -> FastAPI:
     token = studio.token if studio and studio.role is Role.SERVICE else None
     hub = HubClient.connect(os.environ.get("STUDIO_HUB_URL", "http://127.0.0.1:8400"), token)
     generated = Path(os.environ.get("STUDIO_GENERATED_DIR") or DEFAULT_GENERATED_DIR)
-    return create_app(config, choose_filler(config), hub, database_url("studio"), generated)
+    db_url = database_url("studio")
+    return create_app(config, choose_filler(config), hub, db_url, generated, choose_runtime(config))

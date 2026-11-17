@@ -1,5 +1,5 @@
 """The form the LLM fills. Every choice is an enum built from the catalogs (templates, spaces,
-device kinds, Marketplace skills), so the LLM cannot name a device, a tool or a rule that does not
+device kinds, built-in skills), so the LLM cannot name a device, a tool or a rule that does not
 exist. The only free text is a short name, a description and a question or reason."""
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def slot_model(config: HomeConfig) -> type[BaseModel]:
         space=(spaces | None, Field(default=None, description="the room the agent manages")),
         skills=(
             list[skills],
-            Field(default_factory=list, max_length=5, description="Marketplace skill ids"),
+            Field(default_factory=list, max_length=5, description="skill ids from the catalog"),
         ),
         devices=(
             list[kinds],
