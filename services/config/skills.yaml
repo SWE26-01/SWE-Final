@@ -1,5 +1,6 @@
-# Skill Marketplace: reusable skills that Studio adds to the agents it creates.
-# Loaded and checked by homeconfig.load_config(); the Agent Hub lists them at GET /skills.
+# Built-in skills: what Studio can build into the agents it creates. The platform provides them in
+# this file; users do not add or pick skills (there is no Skill Marketplace). Studio's filler chooses
+# them from the user's request. Loaded and checked by homeconfig.load_config().
 #
 # A skill names device kinds (devices.yaml `kind`), never entity ids. Studio's compiler
 # (studio/compile.py) maps them to the devices of the chosen space, so one skill fits any room.
@@ -9,7 +10,6 @@ skills:
   - id: meeting_mode
     name: Meeting Mode
     description: Switches the room to a quiet meeting setup while a meeting app runs on the desktop.
-    category: context
     templates: [room_agent]
     needs_any: [light_mode, tv_muted]
     subscribes: {desktop: [meeting_app_active]}
@@ -25,7 +25,6 @@ skills:
   - id: sleep_mode
     name: Sleep Mode
     description: While sleep mode is on, refuses to turn the air conditioner off or the lights on, whoever asks.
-    category: safety
     templates: [room_agent]
     needs_all: [sleep_mode]
     policies:
@@ -40,7 +39,6 @@ skills:
   - id: energy_saving
     name: Energy Saving
     description: Turns the room's lights, air conditioner and TV off when the Home Agent asks the whole home to save energy.
-    category: energy
     templates: [room_agent]
     needs_any: [light, ac, tv]
     energy_saving: [{kind: light, command: TURN_OFF}, {kind: ac, command: TURN_OFF}, {kind: tv, command: TURN_OFF}]
@@ -49,7 +47,6 @@ skills:
   - id: location_aware
     name: Location-Aware Automation
     description: Turns the room's lights, air conditioner and TV off when the phone reports that the user left home.
-    category: context
     templates: [room_agent]
     needs_any: [light, ac, tv]
     subscribes: {smartphone: [presence]}
@@ -62,7 +59,6 @@ skills:
   - id: temperature_monitoring
     name: Temperature Monitoring
     description: Watches the room temperature with a temperature sensor and keeps the air conditioner in range.
-    category: monitoring
     templates: [room_agent]
     # No room in devices.yaml has a temperature sensor yet, so Studio reports this skill as
     # unavailable instead of creating an agent that cannot do it.

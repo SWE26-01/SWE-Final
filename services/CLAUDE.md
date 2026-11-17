@@ -30,8 +30,11 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   show the token once. Platform agents (config/agents.yaml) can be disconnected, never removed.
 - Studio (`studio/`): the LLM only fills the slot form (`studio/slots.py`, enums from the catalogs).
   It never writes rules, device ids, tools or paths: rules come from `config/skills.yaml` through
-  `studio/compile.py`, and `harness.check_rendered` must pass before a profile is written or
-  registered. Generated agents get only the Ambient-A2A tools. New dangerous patterns go in
+  `studio/compile.py`, and the runtime's capability lock (`studio/runtime.py`; for OpenClaw
+  `harness.check_rendered`) must pass before an agent is written or registered. Generated agents get
+  only the Ambient-A2A tools. There is no Skill Marketplace: users pick a room, never skills.
+  A new runtime (e.g. Python) is one class in `runtime.RUNTIMES`; AgentSpec and the Hub stay as
+  they are. New dangerous patterns go in
   `harness._RULES` with a test in `tests/test_studio_harness.py`.
 - The home user (`HOME_USER_TOKEN`) creates, connects and disconnects agents; Studio's service token
   (`STUDIO_TOKEN`) only registers agents in the Hub. Neither commands a device.

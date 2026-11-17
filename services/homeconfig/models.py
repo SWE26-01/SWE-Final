@@ -101,7 +101,7 @@ class ScenariosFile(_Cfg):
     scenarios: list[Scenario] = Field(default_factory=list)
 
 
-# --- skills.yaml (Skill Marketplace) ------------------------------------------
+# --- skills.yaml (the platform's built-in skills) -------------------------------
 #
 # A skill names device kinds, never entity ids, so one skill fits any room that has those kinds.
 # Studio turns the chosen skills into the generated agent's rules, policies and energy saving for
@@ -143,7 +143,6 @@ class Skill(_Cfg):
     id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=40)]
     name: Annotated[str, Field(min_length=1, max_length=40)]
     description: Annotated[str, Field(min_length=1, max_length=200)]
-    category: Literal["context", "safety", "energy", "monitoring"]
     templates: list[str] = Field(min_length=1, description="Studio templates it can be added to")
     needs_all: list[DeviceKind] = Field(default_factory=list)
     needs_any: list[DeviceKind] = Field(default_factory=list)
@@ -165,11 +164,3 @@ class Skill(_Cfg):
 
 class SkillsFile(_Cfg):
     skills: list[Skill] = Field(default_factory=list)
-
-
-class CatalogSkill(Skill):
-    """A Marketplace entry as the Hub and Studio list it."""
-
-    available_spaces: list[str] = Field(
-        description="spaces whose devices meet the skill's needs (empty: no room can run it)"
-    )
