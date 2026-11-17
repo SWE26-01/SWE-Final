@@ -10,8 +10,9 @@
 - 기획서: 루트 `plan.md`. 세부 기획서: https://claude.ai/code/artifact/149b9ec3-d478-4a2e-8de2-2b0fb944c111
 - **주제 확장(2026-11-13)**: "Extension of Smart Home: Internal & External Connectivity via A2A". Main 1은 위의 A2A 스마트홈
   (내부 방 에이전트 + 외부 Desktop·Mobile 에이전트, 분산 제어) 그대로이고, Main 2로 **Agent Studio**(자연어 → 템플릿 기반 에이전트),
-  **Agent Hub**(등록·검색·연결·권한), **Skill Marketplace**(재사용 스킬)를 더한다. 백엔드는 FastAPI + LangChain + PostgreSQL(Docker),
-  Studio가 만드는 에이전트는 OpenClaw 프로필이다. Studio는 "구조를 짜고 빈칸을 채우는" 방식과 하네스(위험 명령·도구 차단)로 만든다.
+  **Agent Hub**(등록·검색·연결·권한)를 더한다. Skill Marketplace는 빼기로 했다(2026-11-16): 스킬은 `config/skills.yaml`의
+  기본 스킬뿐이고 사용자가 고르지 않는다. 백엔드는 FastAPI + LangChain + OpenRouter + PostgreSQL(Docker).
+  Studio가 만드는 에이전트는 지금 OpenClaw 프로필이고, Python 실행기로 바꿀 수 있게 실행기를 `studio/runtime.py` 하나로 모았다. Studio는 "구조를 짜고 빈칸을 채우는" 방식과 하네스(위험 명령·도구 차단)로 만든다.
 
 ## 레포 구성 (2026-10-18 통합)
 
@@ -85,8 +86,8 @@
   Live Simulation 탭은 LIVE에서 Runner로 실제 LLM을 돌리고(MOCK은 가짜 시나리오 그대로), Control Mode 탭은 데모용 가짜 데이터.
   화면에서 기기 조작은 막혀 있다(대시보드 토큰은 읽기 전용).
 - Agent Hub·Studio 백엔드(`services/agenthub`, `services/studio`, 2026-11-13, 브랜치 `feature/hub-studio-backend`):
-  Hub는 등록·검색·Marketplace(`config/skills.yaml`)·연결(기기마다 주인 하나, 에이전트별 토큰은 해시만 저장)·해제·토큰 확인,
-  Studio는 요청 → 입력 차단 → LLM 빈칸 채우기(LangChain, OpenRouter) → 스킬을 규칙으로 변환 → OpenClaw 프로필 생성 → 도구 잠금 검사
+  Hub는 등록·검색·연결(기기마다 주인 하나, 에이전트별 토큰은 해시만 저장)·해제·토큰 확인,
+  Studio는 요청 → 입력 차단 → LLM 빈칸 채우기(LangChain, OpenRouter) → 스킬을 규칙으로 변환 → 실행기 파일 생성(지금 OpenClaw) → 도구 잠금 검사
   → 사용자 승인 → Hub 등록. 테스트 `pytest`(65개 추가), HTTP 확인 `scripts/test_hub_studio.sh [--local]`.
   남은 것: 실행 중인 에이전트·Gateway가 Hub를 읽게 하기(지금은 `shared.json5`·`devices.yaml` 고정, `services/README.md` "Agent Hub · Studio"),
   Studio·Hub 화면.

@@ -91,14 +91,11 @@ def test_platform_agents_are_seeded_connected_with_their_devices(hub):
 def test_every_route_needs_a_known_token(hub):
     assert hub.get("/agents").status_code == 401
     assert hub.get("/agents", headers={"Authorization": "Bearer nope"}).status_code == 401
-    assert hub.get("/skills", headers=DASHBOARD).status_code == 200
+    assert hub.get("/agents", headers=DASHBOARD).status_code == 200
 
 
-def test_marketplace_lists_the_skills(hub):
-    skills = {s["id"]: s for s in hub.get("/skills", headers=USER).json()}
-    assert {"meeting_mode", "sleep_mode", "energy_saving", "location_aware"} <= set(skills)
-    assert skills["meeting_mode"]["subscribes"] == {"desktop": ["meeting_app_active"]}
-    assert hub.get("/skills/nope", headers=USER).status_code == 404
+def test_there_is_no_skill_marketplace(hub):
+    assert hub.get("/skills", headers=USER).status_code == 404
 
 
 def test_only_studio_registers_agents(hub):
@@ -273,19 +270,6 @@ def test_a_restart_keeps_what_the_user_decided(tmp_path: Path):
         assert not room1["connected"]
         actions = [a["action"] for a in hub.get("/audit", headers=USER).json()]
         assert actions[0] == "disconnect" and actions.count("register") == 5
-
-
-def test_marketplace_search_says_which_rooms_can_run_a_skill(hub):
-    def ids(query: str) -> list[str]:
-        return [s["id"] for s in hub.get(f"/skills?{query}", headers=USER).json()]
-
-    assert ids("q=회의") == ["meeting_mode"]
-    assert ids("category=safety") == ["sleep_mode"]
-    assert ids("space=my_room") == ["meeting_mode", "energy_saving", "location_aware"]
-    sleep = hub.get("/skills/sleep_mode", headers=USER).json()
-    assert sleep["available_spaces"] == ["protected_room"]
-    temperature = hub.get("/skills/temperature_monitoring", headers=USER).json()
-    assert temperature["available_spaces"] == []  # no room has a temperature sensor
 
 
 FLOWS = [

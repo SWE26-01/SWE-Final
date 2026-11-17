@@ -14,6 +14,7 @@ from studio.filler import RuleFiller
 from studio.harness import TOOLS
 from studio.hubclient import HubClient
 from studio.main import choose_filler, create_app
+from studio.runtime import OpenClawRuntime, choose_runtime
 from studio.slots import slot_model
 
 CONFIG = load_config(env=ENV)
@@ -263,32 +264,6 @@ def picked(studio: TestClient, **body) -> dict:
     return r.json()
 
 
-def test_marketplace_picks_alone_need_no_llm(studio, spy):
-    d = picked(studio, skills=["meeting_mode"], space="my_room")
-    assert d["status"] == "ready" and d["attempts"] == 1 and spy.calls == []
-    assert d["picks"] == {"skills": ["meeting_mode"], "space": "my_room"}
-    assert d["spec"]["skills"] == ["meeting_mode"] and d["spec"]["display_name"] == "내 방 도우미"
-    assert d["spec"]["owned"] == ["input_select.room1_light_mode"]
-
-
-def test_picks_without_a_room_ask_for_one(studio):
-    d = picked(studio, skills=["meeting_mode"])
-    assert d["status"] == "clarify" and "어느 공간" in d["question"]
-    r = studio.post(f"/drafts/{d['id']}/answer", json={"answer": "내 방"}, headers=USER)
-    assert r.json()["status"] == "ready" and r.json()["request"] == "내 방"
-    assert r.json()["spec"]["skills"][0] == "meeting_mode"
-
-
-def test_picked_skills_survive_the_llm(hub, tmp_path):
-    spy = Spy([GOOD])  # the "LLM" answers with meeting_mode only
-    with studio_for(hub, tmp_path, spy) as studio:
-        d = picked(studio, request=MEETING, skills=["energy_saving"])
-    assert d["status"] == "ready"
-    assert d["spec"]["skills"] == ["energy_saving", "meeting_mode"]
-    assert d["spec"]["energy_saving"]  # compiled from the picked skill
-    assert "Energy Saving (energy_saving)" in spy.calls[0][0]  # the LLM was told
-
-
 def test_a_picked_room_wins_over_the_llm(hub, tmp_path):
     with studio_for(hub, tmp_path, Spy([{**GOOD, "devices": []}])) as studio:
         d = picked(studio, request=MEETING, space="living_room")
@@ -302,15 +277,44 @@ def test_picks_are_checked(studio):
         r = studio.post("/drafts", json=body, headers=USER)
         return r.status_code, r.json()["detail"]["reason_code"]
 
-    assert code(skills=["nope"], space="my_room") == (422, "UNKNOWN_SKILL")
-    assert code(skills=["meeting_mode"], space="garage") == (422, "UNKNOWN_SPACE")
+    assert code(request=MEETING, space="garage") == (422, "UNKNOWN_SPACE")
     assert code(request="  ") == (422, "EMPTY")
-    d = picked(studio, skills=["sleep_mode"], space="my_room")
-    assert d["status"] == "invalid" and d["attempts"] == 1
-    assert any("sleep_mode needs" in e for e in d["errors"])
 
 
-def test_studio_marketplace_search(studio):
-    skills = studio.get("/skills?space=protected_room", headers=USER).json()
-    assert [s["id"] for s in skills] == ["sleep_mode", "energy_saving", "location_aware"]
-    assert all("protected_room" in s["available_spaces"] for s in skills)
+def test_there_is_no_skill_marketplace(studio):
+    assert studio.get("/skills", headers=USER).status_code == 404
+    body = {"request": MEETING, "skills": ["meeting_mode"]}  # users cannot pick skills
+    assert studio.post("/drafts", json=body, headers=USER).status_code == 422
+
+
+class OtherRuntime:
+    """Stands in for a future runtime (e.g. a Python one): Studio and the Hub must not care."""
+
+    name = "other"
+    ports = range(30000, 30010)
+
+    def build(self, spec, port, draft_id):
+        return {"agent.json": spec.model_dump_json()}, []
+
+    def url(self, spec, port):
+        return f"http://127.0.0.1:{port}/agents/{spec.agent_id}"
+
+
+def test_the_runtime_can_be_swapped(hub, tmp_path, spy):
+    as_studio = HubClient(TestClient(hub.app, headers=STUDIO))
+    app = create_app(CONFIG, spy, as_studio, "sqlite://", tmp_path / "gen", OtherRuntime())
+    with TestClient(app) as studio:
+        assert studio.get("/health").json()["runtime"] == "other"
+        d = draft(studio, MEETING)
+        assert d["status"] == "ready" and list(d["files"]) == ["agent.json"]
+        assert studio.post(f"/drafts/{d['id']}/approve", headers=USER).status_code == 200
+    agent = hub.get(f"/agents/{d['agent_id']}", headers=USER).json()
+    assert agent["url"] == f"http://127.0.0.1:30000/agents/{d['agent_id']}"
+    assert (tmp_path / "gen" / d["agent_id"] / "agent.json").exists()
+
+
+def test_the_runtime_is_chosen_from_the_environment():
+    assert isinstance(choose_runtime(CONFIG, {}), OpenClawRuntime)
+    assert choose_runtime(CONFIG, {"STUDIO_RUNTIME": "openclaw"}).name == "openclaw"
+    with pytest.raises(ValueError, match="STUDIO_RUNTIME"):
+        choose_runtime(CONFIG, {"STUDIO_RUNTIME": "nope"})

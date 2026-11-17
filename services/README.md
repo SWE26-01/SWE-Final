@@ -7,8 +7,8 @@
 - **Event Collector** (`collector/`): 모든 에이전트의 A2A 통신·실행·자동화 기록을 한곳에 모으고 대시보드에 실시간으로 보낸다.
 - **Runner** (`runner/`): Live Simulation이 시나리오(`config/scenarios.yaml`)나 자유 입력을 고르면, 사용자가 채팅하듯 해당
   에이전트의 LLM에 말을 건다(OpenClaw chat 엔드포인트). 기기는 직접 건드리지 않고, 판단은 에이전트가 한다.
-- **Agent Hub** (`agenthub/`): 에이전트 등록·검색, Skill Marketplace, 연결(권한 승인, 에이전트별 토큰)과 해제. 기기마다 주인을 하나로 지킨다.
-- **Agent Studio** (`studio/`): 자연어 요청을 템플릿의 빈칸 채우기로 바꿔 OpenClaw 에이전트를 만든다(LangChain). 하네스가 위험한 명령과
+- **Agent Hub** (`agenthub/`): 에이전트 등록·검색, 연결(권한 승인, 에이전트별 토큰)과 해제. 기기마다 주인을 하나로 지킨다.
+- **Agent Studio** (`studio/`): 자연어 요청을 템플릿의 빈칸 채우기로 바꿔 에이전트를 만든다(LangChain + OpenRouter). 지금 실행기는 OpenClaw이고 `STUDIO_RUNTIME`으로 바꿀 수 있다(`studio/runtime.py`). 하네스가 위험한 명령과
   권한 밖 도구를 막고, 사용자가 승인하면 Hub에 등록한다.
 
 에이전트와 연결하는 방법: [../docs/integration.md](../docs/integration.md)
@@ -21,10 +21,10 @@
 | `collector/` | 이벤트 저장(SQLite), 조회, 대시보드 WebSocket |
 | `runner/` | Live Simulation 실행(한 번에 하나), OpenClaw chat 클라이언트, 대시보드 WebSocket |
 | `agenthub/` | 에이전트 등록·검색, Agent Card 읽기, 연결·해제, 토큰 확인 (PostgreSQL/SQLite) |
-| `studio/` | 빈칸 양식(`slots.py`), LLM 채우기(`filler.py`), 스킬→규칙 변환(`compile.py`), 하네스(`harness.py`), OpenClaw 파일 생성(`render.py`) |
+| `studio/` | 빈칸 양식(`slots.py`), LLM 채우기(`filler.py`), 스킬→규칙 변환(`compile.py`), 하네스(`harness.py`), 실행기 선택(`runtime.py`), OpenClaw 파일 생성(`render.py`) |
 | `common/` | 서비스들이 같이 쓰는 토큰 인증, WebSocket 전달, DB 연결(`db.py`) |
 | `homeconfig/` | `config/*.yaml` 로더와 검사 (토큰은 환경 변수에서 읽음) |
-| `config/` | `agents.yaml`(호출자와 토큰 변수 이름), `devices.yaml`(HA 엔티티, 주인, 종류), `scenarios.yaml`(Live Simulation 시나리오), `skills.yaml`(Skill Marketplace) |
+| `config/` | `agents.yaml`(호출자와 토큰 변수 이름), `devices.yaml`(HA 엔티티, 주인, 종류), `scenarios.yaml`(Live Simulation 시나리오), `skills.yaml`(Studio 기본 스킬. Marketplace는 없다) |
 | `contracts/` | 대시보드가 받는 메시지 형식 (JSON Schema, 코드에서 생성) |
 | `scripts/` | `verify_integration.py`(실행 중인 시스템 확인), `export_schemas.py` |
 | `spikes/` | 초기 a2a-sdk 실험 (참고용, 실행 대상 아님) |
@@ -65,17 +65,17 @@ Docker로는 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터�
 `../scripts/setup.sh`를 다시 돌리면 빠진 키를 넣고 값을 만든다.
 
 **HTTP로 한 번에 확인**: `../scripts/test_hub_studio.sh`(실행 중인 서비스) 또는 `../scripts/test_hub_studio.sh --local`
-(uvicorn + SQLite, Docker·API 키 없이). 위험 명령 차단, 자연어·Marketplace 선택→에이전트, 승인·등록, 소유권 충돌,
-연결·토큰·해제, 에이전트 활동 기록을 28단계로 본다.
+(uvicorn + SQLite, Docker·API 키 없이). 위험 명령 차단, 자연어(+방 선택)→에이전트, 승인·등록, 소유권 충돌,
+연결·토큰·해제, 에이전트 활동 기록을 26단계로 본다.
 
 | Studio (`:8500`) | 누가 | 하는 일 |
 |---|---|---|
-| `POST /drafts {request, skills?, space?}` | 사용자 | 요청 → 초안. `skills`·`space`는 Marketplace와 방 선택에서 고른 것: LLM이 빼거나 바꿀 수 없고, 요청 문장 없이 고른 것만으로도 만든다(LLM 호출 없음). 상태: `blocked`(입력 차단) · `clarify`(질문) · `unsupported` · `invalid`(수리 2회 후에도 실패) · `failed`(LLM 호출 실패) · `ready` |
+| `POST /drafts {request, space?}` | 사용자 | 요청 → 초안. `space`는 화면에서 고른 방: LLM이 바꿀 수 없다. 스킬은 사용자가 고르지 않고 요청에서 정해진다(`config/skills.yaml`). 상태: `blocked`(입력 차단) · `clarify`(질문) · `unsupported` · `invalid`(수리 2회 후에도 실패) · `failed`(LLM 호출 실패) · `ready` |
 | `POST /drafts/{id}/answer {answer}` | 사용자 | `clarify` 질문에 답하고 다시 만든다 |
-| `POST /drafts/{id}/approve` | 사용자 | Hub에 등록하고 `agents/generated/<id>/`에 `openclaw.json5`·`AGENTS.md`를 쓴다 |
+| `POST /drafts/{id}/approve` | 사용자 | Hub에 등록하고 `agents/generated/<id>/`에 실행기 파일을 쓴다(OpenClaw: `openclaw.json5`·`AGENTS.md`) |
 | `GET /drafts`, `GET /drafts/{id}` | 사용자·대시보드 | 요약(`summary`), 요청 권한, 생성 파일 미리보기 |
 | `POST /harness/check {text}` | 사용자·대시보드 | 입력 차단 규칙에 걸리는지 |
-| `GET /templates`, `GET /skills?q=&category=&space=` | 사용자·대시보드 | 템플릿, Marketplace 검색(Hub와 같음) |
+| `GET /templates` | 사용자·대시보드 | 템플릿 |
 
 | Hub (`:8400`) | 누가 | 하는 일 |
 |---|---|---|
@@ -87,7 +87,6 @@ Docker로는 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터�
 | `POST /tokens/verify {token}` | 에이전트·서비스 | Hub가 발급한 토큰이 지금 연결돼 있는지, 권한은 무엇인지 |
 | `GET /ownership`, `GET /spaces` | 토큰 있는 누구나 | 기기별 지금 주인(연결 기준)과 `devices.yaml`의 주인 |
 | `GET /runtime/peers`, `GET /runtime/acl/{agent}` | 토큰 있는 누구나 | 연결된 에이전트 주소, 누가 그 에이전트의 어떤 상태를 읽어도 되는지 |
-| `GET /skills?q=&category=&template=&space=` | 토큰 있는 누구나 | Marketplace 검색. 스킬마다 그 스킬을 돌릴 수 있는 방(`available_spaces`) |
 | `GET /agents/{id}/activity` | 토큰 있는 누구나 | 그 에이전트의 Hub 기록(등록·연결·해제)과, Collector `GET /flows`에서 그 에이전트가 낀 요청 흐름 |
 | `GET /audit` | 토큰 있는 누구나 | 등록·연결·해제 기록 전체(토큰 없음) |
 

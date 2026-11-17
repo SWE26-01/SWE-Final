@@ -1,8 +1,8 @@
 """Slots -> AgentSpec: the code half of "structure first, then fill in".
 
-The LLM chose a template, a space and Marketplace skills. Here the skills' device kinds become the
-space's real devices, and their rules, policies and energy-saving actions become plugin config.
-Nothing the LLM wrote reaches the config except through these lookups."""
+The LLM chose a template, a space and built-in skills (config/skills.yaml). Here the skills' device
+kinds become the space's real devices, and their rules, policies and energy-saving actions become
+plugin config. Nothing the LLM wrote reaches the config except through these lookups."""
 
 from __future__ import annotations
 
@@ -50,9 +50,9 @@ def compile_spec(
         errors.append(f"space: choose one of {', '.join(config.spaces)}")
     unknown = [s for s in slots.skills if s not in config.skills]
     if unknown:
-        errors.append(f"skills: not in the Marketplace: {', '.join(unknown)}")
+        errors.append(f"skills: not a built-in skill: {', '.join(unknown)}")
     if not slots.skills and not slots.devices:
-        errors.append("skills: choose at least one Marketplace skill or device kind")
+        errors.append("skills: choose at least one skill or device kind")
     if not slots.display_name:
         errors.append("display_name: give the agent a short name")
     errors += check_text("display_name", slots.display_name)
@@ -162,44 +162,21 @@ def summarize(spec: AgentSpec, config: HomeConfig) -> list[str]:
 
 
 class Picks(BaseModel):
-    """What the user chose on screen: Marketplace skills and the room. Applied by code after the
-    filler, so the LLM cannot drop them; compile and the harness still check them like any slot."""
+    """The room the user picked on screen. Applied by code after the filler, so the LLM cannot
+    change it; compile and the harness still check it like any slot."""
 
-    skills: list[str] = []
     space: str | None = None
 
-    def hint(self, config: HomeConfig) -> str:
+    def hint(self) -> str:
         """Told to the filler with the request (built from catalog values, never user text)."""
-        parts = []
-        if self.skills:
-            names = ", ".join(f"{config.skills[s].name} ({s})" for s in self.skills)
-            parts.append(f"Marketplace에서 사용자가 고른 스킬: {names}")
-        if self.space:
-            parts.append(f"공간: {SPACE_NAMES.get(self.space, self.space)} ({self.space})")
-        return f"\n\n({'. '.join(parts)}. 이 선택은 그대로 쓴다.)" if parts else ""
+        if not self.space:
+            return ""
+        where = SPACE_NAMES.get(self.space, self.space)
+        return f"\n\n(공간: {where} ({self.space}). 이 선택은 그대로 쓴다.)"
 
 
-def apply_picks(slots: Slots, picks: Picks, config: HomeConfig) -> Slots:
-    """The user's picks win: picked skills come first and stay, a picked room replaces the
-    filler's. With a room and at least one skill picked there is enough to build, even if the
-    filler asked a question or refused."""
-    if not picks.skills and picks.space is None:
+def apply_picks(slots: Slots, picks: Picks) -> Slots:
+    """A picked room replaces the filler's in a draft."""
+    if picks.space is None or slots.outcome != "draft":
         return slots
-    skills = list(dict.fromkeys([*picks.skills, *slots.skills]))[:5]
-    space = picks.space or slots.space
-    if slots.outcome != "draft" and not (picks.skills and space):
-        return slots
-    where = SPACE_NAMES.get(space or "", space or "")
-    names = ", ".join(config.skills[s].name for s in skills if s in config.skills)
-    return slots.model_copy(
-        update={
-            "outcome": "draft",
-            "template": slots.template or "room_agent",
-            "space": space,
-            "skills": skills,
-            "display_name": slots.display_name or f"{where} 도우미",
-            "description": slots.description or f"{where}에서 {names} 기능을 맡는 에이전트",
-            "question": None,
-            "reason": None,
-        }
-    )
+    return slots.model_copy(update={"space": picks.space})
