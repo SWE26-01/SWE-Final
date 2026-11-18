@@ -1,6 +1,88 @@
-# SWE-Final — A2A based Agentic Home
+# SWE-Final — Extension of Smart Home: Internal & External Connectivity via A2A
 
-A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분산 스마트홈 제어 시스템 (한양대 CSE406 · LG전자 IC-PBL "Proactive Agentic Home").
+**G01 | A2A-Lite** · 고라희, 신윤수, 홍예원 (한양대 CSE406 · LG전자 IC-PBL "Proactive Agentic Home")
+
+허브 하나가 모든 일을 하는 스마트홈을 A2A로 나눈다. 집 안은 방마다 독립된 에이전트가 자기 기기와 정책을 맡고(Internal extension), 집 밖의 데스크톱·휴대폰·사용자가 만든 에이전트와도 A2A로 연결한다(External extension). 사용자는 Agentic Studio에서 평범한 말로 에이전트를 만들고, Agentic Hub에서 등록·검색·연결한다. 기획서: [plan.md](plan.md)
+
+## 발표 자료
+
+전체 PDF: [docs/presentation/presentation.pdf](docs/presentation/presentation.pdf) (제목 페이지 제외)
+
+### 1. Problem Statement
+
+![Problem Statement](docs/presentation/slide-02.png)
+
+스마트홈의 두 가지 문제를 정의한다.
+- **Single Hub bottleneck:** Alexa 같은 플랫폼은 AI 추론, IoT 제어, API 호출, 에이전트 워크플로를 모두 허브 기기 하나에서 처리한다. 집이 커지면 더 비싼 하드웨어가 필요하고 허브가 병목이 된다. → 분산이 필요하다.
+- **Lack of External Connectivity:** OpenClaw, Codex 같은 AI 에이전트 도구는 Skill·MCP·API로 연결을 넓히는데, 스마트홈 에이전트는 집 안 기기만 본다. 데스크톱(회의), 휴대폰(재실/외출), 캘린더·Slack·메일과 연결되지 않는다. → 집 밖과의 연결이 필요하다.
+
+### 2. Background: A2A Protocol
+
+![A2A Protocol](docs/presentation/slide-04.png)
+
+A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전트끼리 대화하고 협업하게 한다. 왼쪽 그림(Google A2A 문서)처럼 Travel 에이전트가 Flight·Hotel·Activity·Guide 에이전트에게 일을 나눠 맡긴다. 각 에이전트는 Agent Card로 서로를 찾는다.
+
+![A2A interoperability](docs/presentation/slide-05.png)
+
+같은 슬라이드에서 오른쪽을 강조했다. Vertex AI 위의 Claude, Google ADK, LangGraph처럼 **서로 다른 프레임워크로 만든 에이전트**도 A2A Server로 열려 있으면 하나의 Client가 같은 방식으로 작업을 보낸다. 스마트홈 에이전트와 집 밖 에이전트를 잇는 데 A2A를 쓰는 이유다.
+
+### 3. Background: 에이전트가 협업하는 방식
+
+![How agents collaborate](docs/presentation/slide-06.png)
+
+- **Agent Card:** 에이전트의 "명함". 이름, 설명, URL, capabilities, skills를 담는다(오른쪽 코드).
+- Client 에이전트는 Agent Card를 읽고 알맞은 Remote 에이전트를 골라 작업(Task)을 보낸다.
+- 에이전트들은 JSON-RPC로 상태 업데이트와 결과(Artifact)를 주고받는다. 오래 걸리는 작업은 Task를 조회해 진행 상황을 받는다.
+
+### 4. Problem Statement (다시)
+
+![Problem Statement recap](docs/presentation/slide-07.png)
+
+해결책으로 넘어가기 전에 두 문제를 다시 짚는다. 왼쪽 그림은 허브 하나가 모든 기기를 떠안는 구조(One Hub Does Everything), 오른쪽은 스마트홈 에이전트가 데스크톱·휴대폰·캘린더·다른 에이전트와 끊겨 있는 구조(Closed to the Outside)다.
+
+### 5. Solution: Internal extension
+
+![Internal extension](docs/presentation/slide-08.png)
+
+허브 병목에 대한 해결책이다. Kitchen(냉장고·오븐·후드), Elderly Room(낙상 감지·수면 모니터링), Living Room(TV·조명·에어컨)처럼 **방마다 에이전트를 두고**, 각자 자기 기기의 주인으로서 자기 정책에 따라 판단한다. 사용자의 입구인 Root Agent는 요청을 기기 주인에게 전달만 한다. 새 방이나 다른 Root Agent도 Agent Card만 있으면 합류한다.
+
+레포에서는 `agents/`의 orchestrator(Root)와 room1·room2(방), 그리고 [spec/ambient-a2a.md](spec/ambient-a2a.md)의 소유권·정책 규칙이 이 부분이다.
+
+### 6. Solution: External extension — 기존 에이전트
+
+![External extension: existing agents](docs/presentation/slide-09.png)
+
+집 밖과의 연결에 대한 해결책이다. 이미 있는 외부 에이전트를 Root Agent와 A2A로 잇는다. Desktop Agent는 캘린더·Slack·메일을 보고 "회의 중" 같은 상태를 알려 주고, Google Search Agent 같은 범용 에이전트도 같은 방식으로 붙는다. 외부 에이전트에는 허용된 필드만 공개하고, 캘린더 제목이나 GPS 같은 원본 개인정보는 보내지 않는다.
+
+레포에서는 `agents/externel/`의 desktop·smartphone 에이전트가 이 부분이다.
+
+### 7. Solution: External extension — 사용자가 만든 에이전트
+
+![External extension: custom agents](docs/presentation/slide-10.png)
+
+사용자가 직접 만든 Custom Agent는 **Agentic Hub**에 올려(publish) 공유한다. 집 안(Internal)과 집 밖(External)이 함께 연결되면 사용자가 말하기 전에 집이 먼저 움직이는 선제적 실행(proactive execution)이 가능해진다.
+
+### 8. Agentic Studio: 에이전트를 만드는 방법
+
+![Agentic Studio](docs/presentation/slide-11.png)
+
+사용자는 웹의 Agentic Studio에서 평범한 말로 에이전트를 **만들고, 고치고, 지운다.** 예를 들어 *"Brew my coffee at 7:30 and reorder beans when low"*라고 입력하면 Studio가 요청을 Hub API로 보낸다.
+
+레포에서는 [services/studio](services/studio)가 이 부분이다. LLM(LangChain + OpenRouter)은 정해진 슬롯 폼만 채우고, 규칙은 플랫폼 기본 Skill에서 만든다. 권한 잠금 검사와 사용자 승인을 통과해야만 Hub에 등록된다.
+
+### 9. Agentic Studio: 만들어진 에이전트의 Agent Card
+
+![Coffee agent card](docs/presentation/slide-12.png)
+
+Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설명("정해진 시간에 커피를 내리고, 원두가 떨어지면 채운다"), Hub 안의 URL, capabilities, skills가 들어 있어서 다른 에이전트가 이 카드만 보고 찾아와 작업을 보낼 수 있다.
+
+### 10. Agentic Hub: 에이전트를 실행하는 방법
+
+![Agentic Hub](docs/presentation/slide-13.png)
+
+Agentic Hub(Cloud)는 Studio의 요청을 API로 받아 **Agent Information Registry(RDS)**에 저장하고, 에이전트를 배포해 실행한다(Coffee, Training, Sleep …, 각자 자기 SLM 사용). 다른 사용자는 **Share & Install**로 에이전트를 공개·검색·설치한다. Hub의 에이전트는 집(My Home)의 Root Agent에 A2A로 작업을 보내고, Root Agent는 커피 머신의 주인인 Kitchen Agent에게 넘긴다. Kitchen Agent가 자기 정책을 확인한 뒤 LG DUOBO 커피 머신을 작동한다. **각 방 에이전트는 자기 정책으로 결정한다.**
+
+레포에서는 [services/agenthub](services/agenthub)(Registry는 Docker의 PostgreSQL, Agent Card로 등록·검색·연결, 기기 주인 한 명 규칙)와 [agent_hub_FE/](agent_hub_FE/)(Hub 화면)가 이 부분이다. 생성된 에이전트는 지금 OpenClaw로 실행하고, `STUDIO_RUNTIME`으로 Python 실행기로 바꿀 수 있다. 다른 사용자와의 공유·설치, 클라우드 배포, 에이전트별 SLM은 아직 계획 단계다([plan.md](plan.md#5-구현-범위)).
 
 ## 레포 구성
 
@@ -10,11 +92,12 @@ A2A 프로토콜 확장(Ambient-A2A)을 통한 사용자 정보 공유 및 분�
 | [spec/](spec/) | Ambient-A2A 확장 명세 |
 | [homeassistant/](homeassistant/) | Home Assistant 가상 기기와 Lovelace 대시보드 |
 | [scripts/](scripts/) | 설치·실행·검증 스크립트 |
-| [services/](services/) | Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
+| [services/](services/) | Agent Hub(에이전트 등록·검색·연결), Agent Studio(자연어로 에이전트 생성), Device Gateway(HA 앞에서 기기 주인을 다시 확인), Event Collector(모든 에이전트의 통신 기록) — Python |
+| [agent_hub_FE/](agent_hub_FE/) | Agent Hub 화면 — Next.js |
 | [frontend/](frontend/) | 스마트홈 시뮬레이터 화면 — React. LIVE(실제 데이터)/MOCK 전환: [docs/frontend-integration.md](docs/frontend-integration.md) |
-| [docs/](docs/) | 실행 가이드(`RUN.md`), 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`), 응답 속도 측정(`performance.md`), EXAONE 학습 실험(`dpo-experiment.md`) |
+| [docs/](docs/) | 발표 자료(`presentation/`), 실행 가이드(`RUN.md`), 프로젝트 맥락(`HANDOFF.md`), 에이전트와 services 연동(`integration.md`), services 아키텍처(`architecture-services.md`, 영문), 검증 결과 보고서(`verification-report.md`), 응답 속도 측정(`performance.md`), EXAONE 학습 실험(`dpo-experiment.md`) |
 | [tools/](tools/) | `sync_upstream.sh`: 예전 A2A-agents 동기화 도구(2026-10-18부터 쓰지 않음) |
-| [plan.md](plan.md) | 기획서 |
+| [plan.md](plan.md) | 기획서 (발표 자료 기준) |
 
 SWE26-01의 A2A-agents(루트), a2a-agentic-home(`services/`), SWE-frontend(`frontend/`)를 커밋 기록째 합친 레포다.
 2026-10-18부터 에이전트를 포함한 모든 작업을 이 레포에서 바로 한다 ([docs/HANDOFF.md](docs/HANDOFF.md)).
