@@ -6,7 +6,7 @@ import yaml
 from support import ENV
 
 from homeconfig import ConfigError, load_config
-from homeconfig.loader import DEFAULT_CONFIG_DIR, DEFAULT_HA_URL
+from homeconfig.loader import DEFAULT_CONFIG_DIR
 from homeconfig.models import Role
 
 
@@ -42,10 +42,8 @@ def test_repo_config_loads():
     assert room1 is not None and room1.id == "room1" and room1.role is Role.AGENT
     assert room1.url == "http://127.0.0.1:19160/plugins/ambient"
     assert cfg.caller_by_token("t-dashboard").role is Role.OPERATOR
-    assert cfg.caller_by_token("t-ha") is None  # the HA token is not a caller
     agents = [a.id for a in cfg.agents()]
     assert agents == ["desktop", "smartphone", "orchestrator", "room1", "room2"]
-    assert (cfg.ha_url, cfg.ha_token) == ("http://ha.test:8123", "t-ha")
 
 
 def test_every_owner_of_a_device_is_an_agent_with_a_url():
@@ -54,11 +52,11 @@ def test_every_owner_of_a_device_is_an_agent_with_a_url():
         assert cfg.callers[device.owner].url
 
 
-def test_ha_defaults():
-    env = {k: v for k, v in ENV.items() if not k.startswith("HA_")}
-    cfg = load_config(env=env)
-    assert (cfg.ha_url, cfg.ha_token) == (DEFAULT_HA_URL, None)
-    assert load_config(env={**env, "HA_URL": "http://ha:8123/"}).ha_url == "http://ha:8123"
+def test_devices_start_off_or_on_their_first_option():
+    devices = load_config(env=ENV).devices
+    assert devices["input_boolean.room1_light"].initial == "off"
+    mode = devices["input_select.room1_light_mode"]
+    assert (mode.initial, mode.name) == ("normal", "내 방 조명 모드")
 
 
 def test_missing_token_is_reported(cfg_dir):
@@ -90,92 +88,47 @@ def test_device_checks(cfg_dir):
     assert "duplicate device 'input_boolean.room1_light'" in found
 
 
+def test_the_gateway_keeps_only_simple_devices(cfg_dir):
+    def bad(data):
+        data["devices"] += [
+            {"entity": "light.lamp", "space": "my_room", "owner": "room1"},
+            {"entity": "input_select.fan", "space": "my_room", "owner": "room1"},
+            {"entity": "input_boolean.z", "space": "my_room", "owner": "room1", "options": ["a"]},
+        ]
+
+    edit(cfg_dir / "devices.yaml", bad)
+    found = problems(cfg_dir)
+    assert "device 'light.lamp': the Gateway keeps only" in found
+    assert "device 'input_select.fan': options are for (and required by) input_select" in found
+    assert "device 'input_boolean.z': options are for (and required by) input_select" in found
+
+
 def test_caller_cannot_be_agent_and_operator(cfg_dir):
     edit(cfg_dir / "agents.yaml", lambda d: d["operators"].update(room1={"token_env": "X"}))
     assert "'room1' is listed as both an agent and an operator" in problems(cfg_dir)
     edit(cfg_dir / "agents.yaml", lambda d: d["operators"].pop("room1"))
-    edit(cfg_dir / "agents.yaml", lambda d: d["simulators"].update(dashboard={"token_env": "X"}))
-    assert "'dashboard' is listed as both an operator and a simulator" in problems(cfg_dir)
+    edit(cfg_dir / "agents.yaml", lambda d: d["users"].update(dashboard={"token_env": "X"}))
+    assert "'dashboard' is listed as both an operator and a user" in problems(cfg_dir)
 
 
-def test_simulator_is_optional():
+def test_user_and_service_tokens_are_optional():
     cfg = load_config(env=ENV)
-    assert cfg.caller_by_token("t-simulator").role is Role.SIMULATOR
-    assert cfg.openclaw_token == "t-openclaw"
+    assert cfg.caller_by_token("t-user").role is Role.USER
     assert cfg.optional_problems == []
-    env = {k: v for k, v in ENV.items() if k not in ("SIMULATOR_TOKEN", "OPENCLAW_GATEWAY_TOKEN")}
+    env = {k: v for k, v in ENV.items() if k not in ("HOME_USER_TOKEN", "STUDIO_TOKEN")}
     cfg = load_config(env=env)  # the Gateway and the Collector run without them
-    assert "simulator" not in cfg.callers
-    assert cfg.openclaw_token is None
-    assert cfg.optional_problems == ["simulator: environment variable SIMULATOR_TOKEN is not set"]
-
-
-def test_bad_simulator_token_does_not_stop_the_other_services():
-    cfg = load_config(env={**ENV, "SIMULATOR_TOKEN": "t-dashboard"})  # reused for convenience
-    assert cfg.caller_by_token("t-dashboard").id == "dashboard"  # still read-only
-    assert "simulator" not in cfg.callers
-    assert cfg.optional_problems == ["simulator: same token as 'dashboard'"]
-
-
-def test_blank_step_is_rejected(cfg_dir):
-    (cfg_dir / "scenarios.yaml").write_text(
-        "scenarios:\n  - {id: a, title: A, steps: [{agent: room1, say: '   '}]}\n"
-    )
-    assert "scenarios.yaml: scenarios.0.steps.0.say" in problems(cfg_dir)
-
-
-def test_repo_scenarios_load():
-    scenarios = load_config(env=ENV).scenarios
-    assert list(scenarios) == ["meeting", "away", "energy-check", "unauthorized", "reset"]
-    away = scenarios["away"]
-    assert [(s.agent, s.setup) for s in away.steps] == [
-        ("room1", True),
-        ("room2", True),
-        ("orchestrator", True),
-        ("smartphone", False),
+    assert "home_user" not in cfg.callers and "studio" not in cfg.callers
+    assert cfg.optional_problems == [
+        "home_user: environment variable HOME_USER_TOKEN is not set",
+        "studio: environment variable STUDIO_TOKEN is not set",
     ]
-    assert away.expect["input_boolean.room2_ac"] == "on"  # kept by room2's sleep policy
 
 
-def test_scenarios_file_is_optional(cfg_dir):
-    assert load_config(cfg_dir, ENV).scenarios == {}
-
-
-def test_scenario_checks(cfg_dir):
-    step = {"agent": "room1", "say": "조명 켜 줘"}
-    (cfg_dir / "scenarios.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "scenarios": [
-                    {"id": "a", "title": "A", "steps": [step]},
-                    {"id": "a", "title": "A again", "steps": [step]},
-                    {"id": "b", "title": "B", "steps": [{"agent": "dashboard", "say": "hi"}]},
-                    {
-                        "id": "c",
-                        "title": "C",
-                        "steps": [step],
-                        "expect": {"input_boolean.attic_light": "on"},
-                    },
-                ]
-            },
-            allow_unicode=True,
-        )
-    )
-    found = problems(cfg_dir)
-    assert "duplicate scenario 'a'" in found
-    assert "scenario 'b': 'dashboard' is not an agent" in found
-    assert "scenario 'c': expects unknown device 'input_boolean.attic_light'" in found
-
-
-def test_scenario_expect_must_quote_on_off(cfg_dir):
-    (cfg_dir / "scenarios.yaml").write_text(
-        "scenarios:\n"
-        "  - id: a\n"
-        "    title: A\n"
-        "    steps: [{agent: room1, say: hi}]\n"
-        "    expect: {input_boolean.room1_light: on}\n"  # YAML reads `on` as true
-    )
-    assert "scenarios.yaml: scenarios.0.expect.input_boolean.room1_light" in problems(cfg_dir)
+def test_bad_user_token_does_not_stop_the_other_services():
+    cfg = load_config(env={**ENV, "HOME_USER_TOKEN": "t-dashboard"})  # reused for convenience
+    assert cfg.caller_by_token("t-dashboard").id == "dashboard"  # still read-only
+    assert "home_user" not in cfg.callers
+    assert cfg.optional_problems == ["home_user: same token as 'dashboard'"]
 
 
 def test_unknown_keys_rejected(cfg_dir):

@@ -28,7 +28,7 @@ const json = (res: ServerResponse, status: number, body: unknown) => {
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(v, null, 2) }], details: v });
 
 const ActionParams = {
-  device: Type.Optional(Type.String({ description: "HA entity id, e.g. input_boolean.living_tv_muted. Omit for ENERGY_SAVING." })),
+  device: Type.Optional(Type.String({ description: "Device id, e.g. input_boolean.living_tv_muted. Omit for ENERGY_SAVING." })),
   command: Type.Union([Type.Literal("TURN_ON"), Type.Literal("TURN_OFF"), Type.Literal("SET"), Type.Literal("ENERGY_SAVING")]),
   value: Type.Optional(Type.Union([Type.String(), Type.Number()], { description: "For SET: option (input_select) or number" })),
 };

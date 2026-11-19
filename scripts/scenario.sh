@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# plan.md 8.3 checks against running agents (scripts/run_all.sh). Watch scripts/logs.sh + the HA dashboard alongside.
+# plan.md 5.3 checks against running agents (scripts/run_all.sh). Watch scripts/logs.sh alongside.
 #   scripts/scenario.sh              deterministic checks via the standard a2a-sdk client
 #   scripts/scenario.sh --llm        + natural-language flows through OpenClaw (needs a model key)
 #   scripts/scenario.sh --kill-home  + stop the orchestrator and show room1 keeps working
@@ -7,11 +7,12 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 set -a; . "${ENV_FILE:-$ROOT/.env}"; set +a
 PY=${PYTHON:-$ROOT/.venv/bin/python}
-HA=${HA_URL:-http://127.0.0.1:8123}
+GW=${GATEWAY_URL:-http://127.0.0.1:8100}
 probe() { "$PY" "$ROOT/scripts/a2a_probe.py" "$@"; }
 step() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
-ha() { curl -fsS -X POST -H "Authorization: Bearer $HA_TOKEN" -H 'content-type: application/json' "$HA/api/services/input_boolean/$2" -d "{\"entity_id\":\"input_boolean.$1\"}" >/dev/null; }
-ha_state() { curl -fsS -H "Authorization: Bearer $HA_TOKEN" "$HA/api/states/$1" | jq -r .state; }
+# Prepare the home as the device's owner would (the Gateway takes only the owner's token).
+device() { curl -fsS -X POST -H "Authorization: Bearer $1" -H 'content-type: application/json' "$GW/api/services/input_boolean/$3" -d "{\"entity_id\":\"input_boolean.$2\"}" >/dev/null; }
+state() { curl -fsS -H "Authorization: Bearer $DASHBOARD_TOKEN" "$GW/api/states/$1" | jq -r .state; }
 iso() { "$PY" -c "import datetime as d,sys;print((d.datetime.now(d.timezone.utc)+d.timedelta(hours=float(sys.argv[1]))).isoformat())" "$1"; }
 update() { # seq expires_offset_hours meeting_bool
   echo "{\"type\":\"context.update\",\"source\":\"desktop\",\"subject\":\"user1\",\"sequence\":$1,\"expires_at\":\"$(iso "$2")\",\"data\":{\"meeting_app_active\":$3}}"
@@ -42,9 +43,10 @@ step "5. ownership: room1 refuses a device it does not own"
 probe send room1 orchestrator '{"type":"device.control","request_id":"scn-5","action":{"device":"input_boolean.living_tv","command":"TURN_OFF"}}' || true
 
 step "6. energy saving with room2 asleep: room1 complies, room2 keeps AC on (SAFETY_POLICY), home aggregates"
-ha room2_sleep_mode turn_on; ha room2_ac turn_on; ha room1_light turn_on; ha room1_ac turn_on
+device "$AMBIENT_TOKEN_ROOM2" room2_sleep_mode turn_on; device "$AMBIENT_TOKEN_ROOM2" room2_ac turn_on
+device "$AMBIENT_TOKEN_ROOM1" room1_light turn_on; device "$AMBIENT_TOKEN_ROOM1" room1_ac turn_on
 probe send orchestrator smartphone '{"type":"device.control","request_id":"scn-6","action":{"command":"ENERGY_SAVING"},"reason_code":"ENERGY_SAVING"}'
-echo "room1_ac=$(ha_state input_boolean.room1_ac) room2_ac=$(ha_state input_boolean.room2_ac)"
+echo "room1_ac=$(state input_boolean.room1_ac) room2_ac=$(state input_boolean.room2_ac)"
 
 for arg in "$@"; do case $arg in
   --llm)
@@ -55,10 +57,16 @@ for arg in "$@"; do case $arg in
     ;;
   --kill-home)
     step "7. orchestrator down → room1 still reacts to desktop context on its own"
-    lsof -ti tcp:19040 | xargs kill 2>/dev/null || true
+    if (cd "$ROOT" && docker compose ps --status running agents 2>/dev/null | grep -q agents); then
+      (cd "$ROOT" && docker compose exec -T agents sh -c 'kill "$(cat /state/state/orchestrator/gateway.pid)"')
+      restart="docker compose restart agents"
+    else
+      lsof -ti tcp:19040 | xargs kill 2>/dev/null || true
+      restart="scripts/oc.sh orchestrator gateway"
+    fi
     sleep 1
     probe send room1 desktop "$(update $((SEQ + 2)) 1 true)"
     sleep 1
-    echo "room1_light_mode=$(ha_state input_select.room1_light_mode) (expect meeting); restart home with: scripts/oc.sh orchestrator gateway"
+    echo "room1_light_mode=$(state input_select.room1_light_mode) (expect meeting); restart home with: $restart"
     ;;
 esac; done

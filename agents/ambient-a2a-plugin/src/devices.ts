@@ -1,8 +1,9 @@
-// Home Assistant REST client, hard-limited to the entities this agent owns.
-// ponytail: HA has no per-entity ACL, so this whitelist is the "device gateway" check; put a proxy in front of HA if a second, independent check is needed.
+// Device Gateway client (services/gateway): the virtual home's devices, hard-limited to the entities
+// this agent owns. The Gateway answers like the Home Assistant REST API and checks ownership again
+// with this agent's own token, so a bug here still cannot move another room's device.
 import type { Action } from "./core.ts";
 
-export function haClient(url: string, token: string, owned: string[]) {
+export function deviceClient(url: string, token: string, owned: string[]) {
   const req = async (path: string, body?: unknown) => {
     const res = await fetch(`${url}/api/${path}`, {
       method: body ? "POST" : "GET",
@@ -10,12 +11,12 @@ export function haClient(url: string, token: string, owned: string[]) {
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) throw new Error(`HA ${path}: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Gateway ${path}: HTTP ${res.status}`);
     return res.json();
   };
 
   return {
-    /** Reads any entity state (policies may depend on sensors this agent doesn't own). */
+    /** Reads any device state (policies may depend on sensors this agent doesn't own). */
     async state(entity: string): Promise<string> {
       return ((await req(`states/${entity}`)) as any).state;
     },

@@ -1,7 +1,7 @@
 [project]
 name = "a2a-agentic-home"
 version = "0.1.0"
-description = "A2A based Agentic Home: Device Gateway, Event Collector, Runner, Agent Hub and Studio for the Ambient-A2A smart home agents"
+description = "Extension of Smart Home via A2A: Device Gateway (virtual home), Event Collector, Agent Hub and Studio"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
@@ -9,7 +9,6 @@ dependencies = [
   "pydantic>=2.7",
   "pyyaml>=6",
   "httpx>=0.27",
-  "websockets>=13",  # Home Assistant event stream (websockets.asyncio)
   "python-dotenv>=1",  # scripts/verify_integration.py --env-file
   "sqlalchemy>=2.0",  # Agent Hub and Studio tables (PostgreSQL in Docker, SQLite elsewhere)
   "psycopg[binary]>=3.2",
@@ -21,7 +20,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["common", "homeconfig", "gateway", "collector", "runner", "agenthub", "studio"]
+packages = ["common", "homeconfig", "gateway", "collector", "agenthub", "studio"]
 
 [tool.setuptools.package-data]
 studio = ["guides/*.md"]
@@ -33,7 +32,6 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["spikes"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

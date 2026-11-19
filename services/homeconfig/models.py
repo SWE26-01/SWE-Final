@@ -1,23 +1,19 @@
-"""Typed models for config/agents.yaml, devices.yaml, scenarios.yaml and skills.yaml."""
+"""Typed models for config/agents.yaml, devices.yaml and skills.yaml."""
 
 from __future__ import annotations
 
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field
 
-# Home Assistant entity id, e.g. input_boolean.room1_light
+# Device id in Home Assistant's entity id format, e.g. input_boolean.room1_light
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
 # What a device is, independent of the room: light, light_mode, ac, tv, sleep_mode ...
 DeviceKind = Annotated[str, Field(pattern=r"^[a-z][a-z_]*$", max_length=32)]
 # Ambient-A2A context field shared by an external agent, e.g. meeting_app_active
 FieldName = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=64)]
-
-SAY_LIMIT = 500  # characters of one thing said to an agent (scenario step or free text)
-# What is said to an agent: trimmed, never blank (a blank message would still cost an LLM turn).
-Say = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=SAY_LIMIT)]
 
 
 class _Cfg(BaseModel):
@@ -29,8 +25,7 @@ class _Cfg(BaseModel):
 
 class Role(StrEnum):
     AGENT = "agent"  # an agent in ../agents: commands the devices it owns, reports events
-    OPERATOR = "operator"  # dashboards (the frontend's read-only token): read, command nothing
-    SIMULATOR = "simulator"  # Live Simulation: talks to agents through the Runner, commands nothing
+    OPERATOR = "operator"  # dashboards (a read-only token): read, command nothing
     USER = "user"  # the home user on the Studio and Hub screens: creates and connects agents
     SERVICE = "service"  # a backend calling another one (Studio registers agents in the Hub)
 
@@ -43,7 +38,6 @@ class CallerEntry(_Cfg):
 class AgentsFile(_Cfg):
     agents: dict[CallerId, CallerEntry]
     operators: dict[CallerId, CallerEntry] = Field(default_factory=dict)
-    simulators: dict[CallerId, CallerEntry] = Field(default_factory=dict)
     users: dict[CallerId, CallerEntry] = Field(default_factory=dict)
     services: dict[CallerId, CallerEntry] = Field(default_factory=dict)
 
@@ -59,11 +53,23 @@ class Caller(_Cfg):
 # --- devices.yaml -------------------------------------------------------------
 
 
+# Virtual devices the Gateway keeps (gateway/home.py), and the state each one starts in.
+DOMAINS = ("input_boolean", "input_select", "input_number")
+
+
 class Device(_Cfg):
     entity: EntityId
     space: str
     owner: str
     kind: DeviceKind | None = None  # what skills (skills.yaml) refer to
+    name: str = ""  # shown on screens, e.g. "내 방 조명"
+    options: list[str] | None = None  # input_select only; the first one is the initial state
+
+    @property
+    def initial(self) -> str:
+        if self.options:
+            return self.options[0]
+        return "0" if self.domain == "input_number" else "off"
 
     @property
     def domain(self) -> str:
@@ -73,32 +79,6 @@ class Device(_Cfg):
 class DevicesFile(_Cfg):
     spaces: list[str] = Field(min_length=1)
     devices: list[Device]
-
-
-# --- scenarios.yaml -----------------------------------------------------------
-
-
-class Step(_Cfg):
-    agent: CallerId = Field(description="agent the Runner talks to")
-    say: Say = Field(description="what the user says to that agent, as in a chat")
-    setup: bool = Field(
-        default=False, description="prepares the home for the scenario (said to the device owner)"
-    )
-
-
-class Scenario(_Cfg):
-    id: Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
-    title: Annotated[str, Field(min_length=1, max_length=64)]
-    description: str = ""
-    steps: list[Step] = Field(min_length=1)
-    expect: dict[EntityId, str] = Field(
-        default_factory=dict,
-        description="device states expected afterwards, for dashboards to compare; not enforced",
-    )
-
-
-class ScenariosFile(_Cfg):
-    scenarios: list[Scenario] = Field(default_factory=list)
 
 
 # --- skills.yaml (the platform's built-in skills) -------------------------------

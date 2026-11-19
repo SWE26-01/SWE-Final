@@ -5,7 +5,6 @@ COPY common common
 COPY homeconfig homeconfig
 COPY gateway gateway
 COPY collector collector
-COPY runner runner
 COPY agenthub agenthub
 COPY studio studio
 COPY config config

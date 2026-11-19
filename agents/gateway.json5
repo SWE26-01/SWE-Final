@@ -1,8 +1,8 @@
 // Shared OpenClaw gateway/agent defaults; each profile sets its own port.
 {
   mode: "local",
-  bind: "loopback",
+  bind: "${OPENCLAW_BIND:-loopback}", // "lan" inside Docker (docker-compose.yml), so the services can reach it
   auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
-  // Lets scripts/say.sh talk to the already-running gateway over HTTP (no CLI cold start). Loopback only.
+  // Lets scripts/say.sh talk to the already-running gateway over HTTP (no CLI cold start).
   http: { endpoints: { chatCompletions: { enabled: true } } },
 }

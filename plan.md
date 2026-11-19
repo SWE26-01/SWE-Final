@@ -2,7 +2,7 @@
 
 **G01 | A2A-Lite** · 고라희, 신윤수, 홍예원
 
-발표 자료: [docs/presentation/presentation.pdf](docs/presentation/presentation.pdf) (슬라이드별 설명은 [README](README.md#발표-자료))
+발표 자료: [docs/presentation/presentation.pdf](docs/presentation/presentation.pdf) (슬라이드별 설명은 [README](README.md))
 
 ---
 
@@ -130,7 +130,7 @@ Hub의 에이전트는 집(My Home, local)의 **Root Agent**와 A2A로 작업을
 |---|---|---|
 | Root Agent, 방 에이전트, 외부 에이전트 | `agents/` (OpenClaw + `ambient-a2a` 플러그인): orchestrator(Root), room1·room2(방), desktop·smartphone(외부) | 구현 |
 | 기기 소유권, 방별 정책, 허용 필드만 공유 | `spec/ambient-a2a.md` (Ambient-A2A 확장), 플러그인 `core.ts` | 구현 |
-| 가상 스마트홈 기기 | `homeassistant/`, `services/gateway` (Device Gateway가 기기 주인을 다시 확인) | 구현 |
+| 가상 스마트홈 기기 | `services/gateway`: Device Gateway가 가상 집의 기기 상태를 들고, 기기 주인을 다시 확인 | 구현 |
 | Agentic Studio | `services/studio`: 자연어 → 슬롯 폼(LangChain, OpenRouter) → 기본 Skill로 규칙 생성 → 권한 잠금 검사 → 사용자 승인 → Hub 등록 | 만들기 구현, 고치기·지우기는 Hub의 연결 해제/삭제로 대신 |
 | Agentic Hub | `services/agenthub`: Registry(PostgreSQL, Docker), Agent Card로 등록, 검색(`GET /agents`), 연결(설치)과 에이전트별 토큰, 기기 주인 한 명 규칙, 감사 로그 | 구현 (한 집 기준) |
 | Hub 화면 | `agent_hub_FE/` (Next.js) | 구현 |
@@ -147,9 +147,10 @@ Hub의 에이전트는 집(My Home, local)의 **Root Agent**와 A2A로 작업을
 | Backend | Python, FastAPI, Pydantic v2 |
 | Agent 생성 | LangChain structured output, OpenRouter |
 | Storage | PostgreSQL (Docker), 테스트는 SQLite |
-| Devices | Home Assistant 가상 기기 |
-| Frontend | React (시뮬레이터), Next.js (Hub 화면) |
-| Testing | pytest, `scripts/test_hub_studio.sh` |
+| Devices | Device Gateway의 가상 기기 (HA REST와 같은 모양) |
+| Frontend | Next.js (Hub 화면) |
+| Testing | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
+| Deployment | Docker Compose (`docker-compose.yml`) |
 
 ### 5.3 검증 항목
 

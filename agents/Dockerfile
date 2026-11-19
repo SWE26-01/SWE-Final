@@ -1,0 +1,13 @@
+# The five OpenClaw agents in one container (scripts/run_agents.sh), so their peer URLs
+# (127.0.0.1:<port>, agents/shared.json5) keep working. Built from the repo root (docker-compose.yml).
+FROM node:24-slim
+RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN npm install -g openclaw@2026.10.4 pnpm@10 && npm cache clean --force
+WORKDIR /repo
+COPY agents/ambient-a2a-plugin/package.json agents/ambient-a2a-plugin/pnpm-lock.yaml agents/ambient-a2a-plugin/
+RUN cd agents/ambient-a2a-plugin && pnpm install --frozen-lockfile --prod
+COPY agents agents
+COPY scripts/oc.sh scripts/run_agents.sh scripts/
+ENV AMBIENT_HOME=/state OPENCLAW_BIND=lan
+CMD ["scripts/run_agents.sh"]

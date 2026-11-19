@@ -8,21 +8,20 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 
 class DeviceState(BaseModel):
-    entity: str = Field(description="Home Assistant entity id, from config/devices.yaml")
+    entity: str = Field(description="device id (HA entity id format), from config/devices.yaml")
     space: str
     owner: str = Field(description="the only agent that may command this device")
-    state: str | None = Field(description="HA state ('on', 'meeting', ...); null if unknown")
+    state: str | None = Field(description="device state ('on', 'meeting', ...); null if unknown")
     attributes: dict[str, Any] = Field(
-        default_factory=dict, description="HA attributes, e.g. friendly_name, options"
+        default_factory=dict, description="attributes, e.g. friendly_name, options"
     )
     last_changed: AwareDatetime | None = None
 
 
 class Snapshot(BaseModel):
-    """Sent first on connect, and again after the Gateway reconnects to Home Assistant."""
+    """Sent first on connect: every device of the virtual home."""
 
     type: Literal["snapshot"] = "snapshot"
-    ha_connected: bool
     devices: list[DeviceState]
 
 

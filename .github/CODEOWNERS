@@ -1,6 +1,5 @@
 # Fill in GitHub usernames after role assignment.
 # /agents/          @owner
-# /homeassistant/   @owner
 # /spec/            @owner
 # /services/        @owner
-# /frontend/        @owner
+# /agent_hub_FE/    @owner

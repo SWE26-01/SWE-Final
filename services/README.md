@@ -1,12 +1,11 @@
-# services — Device Gateway · Event Collector · Runner · Agent Hub · Studio
+# services — Device Gateway · Event Collector · Agent Hub · Studio
 
-에이전트(`../agents`) 옆에서 다섯 가지를 맡는 Python 서비스.
+에이전트(`../agents`) 옆에서 네 가지를 맡는 Python 서비스. 루트의 `docker compose up -d --build`가 전부 띄운다.
 
-- **Device Gateway** (`gateway/`): 에이전트는 Home Assistant 대신 Gateway를 부른다. Gateway는 요청한 에이전트가 그 기기의
-  주인인지 다시 확인하고, 통과한 명령만 HA에 넘긴다. 대시보드에는 기기 상태를 WebSocket으로 보낸다.
+- **Device Gateway** (`gateway/`): 가상 집. `config/devices.yaml`의 기기 상태를 직접 들고 있다(Home Assistant 없음).
+  에이전트는 HA REST API와 같은 모양으로 자기 토큰을 들고 부르고, Gateway는 그 기기의 주인인지 확인한 뒤에만 상태를 바꾼다.
+  대시보드에는 기기 상태를 WebSocket으로 보낸다. 상태는 메모리에 있어서 다시 시작하면 처음 상태(꺼짐, 또는 첫 옵션)로 돌아간다.
 - **Event Collector** (`collector/`): 모든 에이전트의 A2A 통신·실행·자동화 기록을 한곳에 모으고 대시보드에 실시간으로 보낸다.
-- **Runner** (`runner/`): Live Simulation이 시나리오(`config/scenarios.yaml`)나 자유 입력을 고르면, 사용자가 채팅하듯 해당
-  에이전트의 LLM에 말을 건다(OpenClaw chat 엔드포인트). 기기는 직접 건드리지 않고, 판단은 에이전트가 한다.
 - **Agent Hub** (`agenthub/`): 에이전트 등록·검색, 연결(권한 승인, 에이전트별 토큰)과 해제. 기기마다 주인을 하나로 지킨다.
 - **Agent Studio** (`studio/`): 자연어 요청을 템플릿의 빈칸 채우기로 바꿔 에이전트를 만든다(LangChain + OpenRouter). 지금 실행기는 OpenClaw이고 `STUDIO_RUNTIME`으로 바꿀 수 있다(`studio/runtime.py`). 하네스가 위험한 명령과
   권한 밖 도구를 막고, 사용자가 승인하면 Hub에 등록한다.
@@ -17,50 +16,38 @@
 
 | 폴더 | 내용 |
 | --- | --- |
-| `gateway/` | HA 프록시(주인 검사), HA 상태 스트림, 대시보드 WebSocket |
+| `gateway/` | 가상 집(`home.py`), 주인 검사(`main.py`), 대시보드 WebSocket 메시지(`stream.py`) |
 | `collector/` | 이벤트 저장(SQLite), 조회, 대시보드 WebSocket |
-| `runner/` | Live Simulation 실행(한 번에 하나), OpenClaw chat 클라이언트, 대시보드 WebSocket |
 | `agenthub/` | 에이전트 등록·검색, Agent Card 읽기, 연결·해제, 토큰 확인 (PostgreSQL/SQLite) |
 | `studio/` | 빈칸 양식(`slots.py`), LLM 채우기(`filler.py`), 스킬→규칙 변환(`compile.py`), 하네스(`harness.py`), 실행기 선택(`runtime.py`), OpenClaw 파일 생성(`render.py`) |
 | `common/` | 서비스들이 같이 쓰는 토큰 인증, WebSocket 전달, DB 연결(`db.py`) |
 | `homeconfig/` | `config/*.yaml` 로더와 검사 (토큰은 환경 변수에서 읽음) |
-| `config/` | `agents.yaml`(호출자와 토큰 변수 이름), `devices.yaml`(HA 엔티티, 주인, 종류), `scenarios.yaml`(Live Simulation 시나리오), `skills.yaml`(Studio 기본 스킬. Marketplace는 없다) |
+| `config/` | `agents.yaml`(호출자와 토큰 변수 이름), `devices.yaml`(가상 기기, 주인, 종류, 이름, 옵션), `skills.yaml`(Studio 기본 스킬. Marketplace는 없다) |
 | `contracts/` | 대시보드가 받는 메시지 형식 (JSON Schema, 코드에서 생성) |
 | `scripts/` | `verify_integration.py`(실행 중인 시스템 확인), `export_schemas.py` |
-| `spikes/` | 초기 a2a-sdk 실험 (참고용, 실행 대상 아님) |
 
 ## 시작하기
 
 ```bash
+docker compose up -d --build        # 루트에서: 서비스 4개 + PostgreSQL + 에이전트 + Hub 화면
+
+# 서비스만 따로 개발할 때
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-
-# 루트 .env(../scripts/setup.sh가 만듦: 에이전트 토큰, HA_URL, HA_TOKEN, DASHBOARD_TOKEN)를 읽는다
 uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 uvicorn collector.main:build --factory --port 8200 --env-file ../.env
-uvicorn runner.main:build --factory --port 8300 --env-file ../.env   # SIMULATOR_TOKEN, OPENCLAW_GATEWAY_TOKEN 필요
 uvicorn agenthub.main:build --factory --port 8400 --env-file ../.env # hub.sqlite (Docker에서는 PostgreSQL)
 uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sqlite, STUDIO_HUB_URL=http://127.0.0.1:8400
 ```
 
-브라우저 대시보드가 프록시 없이 직접 읽게 하려면 `.env`에 `AMBIENT_CORS_ORIGINS=http://localhost:5173`을 넣는다(GET만 허용).
+브라우저 화면이 프록시 없이 직접 읽게 하려면 `.env`에 `AMBIENT_CORS_ORIGINS=http://localhost:3000`을 넣는다(GET만 허용).
 
-`collector/events.py`, `gateway/stream.py`, `runner/stream.py`, 시나리오 모델을 바꾸면 `python scripts/export_schemas.py`로 `contracts/`를 갱신한다.
-
-### Runner (Live Simulation)
-
-- 에이전트마다 OpenClaw chat 엔드포인트가 켜져 있어야 한다. `agents/gateway.json5`의
-  `http: { endpoints: { chatCompletions: { enabled: true } } }`로 다섯 에이전트 모두 켜져 있다(`scripts/say.sh`도 같은 엔드포인트를 쓴다).
-  꺼져 있으면 실행 단계가 "chat endpoint is off"로 실패한다.
-- `POST /runs`(시뮬레이터 토큰만): `{"scenario": "meeting"}` 또는 `{"agent": "desktop", "say": "나 회의 시작할게"}`. 답은 202와 실행 정보,
-  진행 중인 실행이 있으면 409. 진행 상황은 `WebSocket /ws?token=`(대시보드·시뮬레이터 토큰)이나 `GET /runs/{id}`.
-- 에이전트가 실제로 한 일(A2A 통신, 기기 실행, 거절 사유)은 Runner가 아니라 Collector·Gateway에 평소처럼 쌓인다.
-  실행의 `started_at` 이후 기록을 보면 된다.
+`collector/events.py`, `collector/flows.py`, `gateway/stream.py`를 바꾸면 `python scripts/export_schemas.py`로 `contracts/`를 갱신한다.
 
 ### Agent Hub · Studio
 
-Docker로는 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터베이스 `hub`·`studio`)과 함께 띄운다. 루트 `.env`에
+루트의 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터베이스 `hub`·`studio`)과 함께 띄운다. 루트 `.env`에
 `HOME_USER_TOKEN`(Studio·Hub 화면의 사용자), `STUDIO_TOKEN`(Studio가 Hub에 등록할 때), `POSTGRES_PASSWORD`가 있어야 한다.
 `../scripts/setup.sh`를 다시 돌리면 빠진 키를 넣고 값을 만든다.
 

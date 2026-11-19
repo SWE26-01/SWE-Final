@@ -1,0 +1,12 @@
+# Build context of agents/Dockerfile is the repo root; it needs only agents/ and scripts/.
+**/node_modules
+**/.venv
+**/__pycache__
+.git
+.env
+logs
+docs
+training
+agent_hub_FE
+services
+agents/generated/*

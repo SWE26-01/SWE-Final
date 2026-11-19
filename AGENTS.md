@@ -3,9 +3,10 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 # Rules for AI coding tools (Claude Code, Copilot, Cursor …)
 
 Monorepo: `agents/` (OpenClaw agents + the `ambient-a2a` plugin, TypeScript), `spec/` (Ambient-A2A
-extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, checks), `services/`
-(Device Gateway + Event Collector + Runner, Python; its own rules are in `services/CLAUDE.md`),
-`frontend/` (simulator UI, React; developed here, see `docs/frontend-integration.md`).
+extension spec), `services/` (Device Gateway with the virtual home + Event Collector + Agent Hub +
+Studio, Python; its own rules are in `services/CLAUDE.md`), `agent_hub_FE/` (Agent Hub screen,
+Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docker-compose.yml`
+(runs everything). Plan: `plan.md` (from `docs/presentation/presentation.pdf`).
 
 - A2A **v1.0 only**. Do not write v0.3 code:
   - methods are `SendMessage`, `GetTask` … (not `message/send`, `tasks/get`)
@@ -17,19 +18,17 @@ extension spec), `homeassistant/` (virtual devices), `scripts/` (setup, run, che
   Home delegates room devices with `on_behalf_of`. Safety policies apply to every requester.
 - Never send raw personal data (calendar titles, GPS coordinates) between agents or into logs.
   Agents publish only their `provides` fields, filtered by the requester's ACL.
-- Agent IDs, device IDs (HA entity ids) and ownership must agree across
-  `homeassistant/config/configuration.yaml`, each agent's `owned` list in `agents/**/openclaw.json5`,
-  `services/config/devices.yaml` and the device tables in `agents/**/AGENTS.md`.
+- There is no Home Assistant. The Device Gateway keeps the virtual devices (`services/gateway/home.py`)
+  and answers in Home Assistant's REST shape; agents reach devices only through it, with their own
+  token (`gatewayUrl`).
+- Agent IDs, device IDs (HA entity id format) and ownership must agree across
+  `services/config/devices.yaml`, each agent's `owned` list in `agents/**/openclaw.json5` and the
+  device tables in `agents/**/AGENTS.md`.
 - Secrets live only in the root `.env` (created by `scripts/setup.sh`, git-ignored).
 - Keep repo paths ASCII: OpenClaw rejects non-ASCII (NFD) paths (see `scripts/oc.sh`).
-- Everything is edited here, including `agents/`, `spec/`, `homeassistant/`, `scripts/`, `plan.md`.
-  Since 2026-10-18 SWE26-01/A2A-agents is no longer developed; do not open PRs there and do not run
-  `tools/sync_upstream.sh` (it would only re-import old history). `frontend/` came from
-  SWE26-01/SWE-frontend and is also no longer synced.
-- The frontend reads live data only through the services (`frontend/src/live/`,
-  `docs/frontend-integration.md`); the dashboard token is read-only, so the UI never commands devices
-  directly. Keep the mock scenarios working (MOCK mode) for offline demos.
-- The Live Simulation talks to agents only through `services/runner` with the simulator token: it
-  asks the Runner to say a scenario step or free text to an agent's LLM, and the agent decides.
-  The browser never holds the OpenClaw gateway token, an agent token or the simulator token (the Vite
-  dev-server proxy adds it from the root `.env`).
+- `docker compose up -d --build` must keep starting everything. A new service goes into the root
+  `docker-compose.yml`, with ports published on 127.0.0.1 only.
+- Since 2026-10-18 SWE26-01/A2A-agents and SWE26-01/SWE-frontend are no longer developed; everything
+  is edited here.
+- Screens read live data only through the services with read-only or user tokens; the browser never
+  holds the OpenClaw gateway token or an agent token.
