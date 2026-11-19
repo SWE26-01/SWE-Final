@@ -31,4 +31,6 @@ mkdir -p "$state/workspace"
 printf '{ "$include": "%s" }\n' "$app/agents/$dir/openclaw.json5" > "$state/openclaw.json"
 cp "$ROOT/agents/$dir/AGENTS.md" "$state/workspace/AGENTS.md"
 export OPENCLAW_CONFIG_PATH=$state/openclaw.json OPENCLAW_STATE_DIR=$state
+# exec keeps the pid: scripts/scenario.sh --kill-home stops one agent with it.
+[ "${1:-}" = gateway ] && echo $$ > "$state/gateway.pid"
 exec openclaw "$@"

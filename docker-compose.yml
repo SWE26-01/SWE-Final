@@ -1,0 +1,101 @@
+# Everything in one go:  docker compose up -d --build   (scripts/run_all.sh does that and waits)
+#
+#   agents     the five OpenClaw agents (Root = orchestrator, rooms, desktop, smartphone)
+#   gateway    Device Gateway: the virtual home's devices; checks who may move which device
+#   collector  Event Collector: every agent's events and request flows
+#   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)
+#   studio     Agent Studio: makes agents from plain language (LangChain + OpenRouter)
+#   hub-web    Agent Hub screen (agent_hub_FE, Next.js)
+#   postgres   the Hub's and Studio's database
+#
+# Tokens and keys come from the root .env (scripts/setup.sh writes it; add OPENROUTER_API_KEY).
+# Ports are published on 127.0.0.1 only.
+x-service: &service
+  build: ./services
+  env_file: .env
+  restart: unless-stopped
+
+services:
+  agents:
+    build: {context: ., dockerfile: agents/Dockerfile}
+    env_file: .env
+    environment:
+      AMBIENT_GATEWAY_URL: http://gateway:8100
+      AMBIENT_COLLECTOR_URL: http://collector:8200
+    volumes:
+      - agents-state:/state
+      - ./logs:/repo/logs  # events.jsonl for scripts/logs.sh, one log per agent
+      - ./agents/generated:/repo/agents/generated  # agents approved in Studio
+    ports:
+      - 127.0.0.1:18800:18800  # desktop
+      - 127.0.0.1:18920:18920  # smartphone
+      - 127.0.0.1:19040:19040  # orchestrator (Root Agent)
+      - 127.0.0.1:19160:19160  # room1
+      - 127.0.0.1:19280:19280  # room2
+    depends_on: [gateway, collector]
+    restart: unless-stopped
+
+  gateway:
+    <<: *service
+    command: uvicorn gateway.main:build --factory --host 0.0.0.0 --port 8100
+    ports: ["127.0.0.1:8100:8100"]
+
+  collector:
+    <<: *service
+    command: uvicorn collector.main:build --factory --host 0.0.0.0 --port 8200
+    environment:
+      COLLECTOR_DB: /data/collector.sqlite
+      AMBIENT_AGENTS_HOST: agents  # read the agents' cards
+    volumes: ["collector-data:/data"]
+    ports: ["127.0.0.1:8200:8200"]
+
+  postgres:
+    image: postgres:16-alpine
+    env_file: .env  # POSTGRES_PASSWORD
+    environment:
+      POSTGRES_USER: ambient
+      POSTGRES_DB: hub
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./services/config/postgres-init.sql:/docker-entrypoint-initdb.d/10-studio.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ambient -d hub"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    # No published port: only the Hub and Studio reach it, inside this Compose network.
+
+  hub:
+    <<: *service
+    command: uvicorn agenthub.main:build --factory --host 0.0.0.0 --port 8400
+    environment:
+      POSTGRES_HOST: postgres
+      HUB_AGENTS_HOST: agents  # read the agents' cards
+      HUB_COLLECTOR_URL: http://collector:8200  # request flows for GET /agents/{id}/activity
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ["127.0.0.1:8400:8400"]
+
+  studio:
+    <<: *service
+    command: uvicorn studio.main:build --factory --host 0.0.0.0 --port 8500
+    environment:
+      POSTGRES_HOST: postgres
+      STUDIO_HUB_URL: http://hub:8400
+      STUDIO_GENERATED_DIR: /generated
+    volumes: ["./agents/generated:/generated"]  # approved agents' OpenClaw profiles
+    depends_on:
+      postgres: {condition: service_healthy}
+      hub: {condition: service_started}
+    ports: ["127.0.0.1:8500:8500"]
+
+  hub-web:
+    build: ./agent_hub_FE
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+
+volumes:
+  agents-state:
+  collector-data:
+  postgres-data:
