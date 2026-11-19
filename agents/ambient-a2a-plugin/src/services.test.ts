@@ -1,4 +1,4 @@
-// Optional SWE-Final services: Device Gateway (gatewayUrl) and Event Collector (collectorUrl).
+// SWE-Final services: Device Gateway (gatewayUrl, the devices) and Event Collector (collectorUrl, optional).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgent, type Config } from "./agent.ts";
 
@@ -6,7 +6,7 @@ const LIGHT = "input_boolean.room1_light";
 const quiet = { info() {}, warn() {} };
 const base = {
   agentId: "room1", role: "room", publicUrl: "http://room1", peers: {}, tokens: { room1: "t-1", desktop: "t-d" },
-  ha: { url: "http://ha", token: "ha-token" }, owned: [LIGHT], logFile: undefined,
+  gatewayUrl: "http://gateway/", owned: [LIGHT], logFile: undefined,
 };
 const room1 = (extra: Partial<Config> = {}) => createAgent({ ...base, ...extra } as Config, quiet);
 
@@ -27,14 +27,15 @@ beforeEach(() => {
 });
 
 describe("optional services", () => {
-  it("without them, devices go straight to Home Assistant with the HA token", async () => {
+  it("without a Gateway, an agent has no devices", async () => {
     // shared.json5 turns an unset env var into "", which must mean "off" just like undefined
-    expect((await room1({ gatewayUrl: "", collectorUrl: "" }).control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
-    expect(calls).toEqual([{ url: "http://ha/api/services/input_boolean/turn_on", auth: "Bearer ha-token", body: { entity_id: LIGHT } }]);
+    const r = await room1({ gatewayUrl: "", collectorUrl: "" }).control({ device: LIGHT, command: "TURN_ON" });
+    expect(r.reason_code).toBe("NOT_OWNER");
+    expect(calls).toEqual([]);
   });
 
   it("with gatewayUrl, devices go through the Gateway with the agent's own token", async () => {
-    expect((await room1({ gatewayUrl: "http://gateway/" }).control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
+    expect((await room1().control({ device: LIGHT, command: "TURN_ON" })).accepted).toBe(true);
     expect(calls).toEqual([{ url: "http://gateway/api/services/input_boolean/turn_on", auth: "Bearer t-1", body: { entity_id: LIGHT } }]);
   });
 

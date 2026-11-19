@@ -8,7 +8,7 @@ import {
   ContextStore, Publisher, checkPolicy, checkRequester, deny, firedRules, ok, route,
 } from "./core.ts";
 import { agentCard, extParams, fetchCard, send } from "./a2a.ts";
-import { haClient } from "./ha.ts";
+import { deviceClient } from "./devices.ts";
 
 export type Config = {
   agentId: string;
@@ -26,9 +26,8 @@ export type Config = {
   policies?: Policy[];
   rules?: Rule[];
   energySaving?: Action[];
-  ha?: { url: string; token: string };
-  // Optional services (SWE-Final services/). Empty = off.
-  gatewayUrl?: string; // Device Gateway: HA calls go here with this agent's own token; it re-checks ownership
+  // SWE-Final services/. Empty = off.
+  gatewayUrl?: string; // Device Gateway: the virtual home's devices; called with this agent's own token, it re-checks ownership
   collectorUrl?: string; // Event Collector: every log line is also POSTed here
   ttlSec?: number;
   logFile?: string;
@@ -41,7 +40,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   const myToken = cfg.tokens[cfg.agentId];
   const gatewayUrl = cfg.gatewayUrl?.replace(/\/+$/, "");
   const collectorUrl = cfg.collectorUrl?.replace(/\/+$/, "");
-  const ha = cfg.ha ? haClient(gatewayUrl || cfg.ha.url, gatewayUrl ? myToken : cfg.ha.token, owned) : null;
+  const devices = gatewayUrl ? deviceClient(gatewayUrl, myToken, owned) : null;
   const store = new ContextStore();
   const pub = new Publisher(cfg.agentId, cfg.subject ?? "user1", cfg.provides ?? [], cfg.fieldAcl ?? {});
   const ownership: Record<string, string> = {}; // device -> owning agent (home only, filled from Agent Cards)
@@ -105,13 +104,13 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   }
 
   async function execute(action: Action): Promise<Result> {
-    if (!ha) return deny("NOT_OWNER", `${cfg.agentId} owns no devices`);
+    if (!devices) return deny("NOT_OWNER", `${cfg.agentId} owns no devices`);
     try {
       const states: Record<string, string> = {};
-      for (const p of cfg.policies ?? []) states[p.when.entity] ??= await ha.state(p.when.entity);
+      for (const p of cfg.policies ?? []) states[p.when.entity] ??= await devices.state(p.when.entity);
       const violation = checkPolicy(action, cfg.policies ?? [], states);
       if (violation) return { ...violation, device: action.device };
-      await ha.apply(action);
+      await devices.apply(action);
       return { ...ok(`${action.command} ${action.device}${action.value !== undefined ? `=${action.value}` : ""}`), device: action.device };
     } catch (err) {
       return { ...deny("EXECUTION_FAILED", String(err)), device: action.device };
@@ -229,12 +228,12 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   }
 
   async function status() {
-    const devices: Record<string, string> = {};
-    if (ha) for (const d of owned) devices[d] = await ha.state(d).catch((e) => `error: ${e}`);
+    const states: Record<string, string> = {};
+    if (devices) for (const d of owned) states[d] = await devices.state(d).catch((e) => `error: ${e}`);
     // A copy, never live references: OpenClaw freezes tool results, and a frozen pub.state / store.fields /
     // ownership would make every later publish, context update or discovery throw.
     return structuredClone({
-      agentId: cfg.agentId, role: cfg.role, space: cfg.space, devices,
+      agentId: cfg.agentId, role: cfg.role, space: cfg.space, devices: states,
       context: store.fields,
       published: cfg.role === "external" ? { sequence: pub.sequence, expires_at: pub.expires_at, state: pub.state, subscribers: Object.fromEntries(pub.subs) } : undefined,
       known_ownership: cfg.role === "home" ? ownership : undefined,
