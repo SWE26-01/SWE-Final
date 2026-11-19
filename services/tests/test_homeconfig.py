@@ -6,7 +6,7 @@ import yaml
 from support import ENV
 
 from homeconfig import ConfigError, load_config
-from homeconfig.loader import DEFAULT_CONFIG_DIR, DEFAULT_HA_URL
+from homeconfig.loader import DEFAULT_CONFIG_DIR
 from homeconfig.models import Role
 
 
@@ -42,10 +42,8 @@ def test_repo_config_loads():
     assert room1 is not None and room1.id == "room1" and room1.role is Role.AGENT
     assert room1.url == "http://127.0.0.1:19160/plugins/ambient"
     assert cfg.caller_by_token("t-dashboard").role is Role.OPERATOR
-    assert cfg.caller_by_token("t-ha") is None  # the HA token is not a caller
     agents = [a.id for a in cfg.agents()]
     assert agents == ["desktop", "smartphone", "orchestrator", "room1", "room2"]
-    assert (cfg.ha_url, cfg.ha_token) == ("http://ha.test:8123", "t-ha")
 
 
 def test_every_owner_of_a_device_is_an_agent_with_a_url():
@@ -54,11 +52,11 @@ def test_every_owner_of_a_device_is_an_agent_with_a_url():
         assert cfg.callers[device.owner].url
 
 
-def test_ha_defaults():
-    env = {k: v for k, v in ENV.items() if not k.startswith("HA_")}
-    cfg = load_config(env=env)
-    assert (cfg.ha_url, cfg.ha_token) == (DEFAULT_HA_URL, None)
-    assert load_config(env={**env, "HA_URL": "http://ha:8123/"}).ha_url == "http://ha:8123"
+def test_devices_start_off_or_on_their_first_option():
+    devices = load_config(env=ENV).devices
+    assert devices["input_boolean.room1_light"].initial == "off"
+    mode = devices["input_select.room1_light_mode"]
+    assert (mode.initial, mode.name) == ("normal", "내 방 조명 모드")
 
 
 def test_missing_token_is_reported(cfg_dir):
@@ -88,6 +86,21 @@ def test_device_checks(cfg_dir):
     assert "device 'input_boolean.x': unknown space 'attic'" in found
     assert "device 'input_boolean.y': owner 'dashboard' is not an agent" in found
     assert "duplicate device 'input_boolean.room1_light'" in found
+
+
+def test_the_gateway_keeps_only_simple_devices(cfg_dir):
+    def bad(data):
+        data["devices"] += [
+            {"entity": "light.lamp", "space": "my_room", "owner": "room1"},
+            {"entity": "input_select.fan", "space": "my_room", "owner": "room1"},
+            {"entity": "input_boolean.z", "space": "my_room", "owner": "room1", "options": ["a"]},
+        ]
+
+    edit(cfg_dir / "devices.yaml", bad)
+    found = problems(cfg_dir)
+    assert "device 'light.lamp': the Gateway keeps only" in found
+    assert "device 'input_select.fan': options are for (and required by) input_select" in found
+    assert "device 'input_boolean.z': options are for (and required by) input_select" in found
 
 
 def test_caller_cannot_be_agent_and_operator(cfg_dir):

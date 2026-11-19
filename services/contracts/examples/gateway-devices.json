@@ -5,8 +5,6 @@
     "owner": "orchestrator",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:ceiling-light",
       "friendly_name": "거실 조명"
     },
     "last_changed": "2026-10-18T04:37:55.274175Z"
@@ -17,8 +15,6 @@
     "owner": "orchestrator",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:television",
       "friendly_name": "거실 TV"
     },
     "last_changed": "2026-10-18T04:37:55.274209Z"
@@ -29,8 +25,6 @@
     "owner": "orchestrator",
     "state": "on",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:volume-off",
       "friendly_name": "거실 TV 음소거"
     },
     "last_changed": "2026-10-18T05:58:14.839402Z"
@@ -41,8 +35,6 @@
     "owner": "room1",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:lightbulb",
       "friendly_name": "내 방 조명"
     },
     "last_changed": "2026-10-18T05:57:35.906223Z"
@@ -58,8 +50,6 @@
         "meeting",
         "eco"
       ],
-      "editable": false,
-      "icon": "mdi:lightbulb-auto",
       "friendly_name": "내 방 조명 모드"
     },
     "last_changed": "2026-10-18T07:53:35.584982Z"
@@ -70,8 +60,6 @@
     "owner": "room1",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:air-conditioner",
       "friendly_name": "내 방 에어컨"
     },
     "last_changed": "2026-10-18T05:57:35.913468Z"
@@ -82,8 +70,6 @@
     "owner": "room1",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:account",
       "friendly_name": "내 방 재실"
     },
     "last_changed": "2026-10-18T04:37:55.274313Z"
@@ -94,8 +80,6 @@
     "owner": "room2",
     "state": "off",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:lightbulb-night",
       "friendly_name": "보호 방 조명"
     },
     "last_changed": "2026-10-18T04:37:55.274334Z"
@@ -106,8 +90,6 @@
     "owner": "room2",
     "state": "on",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:air-conditioner",
       "friendly_name": "보호 방 에어컨"
     },
     "last_changed": "2026-10-18T05:00:02.472259Z"
@@ -118,8 +100,6 @@
     "owner": "room2",
     "state": "on",
     "attributes": {
-      "editable": false,
-      "icon": "mdi:sleep",
       "friendly_name": "보호 방 수면 모드"
     },
     "last_changed": "2026-10-18T05:00:02.461522Z"

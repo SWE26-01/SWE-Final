@@ -3,7 +3,7 @@
     "DeviceState": {
       "properties": {
         "entity": {
-          "description": "Home Assistant entity id, from config/devices.yaml",
+          "description": "device id (HA entity id format), from config/devices.yaml",
           "title": "Entity",
           "type": "string"
         },
@@ -25,12 +25,12 @@
               "type": "null"
             }
           ],
-          "description": "HA state ('on', 'meeting', ...); null if unknown",
+          "description": "device state ('on', 'meeting', ...); null if unknown",
           "title": "State"
         },
         "attributes": {
           "additionalProperties": true,
-          "description": "HA attributes, e.g. friendly_name, options",
+          "description": "attributes, e.g. friendly_name, options",
           "title": "Attributes",
           "type": "object"
         },
@@ -58,17 +58,13 @@
       "type": "object"
     },
     "Snapshot": {
-      "description": "Sent first on connect, and again after the Gateway reconnects to Home Assistant.",
+      "description": "Sent first on connect: every device of the virtual home.",
       "properties": {
         "type": {
           "const": "snapshot",
           "default": "snapshot",
           "title": "Type",
           "type": "string"
-        },
-        "ha_connected": {
-          "title": "Ha Connected",
-          "type": "boolean"
         },
         "devices": {
           "items": {
@@ -79,7 +75,6 @@
         }
       },
       "required": [
-        "ha_connected",
         "devices"
       ],
       "title": "Snapshot",

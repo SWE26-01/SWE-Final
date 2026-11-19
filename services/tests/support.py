@@ -9,8 +9,6 @@ ENV = {
     "DASHBOARD_TOKEN": "t-dashboard",
     "HOME_USER_TOKEN": "t-user",
     "STUDIO_TOKEN": "t-studio",
-    "HA_URL": "http://ha.test:8123",
-    "HA_TOKEN": "t-ha",
 }
 
 

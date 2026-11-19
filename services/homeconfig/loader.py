@@ -18,6 +18,7 @@ import yaml
 from pydantic import BaseModel, ValidationError
 
 from homeconfig.models import (
+    DOMAINS,
     AgentsFile,
     Caller,
     Device,
@@ -28,7 +29,6 @@ from homeconfig.models import (
 )
 
 DEFAULT_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
-DEFAULT_HA_URL = "http://127.0.0.1:8123"
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -46,8 +46,6 @@ class HomeConfig:
     callers: dict[str, Caller]
     devices: dict[str, Device]  # entity id -> device
     spaces: list[str]
-    ha_url: str  # the real Home Assistant (env HA_URL)
-    ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
     skills: dict[str, Skill]  # skill id -> built-in skill (config/skills.yaml, optional)
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
     # Problems with optional callers (users, services). They never stop the Gateway or the
@@ -163,6 +161,10 @@ def load_config(
             problems.append(f"device {d.entity!r}: unknown space {d.space!r}")
         if d.owner not in agents_f.agents:
             problems.append(f"device {d.entity!r}: owner {d.owner!r} is not an agent")
+        if d.domain not in DOMAINS:
+            problems.append(f"device {d.entity!r}: the Gateway keeps only {', '.join(DOMAINS)}")
+        if (d.domain == "input_select") != bool(d.options):
+            problems.append(f"device {d.entity!r}: options are for (and required by) input_select")
         devices[d.entity] = d
 
     skills: dict[str, Skill] = {}
@@ -187,8 +189,6 @@ def load_config(
         callers=callers,
         devices=devices,
         spaces=list(devices_f.spaces),
-        ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
-        ha_token=env.get("HA_TOKEN") or None,
         skills=skills,
         cors_origins=cors_origins,
         optional_problems=optional_problems,

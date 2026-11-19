@@ -11,10 +11,10 @@ consuming team reviewing.
 | `collector/flow.schema.json` | Event Collector → dashboards (`GET /flows`, `GET /flows/{flow}`): one request followed across agents | `collector/flows.py` |
 | `collector/event.schema.json` | agents → Event Collector (`POST /events`), Collector → dashboards (`GET /events`, WebSocket `/ws`) | `collector/events.py` |
 
-`examples/` holds real messages captured on 2026-10-18 (see `docs/frontend-integration.md`).
+`examples/` holds real messages captured on 2026-10-18 (Gateway examples trimmed to the virtual home's fields).
 
-Agents call the Gateway with Home Assistant's own REST API shape (`GET /api/states/<entity>`,
-`POST /api/services/<domain>/<service>`), so that contract is Home Assistant's. Stored events come
+Agents call the Gateway in Home Assistant's REST API shape (`GET /api/states/<entity>`,
+`POST /api/services/<domain>/<service>`); the Gateway keeps the virtual devices itself. Stored events come
 back with `id`, `received_at` (when the Collector received it, by the Collector's clock; absent on
 events stored before 2026-10-19) and, when they carry a `request_id`, `flow` (its part before the first `/`).
 `id` is arrival order; `ts` is when the event happened. Agents post concurrently, so the two can

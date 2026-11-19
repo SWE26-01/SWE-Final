@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Home Assistant entity id, e.g. input_boolean.room1_light
+# Device id in Home Assistant's entity id format, e.g. input_boolean.room1_light
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
 # What a device is, independent of the room: light, light_mode, ac, tv, sleep_mode ...
@@ -53,11 +53,23 @@ class Caller(_Cfg):
 # --- devices.yaml -------------------------------------------------------------
 
 
+# Virtual devices the Gateway keeps (gateway/home.py), and the state each one starts in.
+DOMAINS = ("input_boolean", "input_select", "input_number")
+
+
 class Device(_Cfg):
     entity: EntityId
     space: str
     owner: str
     kind: DeviceKind | None = None  # what skills (skills.yaml) refer to
+    name: str = ""  # shown on screens, e.g. "내 방 조명"
+    options: list[str] | None = None  # input_select only; the first one is the initial state
+
+    @property
+    def initial(self) -> str:
+        if self.options:
+            return self.options[0]
+        return "0" if self.domain == "input_number" else "off"
 
     @property
     def domain(self) -> str:
