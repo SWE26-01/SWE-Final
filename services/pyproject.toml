@@ -21,7 +21,7 @@ dependencies = [
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [tool.setuptools]
-packages = ["common", "homeconfig", "gateway", "collector", "runner", "agenthub", "studio"]
+packages = ["common", "homeconfig", "gateway", "collector", "agenthub", "studio"]
 
 [tool.setuptools.package-data]
 studio = ["guides/*.md"]
