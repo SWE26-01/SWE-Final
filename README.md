@@ -1,5 +1,7 @@
 # SWE-Final — Extension of Smart Home: Internal & External Connectivity via A2A
 
+**한국어** | [English](README.en.md)
+
 **G01 | A2A-Lite** · 고라희, 신윤수, 홍예원 (한양대 CSE406 · LG전자 IC-PBL "Proactive Agentic Home")
 
 허브 하나가 모든 일을 하는 스마트홈을 A2A로 나눈다. 집 안은 방마다 독립된 에이전트가 자기 기기와 정책을 맡고(Internal extension), 집 밖의 데스크톱·휴대폰·사용자가 만든 에이전트와도 A2A로 연결한다(External extension). 사용자는 Agentic Studio에서 평범한 말로 에이전트를 만들고, Agentic Hub에서 등록·검색·연결한다. 기획서: [plan.md](plan.md)
