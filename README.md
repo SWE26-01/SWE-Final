@@ -9,18 +9,18 @@
 ![Problem Statement](docs/presentation/slide-02.png)
 
 스마트홈의 두 가지 문제를 정의한다.
-- **Single Hub bottleneck:** Alexa 같은 플랫폼은 AI 추론, IoT 제어, API 호출, 에이전트 워크플로를 모두 허브 기기 하나에서 처리한다. 집이 커지면 더 비싼 하드웨어가 필요하고 허브가 병목이 된다. → 분산이 필요하다.
-- **Lack of External Connectivity:** OpenClaw, Codex 같은 AI 에이전트 도구는 Skill·MCP·API로 연결을 넓히는데, 스마트홈 에이전트는 집 안 기기만 본다. 데스크톱(회의), 휴대폰(재실/외출), 캘린더·Slack·메일과 연결되지 않는다. → 집 밖과의 연결이 필요하다.
+- **Centralized workload:** Amazon Alexa 같은 플랫폼은 AI 추론, IoT 제어, API 호출, 에이전트 워크플로를 모두 허브 기기 하나에서 처리한다. 집이 커지거나 더 높은 성능이 필요하면 하드웨어가 더 필요하고, 허브가 비싸지며 병목이 된다(왼쪽 그림 One Hub Does Everything). → **분산이 필요하다.**
+- **Lack of External Connection:** OpenClaw, Codex 같은 AI 에이전트 도구는 Skill·MCP·API로 연결을 계속 넓히는데, 스마트홈 에이전트는 집 안 기기에만 집중한다. 데스크톱(회의), 휴대폰(재실/외출), 캘린더·Slack·메일, 다른 AI 에이전트와 연결되지 않는다(오른쪽 그림 Closed to the Outside). → **집 밖과의 연결이 필요하다.**
 
 ### 2. Background: A2A Protocol
 
 ![A2A Protocol](docs/presentation/slide-04.png)
 
-A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전트끼리 대화하고 협업하게 한다. 왼쪽 그림(Google A2A 문서)처럼 Travel 에이전트가 Flight·Hotel·Activity·Guide 에이전트에게 일을 나눠 맡긴다. 각 에이전트는 Agent Card로 서로를 찾는다.
+A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전트끼리 대화하고 협업하게 한다. 다른 회사나 프레임워크로 만든 에이전트도 같은 방식으로 작업을 주고받고, 각 에이전트는 **Agent Card**로 서로를 찾는다. 왼쪽 그림(Google A2A 문서)은 Travel 에이전트가 Flight·Hotel·Activity·Guide 에이전트에게 일을 나눠 맡기는 예다.
 
 ![A2A interoperability](docs/presentation/slide-05.png)
 
-같은 슬라이드에서 오른쪽을 강조했다. Vertex AI 위의 Claude, Google ADK, LangGraph처럼 **서로 다른 프레임워크로 만든 에이전트**도 A2A Server로 열려 있으면 하나의 Client가 같은 방식으로 작업을 보낸다. 스마트홈 에이전트와 집 밖 에이전트를 잇는 데 A2A를 쓰는 이유다.
+오른쪽 그림을 강조했다. Vertex AI 위의 Claude, Google ADK, LangGraph처럼 **서로 다른 프레임워크로 만든 에이전트**도 A2A Server로 열려 있으면 하나의 Client가 같은 방식으로 소통한다. 스마트홈 에이전트와 집 밖 에이전트를 잇는 데 A2A를 쓰는 이유다.
 
 ### 3. Background: 에이전트가 협업하는 방식
 
@@ -34,21 +34,21 @@ A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전�
 
 ![Problem Statement recap](docs/presentation/slide-07.png)
 
-해결책으로 넘어가기 전에 두 문제를 다시 짚는다. 왼쪽 그림은 허브 하나가 모든 기기를 떠안는 구조(One Hub Does Everything), 오른쪽은 스마트홈 에이전트가 데스크톱·휴대폰·캘린더·다른 에이전트와 끊겨 있는 구조(Closed to the Outside)다.
+해결책으로 넘어가기 전에 두 문제를 다시 짚는다. 이어지는 Solution 슬라이드는 각각 **분산(Internal extension)**과 **집 밖 연결(External extension)**에 대한 답이다.
 
 ### 5. Solution: Internal extension
 
 ![Internal extension](docs/presentation/slide-08.png)
 
-허브 병목에 대한 해결책이다. Kitchen(냉장고·오븐·후드), Elderly Room(낙상 감지·수면 모니터링), Living Room(TV·조명·에어컨)처럼 **방마다 에이전트를 두고**, 각자 자기 기기의 주인으로서 자기 정책에 따라 판단한다. 사용자의 입구인 Root Agent는 요청을 기기 주인에게 전달만 한다. 새 방이나 다른 Root Agent도 Agent Card만 있으면 합류한다.
+**분산에 대한 답.** Kitchen Agent(냉장고·오븐·후드), Elderly Room Agent(낙상 감지·수면 모니터링), Living Room Agent(TV·조명·에어컨)처럼 방마다 에이전트를 둔다. **각 방 에이전트는 자기 기기만 제어하고, 에이전트끼리는 A2A로 직접 대화한다.** 사용자의 입구인 Root Agent는 요청을 기기 주인에게 넘길 뿐이고, 새 방이나 다른 Root Agent도 Agent Card만 있으면 합류한다. 집이 커지면 더 큰 허브가 아니라 에이전트를 더한다.
 
-레포에서는 `agents/`의 orchestrator(Root)와 room1·room2(방), 그리고 [spec/ambient-a2a.md](spec/ambient-a2a.md)의 소유권·정책 규칙이 이 부분이다.
+레포에서는 `agents/`의 orchestrator(Root)와 room1·room2(방), [spec/ambient-a2a.md](spec/ambient-a2a.md)의 소유권·정책 규칙, 그리고 기기 주인을 한 번 더 확인하는 Device Gateway(`services/gateway`)가 이 부분이다.
 
 ### 6. Solution: External extension — 기존 에이전트
 
 ![External extension: existing agents](docs/presentation/slide-09.png)
 
-집 밖과의 연결에 대한 해결책이다. 이미 있는 외부 에이전트를 Root Agent와 A2A로 잇는다. Desktop Agent는 캘린더·Slack·메일을 보고 "회의 중" 같은 상태를 알려 주고, Google Search Agent 같은 범용 에이전트도 같은 방식으로 붙는다. 외부 에이전트에는 허용된 필드만 공개하고, 캘린더 제목이나 GPS 같은 원본 개인정보는 보내지 않는다.
+**집 밖 연결에 대한 답(1).** Root Agent는 표준 A2A로 집 밖 에이전트와 연결된다. 이미 있는 에이전트가 그대로 붙는다: 캘린더·Slack·메일을 보는 Desktop Agent, Google Search Agent. 예를 들어 Desktop Agent가 "회의 중"이라는 상태를 알려 주면 집이 조용한 모드로 바뀐다. 외부 에이전트에는 허용된 정보만 공개하고, 캘린더 제목이나 GPS 같은 원본 개인정보는 보내지 않는다.
 
 레포에서는 `agents/externel/`의 desktop·smartphone 에이전트가 이 부분이다.
 
@@ -56,13 +56,13 @@ A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전�
 
 ![External extension: custom agents](docs/presentation/slide-10.png)
 
-사용자가 직접 만든 Custom Agent는 **Agentic Hub**에 올려(publish) 공유한다. 집 안(Internal)과 집 밖(External)이 함께 연결되면 사용자가 말하기 전에 집이 먼저 움직이는 선제적 실행(proactive execution)이 가능해진다.
+**집 밖 연결에 대한 답(2).** 사용자는 자기만의 Custom Agent를 만들어 **Agentic Hub**에 올린다(publish). GitHub의 MCP 서버처럼, 다른 사용자가 이 에이전트를 찾아 설치할 수 있다. 집 안(Internal)과 집 밖(External)이 함께 연결되면 사용자가 말하기 전에 집이 먼저 움직이는 선제적 실행(proactive execution)이 가능해진다.
 
 ### 8. Agentic Studio: 에이전트를 만드는 방법
 
 ![Agentic Studio](docs/presentation/slide-11.png)
 
-사용자는 웹의 Agentic Studio에서 평범한 말로 에이전트를 **만들고, 고치고, 지운다.** 예를 들어 *"Brew my coffee at 7:30 and reorder beans when low"*라고 입력하면 Studio가 요청을 Hub API로 보낸다.
+사용자는 웹의 **Agentic Studio**에서 자연어로 에이전트를 만들고, 고치고, 지운다. 예를 들어 *"Brew my coffee at 7:30 and reorder beans when low"*라고 입력하면 Studio가 요청을 Agentic Hub의 API로 보낸다.
 
 레포에서는 [services/studio](services/studio)가 이 부분이다. LLM(LangChain + OpenRouter)은 정해진 슬롯 폼만 채우고, 규칙은 플랫폼 기본 Skill에서 만든다. 권한 잠금 검사와 사용자 승인을 통과해야만 Hub에 등록된다.
 
@@ -76,9 +76,23 @@ Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설
 
 ![Agentic Hub](docs/presentation/slide-13.png)
 
-Agentic Hub(Cloud)는 Studio의 요청을 API로 받아 **Agent Information Registry(RDS)**에 저장하고, 에이전트를 배포해 실행한다(Coffee, Training, Sleep …, 각자 자기 SLM 사용). 다른 사용자는 **Share & Install**로 에이전트를 공개·검색·설치한다. Hub의 에이전트는 집(My Home)의 Root Agent에 A2A로 작업을 보내고, Root Agent는 커피 머신의 주인인 Kitchen Agent에게 넘긴다. Kitchen Agent가 자기 정책을 확인한 뒤 LG DUOBO 커피 머신을 작동한다. **각 방 에이전트는 자기 정책으로 결정한다.**
+**Agentic Hub(Cloud)**는 Studio의 요청을 API로 받아 Agent Information Registry(RDS)에 저장하고, 에이전트를 배포해 실행한다(Coffee, Training, Sleep …, 각자 자기 SLM 사용). 다른 사용자는 **Share & Install**로 에이전트를 공개·검색·설치한다. Hub의 에이전트는 집(My Home)의 Root Agent에 A2A로 작업을 보내고, Root Agent는 커피 머신의 주인인 Kitchen Agent에게 넘긴다. Kitchen Agent가 자기 정책을 확인한 뒤 LG DUOBO 커피 머신을 작동한다. **각 방 에이전트는 자기 정책으로 결정한다.**
 
 레포에서는 [services/agenthub](services/agenthub)(Registry는 Docker의 PostgreSQL, Agent Card로 등록·검색·연결, 기기 주인 한 명 규칙)와 [agent_hub_FE/](agent_hub_FE/)(Hub 화면)가 이 부분이다. 생성된 에이전트는 지금 OpenClaw로 실행하고, `STUDIO_RUNTIME`으로 Python 실행기로 바꿀 수 있다. 다른 사용자와의 공유·설치, 클라우드 배포, 에이전트별 SLM은 아직 계획 단계다([plan.md](plan.md#5-구현-범위)).
+
+### 11. Conclusion
+
+![Conclusion](docs/presentation/slide-14.png)
+
+문제와 해결, 결과를 한 장으로 묶는다.
+
+| 문제 | A2A 위의 해결 | 결과 |
+|---|---|---|
+| Single-Hub Bottleneck | **Internal Agents**: 방 에이전트가 A2A로 대등하게 일한다. 더 큰 허브가 아니라 에이전트를 더해 확장 | 허브 하나의 병목이 없다 |
+| Lack of External Connectivity | **External Agents**: Desktop, Google Search 등을 A2A로 연결해 집 밖 맥락을 쓴다 | 집 밖과 연결된다 |
+| Lack of External Connectivity | **Agentic Studio & Hub**: 코드 없이 자연어로 에이전트를 만들고, MCP 서버처럼 공유·설치한다 | 누구나 새 에이전트를 더할 수 있다 |
+
+그리고 어떤 에이전트가 요청하든 **방 정책이 제어권을 지킨다.** 그 결과가 확장 가능하고 선제적인 스마트홈(Extensible & Proactive Smart Home)이다.
 
 ## 레포 구조
 
