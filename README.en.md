@@ -96,6 +96,31 @@ Problem, solution and result on one slide.
 
 Whoever sends a request, **room policies keep control**. The result is an extensible and proactive smart home.
 
+## Tech Stack
+
+| Area | Technology |
+|---|---|
+| Agent communication | A2A v1.0, Ambient-A2A extension ([spec/ambient-a2a.md](spec/ambient-a2a.md)) |
+| Agents | OpenClaw + TypeScript plugin (swappable for a Python runtime with `STUDIO_RUNTIME`) |
+| Backend | Python, FastAPI, Pydantic v2 |
+| Agent creation (Studio) | LangChain structured output, OpenRouter |
+| Storage | PostgreSQL (Hub and Studio, Docker / RDS), SQLite (Collector, tests) |
+| Screen | Next.js (Agent Hub) |
+| Run and deploy | Docker Compose (local), AWS ECS Fargate (planned), GitHub Actions |
+| Testing | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
+
+### Deployment Structure
+
+![Deployment structure](docs/presentation/structure.png)
+
+The planned deployment of the Agentic Hub on AWS. Today the repo runs the same services locally with Docker Compose.
+- **Screen and API entry:** users come in through Route 53 → CloudFront (+WAF). Static content (`/`) is the Agent Hub screen on S3 (Next.js static export); API requests (`/api/*`) go through the ALB to the services.
+- **Services (ECS Fargate, private subnet):** Hub API, Studio API, Agent Runtime (generated agents' A2A servers, per-agent SLMs) and Event Collector, run as containers straight from the `docker-compose.yml` services.
+- **Data:** the Agent Information Registry is RDS PostgreSQL in a private DB subnet. API keys and tokens live in Secrets Manager, logs in CloudWatch, images in ECR.
+- **Outbound calls:** LLM and SLM calls (OpenRouter) go out through the NAT Gateway.
+- **The home (My Home, local Docker):** the Root Agent, room agents and Device Gateway (virtual devices, per-room policies) stay at home. The home opens the A2A connection to the cloud, receives tasks (task ↓) and returns results (result ↑).
+- **CI/CD (GitHub Actions):** the screen is uploaded to S3 followed by a CloudFront cache invalidation; the backend image is pushed to ECR and deployed to ECS.
+
 ## Repository Structure
 
 ```

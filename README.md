@@ -96,6 +96,31 @@ Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설
 
 그리고 어떤 에이전트가 요청하든 **방 정책이 제어권을 지킨다.** 그 결과가 확장 가능하고 선제적인 스마트홈(Extensible & Proactive Smart Home)이다.
 
+## 기술 스택
+
+| 영역 | 기술 |
+|---|---|
+| 에이전트 통신 | A2A v1.0, Ambient-A2A 확장 ([spec/ambient-a2a.md](spec/ambient-a2a.md)) |
+| 에이전트 | OpenClaw + TypeScript 플러그인 (`STUDIO_RUNTIME`으로 Python 실행기로 교체 가능) |
+| 백엔드 | Python, FastAPI, Pydantic v2 |
+| 에이전트 생성 (Studio) | LangChain structured output, OpenRouter |
+| 저장소 | PostgreSQL (Hub·Studio, Docker / RDS), SQLite (Collector, 테스트) |
+| 화면 | Next.js (Agent Hub) |
+| 실행·배포 | Docker Compose (로컬), AWS ECS Fargate (계획), GitHub Actions |
+| 테스트 | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
+
+### 배포 구조
+
+![Deployment structure](docs/presentation/structure.png)
+
+Agentic Hub를 AWS에 올리는 배포 계획이다. 지금 레포는 같은 서비스를 로컬 Docker Compose로 실행한다.
+- **화면과 API 입구:** 사용자는 Route 53 → CloudFront(+WAF)로 들어온다. 정적 화면(`/`)은 S3의 Agent Hub 화면(Next.js static export)에서, API 요청(`/api/*`)은 ALB를 거쳐 서비스로 간다.
+- **서비스 (ECS Fargate, private subnet):** Hub API, Studio API, Agent Runtime(생성된 에이전트의 A2A 서버, 에이전트별 SLM), Event Collector. `docker-compose.yml`의 서비스를 그대로 컨테이너로 실행한다.
+- **데이터:** Agent Information Registry는 DB 전용 private subnet의 RDS PostgreSQL. API 키와 토큰은 Secrets Manager, 로그는 CloudWatch, 이미지는 ECR에 둔다.
+- **밖으로 나가는 호출:** LLM·SLM 호출(OpenRouter)은 NAT Gateway를 거친다.
+- **집(My Home, 로컬 Docker):** Root Agent, 방 에이전트, Device Gateway(가상 기기, 방별 정책)는 집에 남는다. 집에서 클라우드로 A2A 연결을 열고, 작업을 받아(task ↓) 결과를 돌려준다(result ↑).
+- **CI/CD (GitHub Actions):** 화면은 S3 업로드 후 CloudFront 캐시를 무효화하고, 백엔드는 이미지를 ECR에 올려 ECS에 배포한다.
+
 ## 레포 구조
 
 ```
