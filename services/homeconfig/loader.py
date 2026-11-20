@@ -1,6 +1,6 @@
 """Load and cross-check config/*.yaml plus the secrets they name in the environment.
 
-Every service (Gateway, Event Collector, Runner, Agent Hub, Studio) reads configuration only through
+Every service (Gateway, Event Collector, Agent Hub, Studio) reads configuration only through
 `load_config()`.
 """
 
@@ -18,19 +18,17 @@ import yaml
 from pydantic import BaseModel, ValidationError
 
 from homeconfig.models import (
+    DOMAINS,
     AgentsFile,
     Caller,
     Device,
     DevicesFile,
     Role,
-    Scenario,
-    ScenariosFile,
     Skill,
     SkillsFile,
 )
 
 DEFAULT_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
-DEFAULT_HA_URL = "http://127.0.0.1:8123"
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -48,14 +46,10 @@ class HomeConfig:
     callers: dict[str, Caller]
     devices: dict[str, Device]  # entity id -> device
     spaces: list[str]
-    ha_url: str  # the real Home Assistant (env HA_URL)
-    ha_token: str | None  # env HA_TOKEN; only the Gateway needs it
-    openclaw_token: str | None = field(repr=False)  # env OPENCLAW_GATEWAY_TOKEN; only the Runner
-    scenarios: dict[str, Scenario]  # scenario id -> scenario (config/scenarios.yaml, optional)
     skills: dict[str, Skill]  # skill id -> built-in skill (config/skills.yaml, optional)
     cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
-    # Problems with optional callers (simulators, users, services). They never stop the Gateway or
-    # the Collector; the Runner, the Hub and Studio report them.
+    # Problems with optional callers (users, services). They never stop the Gateway or the
+    # Collector; the Hub and Studio report them.
     optional_problems: list[str]
     _by_token: dict[str, str] = field(repr=False)
 
@@ -107,18 +101,17 @@ def _read(path: Path, model: type[M], problems: list[str]) -> M | None:
 _ARTICLE = {
     Role.AGENT: "an agent",
     Role.OPERATOR: "an operator",
-    Role.SIMULATOR: "a simulator",
     Role.USER: "a user",
     Role.SERVICE: "a service",
 }
-# Without their token only one feature stays off (Live Simulation, Studio/Hub writes).
-_OPTIONAL = {Role.SIMULATOR, Role.USER, Role.SERVICE}
+# Without their token only one feature stays off (Studio/Hub writes).
+_OPTIONAL = {Role.USER, Role.SERVICE}
 
 
 def load_config(
     config_dir: Path | str | None = None, env: Mapping[str, str] | None = None
 ) -> HomeConfig:
-    """Read agents.yaml, devices.yaml and (if present) scenarios.yaml and skills.yaml from
+    """Read agents.yaml, devices.yaml and (if present) skills.yaml from
     `config_dir`, resolve tokens from `env` (default: the process environment) and check everything.
     Raises ConfigError."""
     base = Path(config_dir) if config_dir is not None else DEFAULT_CONFIG_DIR
@@ -126,15 +119,9 @@ def load_config(
     problems: list[str] = []
     agents_f = _read(base / "agents.yaml", AgentsFile, problems)
     devices_f = _read(base / "devices.yaml", DevicesFile, problems)
-    scenarios_path = base / "scenarios.yaml"
-    scenarios_f = (
-        _read(scenarios_path, ScenariosFile, problems)
-        if scenarios_path.exists()
-        else ScenariosFile()
-    )
     skills_path = base / "skills.yaml"
     skills_f = _read(skills_path, SkillsFile, problems) if skills_path.exists() else SkillsFile()
-    if agents_f is None or devices_f is None or scenarios_f is None or skills_f is None:
+    if agents_f is None or devices_f is None or skills_f is None:
         raise ConfigError(problems)
 
     callers: dict[str, Caller] = {}
@@ -143,7 +130,6 @@ def load_config(
     optional_problems: list[str] = []
     entries = [(Role.AGENT, i, e) for i, e in agents_f.agents.items()]
     entries += [(Role.OPERATOR, i, e) for i, e in agents_f.operators.items()]
-    entries += [(Role.SIMULATOR, i, e) for i, e in agents_f.simulators.items()]
     entries += [(Role.USER, i, e) for i, e in agents_f.users.items()]
     entries += [(Role.SERVICE, i, e) for i, e in agents_f.services.items()]
     for role, caller_id, entry in entries:
@@ -175,19 +161,11 @@ def load_config(
             problems.append(f"device {d.entity!r}: unknown space {d.space!r}")
         if d.owner not in agents_f.agents:
             problems.append(f"device {d.entity!r}: owner {d.owner!r} is not an agent")
+        if d.domain not in DOMAINS:
+            problems.append(f"device {d.entity!r}: the Gateway keeps only {', '.join(DOMAINS)}")
+        if (d.domain == "input_select") != bool(d.options):
+            problems.append(f"device {d.entity!r}: options are for (and required by) input_select")
         devices[d.entity] = d
-
-    scenarios: dict[str, Scenario] = {}
-    for s in scenarios_f.scenarios:
-        if s.id in scenarios:
-            problems.append(f"duplicate scenario {s.id!r}")
-        for step in s.steps:
-            if step.agent not in agents_f.agents:
-                problems.append(f"scenario {s.id!r}: {step.agent!r} is not an agent")
-        for entity in s.expect:
-            if entity not in devices:
-                problems.append(f"scenario {s.id!r}: expects unknown device {entity!r}")
-        scenarios[s.id] = s
 
     skills: dict[str, Skill] = {}
     for s in skills_f.skills:
@@ -211,10 +189,6 @@ def load_config(
         callers=callers,
         devices=devices,
         spaces=list(devices_f.spaces),
-        ha_url=(env.get("HA_URL") or DEFAULT_HA_URL).rstrip("/"),
-        ha_token=env.get("HA_TOKEN") or None,
-        openclaw_token=env.get("OPENCLAW_GATEWAY_TOKEN") or None,
-        scenarios=scenarios,
         skills=skills,
         cors_origins=cors_origins,
         optional_problems=optional_problems,

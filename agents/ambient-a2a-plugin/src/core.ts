@@ -37,7 +37,7 @@ export function route(device: string, owned: string[], ownership: Record<string,
   return ownership[device] ?? null;
 }
 
-// --- Extension 4: space policy. states = current HA states of the `when` entities.
+// --- Extension 4: space policy. states = current device states (Device Gateway) of the `when` entities.
 export function checkPolicy(action: Action, policies: Policy[], states: Record<string, string>): Decision | null {
   for (const p of policies) {
     if (states[p.when.entity] !== p.when.state) continue;

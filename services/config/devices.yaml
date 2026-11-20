@@ -1,20 +1,22 @@
-# Home Assistant entities and the one agent that may command each (plan 5.4 Room Ownership).
+# The home's virtual devices and the one agent that may command each (plan 3.1: one owner per device).
 # Loaded and checked by homeconfig.load_config().
 #
-# Must match ../homeassistant/config/configuration.yaml and each agent's
-# `owned` list (scripts/verify_integration.py compares them with the running Agent Cards).
+# The Device Gateway keeps these devices itself (gateway/home.py) and answers like the Home Assistant
+# REST API, so ids use HA's entity id format. Each device starts in its initial state: off, or the
+# first of its options. Must match each agent's `owned` list (scripts/verify_integration.py compares
+# them with the running Agent Cards).
 # The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
 # `kind` says what the device is; the built-in skills (skills.yaml) refer to kinds, not entity ids.
 spaces: [living_room, my_room, protected_room]
 
 devices:
-  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator, kind: light}
-  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator, kind: tv}
-  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator, kind: tv_muted}
-  - {entity: input_boolean.room1_light, space: my_room, owner: room1, kind: light}
-  - {entity: input_select.room1_light_mode, space: my_room, owner: room1, kind: light_mode}
-  - {entity: input_boolean.room1_ac, space: my_room, owner: room1, kind: ac}
-  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1, kind: occupancy}
-  - {entity: input_boolean.room2_light, space: protected_room, owner: room2, kind: light}
-  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2, kind: ac}
-  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2, kind: sleep_mode}
+  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator, kind: light, name: 거실 조명}
+  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator, kind: tv, name: 거실 TV}
+  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator, kind: tv_muted, name: 거실 TV 음소거}
+  - {entity: input_boolean.room1_light, space: my_room, owner: room1, kind: light, name: 내 방 조명}
+  - {entity: input_select.room1_light_mode, space: my_room, owner: room1, kind: light_mode, name: 내 방 조명 모드, options: [normal, meeting, eco]}
+  - {entity: input_boolean.room1_ac, space: my_room, owner: room1, kind: ac, name: 내 방 에어컨}
+  - {entity: input_boolean.room1_occupied, space: my_room, owner: room1, kind: occupancy, name: 내 방 재실}
+  - {entity: input_boolean.room2_light, space: protected_room, owner: room2, kind: light, name: 보호 방 조명}
+  - {entity: input_boolean.room2_ac, space: protected_room, owner: room2, kind: ac, name: 보호 방 에어컨}
+  - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2, kind: sleep_mode, name: 보호 방 수면 모드}

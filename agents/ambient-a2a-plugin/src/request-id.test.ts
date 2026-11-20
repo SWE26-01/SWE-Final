@@ -8,7 +8,7 @@ const LIGHT = "input_boolean.room1_light";
 const quiet = { info() {}, warn() {} };
 const peers = { orchestrator: "http://orch", room1: "http://room1" };
 const tokens = { orchestrator: "t-o", room1: "t-1", desktop: "t-d" };
-const common = { peers, tokens, ha: { url: "http://ha", token: "x" }, collectorUrl: "http://collector", logFile: undefined };
+const common = { peers, tokens, gatewayUrl: "http://gateway", collectorUrl: "http://collector", logFile: undefined };
 const agents = {
   orchestrator: createAgent({ ...common, agentId: "orchestrator", role: "home", publicUrl: peers.orchestrator, owned: [], requestAcl: { desktop: ["*"] } } as Config, quiet),
   room1: createAgent({
@@ -22,7 +22,7 @@ const logged: Record<string, any>[] = [];
 vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
   const reply = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
   if (url.startsWith("http://collector")) return logged.push(JSON.parse(String(init!.body))), reply({});
-  if (url.startsWith("http://ha")) return reply(url.includes("/states/") ? { state: "on" } : []);
+  if (url.startsWith("http://gateway")) return reply(url.includes("/states/") ? { state: "on" } : []);
   const id = url.startsWith(peers.room1) ? "room1" : "orchestrator";
   if (url.endsWith("agent-card.json")) return reply(agents[id].card);
   const rpc = JSON.parse(String(init!.body));

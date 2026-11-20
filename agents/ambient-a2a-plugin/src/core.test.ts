@@ -62,16 +62,16 @@ describe("core", () => {
   });
 });
 
-// In-process network: peer URLs dispatch to agents' inbound(), HA URL hits a fake state map.
+// In-process network: peer URLs dispatch to agents' inbound(), the Gateway URL hits a fake state map.
 describe("flows", () => {
-  const HA = "http://ha";
+  const GATEWAY = "http://gateway";
   const tokens = { desktop: "t-d", orchestrator: "t-o", room1: "t-1", room2: "t-2" };
   const peers = { desktop: "http://desktop", orchestrator: "http://orch", room1: "http://room1", room2: "http://room2" };
-  const ha: Record<string, string> = {
+  const home: Record<string, string> = {
     "input_boolean.living_tv_muted": "off", "input_select.room1_light_mode": "normal",
     "input_boolean.room1_light": "on", "input_boolean.room2_ac": "on", "input_boolean.room2_sleep_mode": "on",
   };
-  const base = { peers, tokens, ha: { url: HA, token: "x" }, logFile: undefined };
+  const base = { peers, tokens, gatewayUrl: GATEWAY, logFile: undefined };
   const quiet = { info() {}, warn() {} };
   const agents: Record<string, ReturnType<typeof createAgent>> = {
     orchestrator: createAgent({ ...base, agentId: "orchestrator", role: "home", publicUrl: peers.orchestrator, owned: ["input_boolean.living_tv_muted"],
@@ -86,11 +86,11 @@ describe("flows", () => {
 
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
     const reply = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
-    if (url.startsWith(HA)) {
+    if (url.startsWith(GATEWAY)) {
       const m = url.match(/states\/(.+)$/);
-      if (m) return reply({ state: ha[m[1]] });
+      if (m) return reply({ state: home[m[1]] });
       const { entity_id, option } = JSON.parse(String(init!.body));
-      ha[entity_id] = url.endsWith("turn_on") ? "on" : url.endsWith("turn_off") ? "off" : option;
+      home[entity_id] = url.endsWith("turn_on") ? "on" : url.endsWith("turn_off") ? "off" : option;
       return reply([]);
     }
     const [root, rest] = [url.replace(/\/(a2a\/v1|\.well-known\/agent-card\.json)$/, ""), url];
@@ -105,15 +105,15 @@ describe("flows", () => {
   it("A: desktop → home (ACL ok) → room1 delegated and executed", async () => {
     const r = await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_select.room1_light_mode", command: "SET", value: "meeting" } });
     expect(r).toMatchObject({ accepted: true, delegated_to: "room1" });
-    expect(ha["input_select.room1_light_mode"]).toBe("meeting");
+    expect(home["input_select.room1_light_mode"]).toBe("meeting");
     expect((await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_boolean.living_tv_muted", command: "TURN_ON" } })).accepted).toBe(true);
-    expect(ha["input_boolean.living_tv_muted"]).toBe("on");
+    expect(home["input_boolean.living_tv_muted"]).toBe("on");
   });
 
   it("A: home rejects unauthorized requester before reaching the room", async () => {
     const r = await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_boolean.room2_ac", command: "TURN_OFF" } });
     expect(r.reason_code).toBe("UNAUTHORIZED");
-    expect(ha["input_boolean.room2_ac"]).toBe("on");
+    expect(home["input_boolean.room2_ac"]).toBe("on");
   });
 
   it("room cannot control a device it does not own", async () => {
@@ -126,8 +126,8 @@ describe("flows", () => {
     expect(byRoom.room1.accepted).toBe(true);
     expect(byRoom.room2.results[0].reason_code).toBe("SAFETY_POLICY");
     expect(r.reason_code).toBe("PARTIAL");
-    expect(ha["input_boolean.room1_light"]).toBe("off");
-    expect(ha["input_boolean.room2_ac"]).toBe("on");
+    expect(home["input_boolean.room1_light"]).toBe("off");
+    expect(home["input_boolean.room2_ac"]).toBe("on");
   });
 
   it("B: home queries desktop and only gets permitted fields", async () => {
