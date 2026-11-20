@@ -4,7 +4,11 @@
 
 **G01 | A2A-Lite** · 고라희, 신윤수, 홍예원 (Hanyang University CSE406 · LG Electronics IC-PBL "Proactive Agentic Home")
 
-We split a smart home that runs everything on one hub into agents connected by A2A. Inside the home, each room has its own agent that owns its devices and policies (internal extension); outside, the home connects over A2A to desktop, phone and user-made agents (external extension). Users create agents in plain language in Agentic Studio and register, find and connect them in Agentic Hub. Plan: [plan.md](plan.md) (Korean)
+Today’s smart homes run everything on one hub. We split it into small agents that talk over A2A.
+- Inside the home: each room has its own agent for its own devices.
+- Outside the home: the home connects to agents on your desktop and phone.
+- Agentic Studio: describe an agent in plain words, and it is built for you.
+- Agentic Hub: share, find, and install agents.
 
 ### 1. Problem Statement
 
