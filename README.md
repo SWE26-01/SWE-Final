@@ -4,10 +4,6 @@
 
 허브 하나가 모든 일을 하는 스마트홈을 A2A로 나눈다. 집 안은 방마다 독립된 에이전트가 자기 기기와 정책을 맡고(Internal extension), 집 밖의 데스크톱·휴대폰·사용자가 만든 에이전트와도 A2A로 연결한다(External extension). 사용자는 Agentic Studio에서 평범한 말로 에이전트를 만들고, Agentic Hub에서 등록·검색·연결한다. 기획서: [plan.md](plan.md)
 
-## 발표 자료
-
-전체 PDF: [docs/presentation/presentation.pdf](docs/presentation/presentation.pdf) (제목 페이지 제외)
-
 ### 1. Problem Statement
 
 ![Problem Statement](docs/presentation/slide-02.png)
