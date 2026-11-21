@@ -13,7 +13,7 @@ mkdir -p "$ROOT/logs" "$ROOT/agents/generated"
 
 wait_for() { # name url
   printf '%-13s' "$1"
-  for _ in $(seq 1 90); do
+  for _ in $(seq 1 180); do  # agents may wait out OpenClaw's 90 s gateway lock (run_agents.sh)
     curl -fs -o /dev/null "$2" && { echo up; return; }
     sleep 1
   done

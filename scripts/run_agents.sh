@@ -7,15 +7,17 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 mkdir -p "$ROOT/logs"
 "$ROOT/scripts/oc.sh" desktop --version >/dev/null # mirror agents/ once before parallel starts
-# A gateway that fails while starting (cold start while the whole stack builds) gets two more tries;
-# one that stops later (scripts/scenario.sh --kill-home) stays down.
+# A gateway that fails while starting is tried again for up to 3 minutes: when this container is
+# recreated (compose up --build, down/up), OpenClaw refuses to start until the previous container's
+# gateway lock in /state is 90 s old (GatewayLockNamespaceError). One that stops later
+# (scripts/scenario.sh --kill-home) stays down.
 run() {
-  local attempt started
-  for attempt in 1 2 3; do
+  local first=$SECONDS started
+  while :; do
     started=$SECONDS
     AMBIENT_SKIP_SYNC=1 "$ROOT/scripts/oc.sh" "$1" gateway && return
-    ((SECONDS - started > 60)) && return
-    echo "failed while starting (try $attempt of 3)"; sleep 3
+    ((SECONDS - started > 60 || SECONDS - first > 180)) && return
+    echo "failed while starting; trying again in 10 s"; sleep 10
   done
 }
 for id in desktop smartphone orchestrator room1 room2; do
