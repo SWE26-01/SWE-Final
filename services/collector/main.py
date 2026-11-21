@@ -8,28 +8,29 @@ With COLLECTOR_HUB_URL, agents the user connected in the Agent Hub post with the
 and are watched like the home's own agents (common/hublink.py).
 
 Run: uvicorn collector.main:build --factory --port 8200 --env-file ../.env
-     (database file: env COLLECTOR_DB, default collector.sqlite)
+     (database: PostgreSQL with POSTGRES_HOST, else the SQLite file COLLECTOR_DB, default
+     collector.sqlite; collector/store.py)
 """
 
 import asyncio
 import contextlib
-import json
 import os
-import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from typing import Annotated
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, WebSocket, status
+from sqlalchemy import URL
 from starlette.websockets import WebSocketDisconnect
 
 from collector.agents import AgentStatus, AgentWatcher
 from collector.events import AgentEvent
-from collector.flows import Flow, StoredEvent, flow_of, in_time_order, summarize
+from collector.flows import Flow, StoredEvent, in_time_order, summarize
+from collector.store import EventStore
 from common.auth import make_auth, ws_caller
 from common.cors import allow_dashboards
+from common.db import database_url
 from common.hub import Hub, push
 from common.hublink import HubLink, agent_auth, hub_link
 from common.logs import hide_tokens_in_server_logs
@@ -41,122 +42,21 @@ MAX_LIMIT = 500  # page size cap for GET /events
 MAX_FLOWS = 100  # page size cap for GET /flows
 
 
-class EventStore:
-    """Append-only SQLite log, one JSON row per event. Use from the event loop thread only."""
-
-    def __init__(self, path: str) -> None:
-        self._path = path
-        self._conn: sqlite3.Connection | None = None
-
-    def open(self) -> None:
-        self._conn = sqlite3.connect(self._path)
-        with self._conn:
-            self._conn.execute(
-                "CREATE TABLE IF NOT EXISTS events "
-                "(id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT, flow TEXT, received_at TEXT)"
-            )
-            columns = [c[1] for c in self._conn.execute("PRAGMA table_info(events)")]
-            if "flow" not in columns:  # database from before flows: add and fill the column
-                self._conn.execute("ALTER TABLE events ADD COLUMN flow TEXT")
-                for event_id, raw in self._conn.execute("SELECT id, json FROM events").fetchall():
-                    flow = flow_of(json.loads(raw).get("request_id"))
-                    self._conn.execute("UPDATE events SET flow = ? WHERE id = ?", (flow, event_id))
-            if "received_at" not in columns:  # older events keep no arrival time
-                self._conn.execute("ALTER TABLE events ADD COLUMN received_at TEXT")
-            self._conn.execute("CREATE INDEX IF NOT EXISTS events_flow ON events (flow)")
-
-    def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
-
-    def add(self, event: AgentEvent) -> StoredEvent:
-        raw, flow = event.stored(), flow_of(event.request_id)
-        # The Collector's own clock, so events from different hosts sort the same way
-        # (an agent's `ts` comes from its own machine, which can drift).
-        received_at = datetime.now(UTC).isoformat()
-        with self._db:
-            cur = self._db.execute(
-                "INSERT INTO events (json, flow, received_at) VALUES (?, ?, ?)",
-                (raw, flow, received_at),
-            )
-        return _row(cur.lastrowid, raw, flow, received_at)
-
-    def after(self, after_id: int, limit: int) -> list[StoredEvent]:
-        rows = self._db.execute(
-            f"SELECT {_COLUMNS} FROM events WHERE id > ? ORDER BY id LIMIT ?", (after_id, limit)
-        )
-        return [_row(*r) for r in rows]
-
-    def latest(self, n: int) -> list[StoredEvent]:
-        """The last `n` events, oldest first."""
-        rows = self._db.execute(f"SELECT {_COLUMNS} FROM events ORDER BY id DESC LIMIT ?", (n,))
-        return [_row(*r) for r in rows][::-1]
-
-    def flow_events(self, flow: str) -> list[StoredEvent]:
-        rows = self._db.execute(
-            f"SELECT {_COLUMNS} FROM events WHERE flow = ? ORDER BY id", (flow,)
-        )
-        return [_row(*r) for r in rows]
-
-    def activity(self) -> dict[str, tuple[str, int]]:
-        """agent id -> (`ts` of its latest event, number of events)."""
-        rows = self._db.execute(
-            "SELECT json_extract(json, '$.agent'), MAX(id), COUNT(*) FROM events GROUP BY 1"
-        ).fetchall()
-        latest = (
-            dict(
-                self._db.execute(
-                    f"SELECT id, json_extract(json, '$.ts') FROM events WHERE id IN "
-                    f"({','.join('?' * len(rows))})",
-                    [r[1] for r in rows],
-                ).fetchall()
-            )
-            if rows
-            else {}
-        )
-        return {agent: (latest[last_id], count) for agent, last_id, count in rows}
-
-    def recent_flows(self, limit: int) -> list[str]:
-        """Flows with the most recent activity first."""
-        rows = self._db.execute(
-            "SELECT flow FROM events WHERE flow IS NOT NULL "
-            "GROUP BY flow ORDER BY MAX(id) DESC LIMIT ?",
-            (limit,),
-        )
-        return [r[0] for r in rows]
-
-    @property
-    def _db(self) -> sqlite3.Connection:
-        if self._conn is None:
-            raise RuntimeError("event store is not open (app not started)")
-        return self._conn
-
-
-_COLUMNS = "id, json, flow, received_at"
-
-
-def _row(event_id: int | None, raw: str, flow: str | None, received_at: str | None) -> StoredEvent:
-    row = {"id": event_id, **json.loads(raw)}
-    if flow is not None:
-        row["flow"] = flow
-    if received_at is not None:
-        row["received_at"] = received_at
-    return row
-
-
 def create_app(
     config: HomeConfig,
-    db_path: str,
+    db: str | URL,
     hub: Hub | None = None,
     *,
     watch_agents: bool = True,
     agent_transport: httpx.AsyncBaseTransport | None = None,
     hub_link_: HubLink | None = None,
+    import_sqlite: str | None = None,
 ) -> FastAPI:
     """Build the collector. The database is opened at startup and closed at shutdown, and the
-    agents' cards are checked in the background (`watch_agents=False` skips that, for tests)."""
-    store = EventStore(db_path)
+    agents' cards are checked in the background (`watch_agents=False` skips that, for tests).
+    `db` is a database URL or a SQLite file path; `import_sqlite` names the SQLite file of an older
+    Collector whose events are copied into an empty database once."""
+    store = EventStore(db)
     hub = hub or Hub()
 
     def agent_statuses() -> list[AgentStatus]:
@@ -184,6 +84,8 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         store.open()
+        if import_sqlite:
+            store.import_sqlite(import_sqlite)
         task = asyncio.create_task(watcher.run()) if watch_agents else None
         try:
             yield
@@ -261,8 +163,11 @@ def create_app(
 def build() -> FastAPI:
     """App for `uvicorn collector.main:build --factory` (config files + environment)."""
     config = load_config()
+    old_file = os.environ.get("COLLECTOR_DB", "collector.sqlite")
+    postgres = bool(os.environ.get("POSTGRES_HOST") or os.environ.get("COLLECTOR_DATABASE_URL"))
     return create_app(
         config,
-        os.environ.get("COLLECTOR_DB", "collector.sqlite"),
+        database_url("collector") if postgres else old_file,
         hub_link_=hub_link(config, os.environ.get("COLLECTOR_HUB_URL")),
+        import_sqlite=old_file if postgres else None,
     )

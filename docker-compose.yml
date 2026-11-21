@@ -6,7 +6,7 @@
 #   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)
 #   studio     Agent Studio: makes agents from plain language (LangChain + OpenRouter)
 #   hub-web    Agent Hub screen (agent_hub_FE, Next.js)
-#   postgres   the Hub's and Studio's database
+#   postgres   the databases of the Hub, Studio and the Collector
 #
 # Tokens and keys come from the root .env (scripts/setup.sh writes it; add OPENROUTER_API_KEY).
 # Ports are published on 127.0.0.1 only.
@@ -49,10 +49,13 @@ services:
     <<: *service
     command: uvicorn collector.main:build --factory --host 0.0.0.0 --port 8200
     environment:
-      COLLECTOR_DB: /data/collector.sqlite
+      POSTGRES_HOST: postgres  # database `collector` (made at startup if missing)
+      COLLECTOR_DB: /data/collector.sqlite  # the log before PostgreSQL: copied in once, then unused
       AMBIENT_AGENTS_HOST: agents  # read the agents' cards
       COLLECTOR_HUB_URL: http://hub:8400  # events and status of agents connected in the Hub
     volumes: ["collector-data:/data"]
+    depends_on:
+      postgres: {condition: service_healthy}
     ports: ["127.0.0.1:8200:8200"]
 
   postgres:
@@ -70,7 +73,7 @@ services:
       timeout: 3s
       retries: 30
     restart: unless-stopped
-    # No published port: only the Hub and Studio reach it, inside this Compose network.
+    # No published port: only the Hub, Studio and the Collector reach it, inside this network.
 
   hub:
     <<: *service
