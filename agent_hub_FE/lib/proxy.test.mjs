@@ -10,9 +10,12 @@ test("the calls the screen makes pass", () => {
     ["hub", "POST", "connections"],
     ["hub", "DELETE", "connections/0123abcd"],
     ["hub", "POST", "agents/discover"],
+    ["hub", "POST", "agents/my-room-meeting-mode-ab12/share"],
+    ["hub", "POST", "agents/room1/star"],
     ["studio", "POST", "drafts"],
     ["studio", "POST", "drafts/a1b2c3d4/approve"],
     ["collector", "GET", "agents"],
+    ["collector", "GET", "flows"],
     ["gateway", "GET", "devices"],
   ]) assert.ok(allowed(service, method, path), `${method} ${service}/${path}`);
 });
@@ -22,6 +25,8 @@ test("service-only, device and unknown calls are refused", () => {
     ["hub", "POST", "tokens/verify"], // agents and services only
     ["hub", "POST", "agents"], // Studio registers, not the screen
     ["hub", "GET", "runtime/peers"],
+    ["hub", "POST", "auth/login"], // only through app/api/auth, which keeps the token in a cookie
+    ["hub", "GET", "auth/me"],
     ["hub", "GET", "agents/../tokens"],
     ["hub", "GET", "agents/x/../../audit"],
     ["gateway", "POST", "api/services/input_boolean/turn_on"], // the screen commands no device
@@ -31,11 +36,12 @@ test("service-only, device and unknown calls are refused", () => {
   ]) assert.equal(allowed(service, method, path), false, `${method} ${service}/${path}`);
 });
 
-test("tokens come from the server environment only", () => {
+test("people use their session; only reads of the Collector and Gateway use a service token", () => {
   process.env.HOME_USER_TOKEN = "u";
   process.env.DASHBOARD_TOKEN = "d";
-  assert.equal(SERVICES.hub.token(), "u");
-  assert.equal(SERVICES.studio.token(), "u");
+  assert.equal(SERVICES.hub.session, true);
+  assert.equal(SERVICES.studio.session, true);
+  assert.equal(SERVICES.hub.token, undefined); // the home user's token is not used by the screen
   assert.equal(SERVICES.collector.token(), "d");
   assert.equal(SERVICES.gateway.token(), "d");
 });

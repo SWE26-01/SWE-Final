@@ -3,7 +3,7 @@
 // Agent Hub screen: one page, views picked by the URL (?tab=, ?agent=, ?view=search&q=, ?draft=).
 // All data is live, through the server-side proxy (app/api/[service]/[...path]).
 import { useEffect, useMemo, useState } from "react";
-import { useApi } from "../lib/api.js";
+import { logout, useApi } from "../lib/api.js";
 import AgentDetail from "./components/AgentDetail.js";
 import HubNetwork from "./components/HubNetwork.js";
 import MyAgents from "./components/MyAgents.js";
@@ -41,6 +41,7 @@ function urlOf(route) {
 export default function Home() {
   const [route, setRoute] = useState({ tab: "Agent Hub", agentId: null, search: null, draftId: null });
   const [query, setQuery] = useState("");
+  const me = useApi("auth/me"); // also sends a logged-out visitor to /login
   const agents = useApi("hub/agents", { interval: 5000 });
   const devices = useApi("gateway/devices", { interval: 5000 });
   const statuses = useApi("collector/agents", { interval: 5000 });
@@ -75,7 +76,7 @@ export default function Home() {
       />
     );
   } else if (route.tab === "My Agent") {
-    view = <MyAgents agents={agents.data} error={agents.error} online={online} devices={devices.data} onSelect={openAgent} />;
+    view = <MyAgents agents={agents.data} error={agents.error} online={online} devices={devices.data} me={me.data} onSelect={openAgent} />;
   } else if (route.agentId) {
     view = (
       <AgentDetail
@@ -93,7 +94,6 @@ export default function Home() {
       <SearchResults
         key={route.search}
         query={route.search}
-        devices={devices.data}
         onQuery={(q) => navigate({ search: q }, { replace: true })}
         onBack={() => navigate({})}
         onSelect={(agent) => {
@@ -129,9 +129,13 @@ export default function Home() {
             </button>
           ))}
         </nav>
+        <div className="user-menu">
+          {me.data && <><strong>{me.data.name}</strong><small>@{me.data.id}</small></>}
+          <button type="button" onClick={logout}>로그아웃</button>
+        </div>
       </header>
       {view}
-      <footer><span>AGENT HUB / 2026</span><span>Human needs, intelligent connections.</span></footer>
+      <footer><span>AGENT HUB / 2026</span><a className="footer-link" href="/home">SMART HOME APP →</a><span>Human needs, intelligent connections.</span></footer>
     </div>
   );
 }

@@ -14,6 +14,18 @@ export class ApiError extends Error {
   }
 }
 
+/** Send the person to the login page, back here afterwards. */
+export function toLogin() {
+  if (typeof window === "undefined" || window.location.pathname === "/login") return;
+  const next = window.location.pathname + window.location.search;
+  window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+}
+
+export async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+  window.location.replace("/login");
+}
+
 export async function api(path, { method = "GET", body } = {}) {
   const res = await fetch(`/api/${path}`, {
     method,
@@ -30,6 +42,7 @@ export async function api(path, { method = "GET", body } = {}) {
   }
   if (!res.ok) {
     const detail = data?.detail ?? data;
+    if (res.status === 401 && detail?.reason_code === "LOGIN_REQUIRED") toLogin();
     // FastAPI validation errors: [{loc, msg}, ...]
     throw new ApiError(res.status, Array.isArray(detail) ? detail.map((d) => d.msg).join("; ") : detail);
   }

@@ -100,6 +100,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
         </>
       )}
 
+      {draft.status === "registered" && <p className="panel-note">지금은 나만 보이는 에이전트예요. Hub 상세 화면에서 연결하고, 원하면 카탈로그에 공유하세요.</p>}
       <Notice error={error} />
       <div className="panel-actions">
         {draft.status === "ready" && (

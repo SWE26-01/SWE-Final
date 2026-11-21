@@ -44,6 +44,11 @@ const REASONS = {
   SERVICE_DOWN: "서비스에 연결할 수 없어요",
   NO_TOKEN: "화면 서버에 토큰이 설정되지 않았어요 (.env)",
   NOT_ALLOWED: "화면에서 쓸 수 없는 요청이에요",
+  LOGIN_REQUIRED: "로그인이 필요해요",
+  BAD_LOGIN: "아이디나 비밀번호가 맞지 않아요",
+  USERNAME_TAKEN: "이미 쓰고 있는 아이디예요",
+  NOT_CREATOR: "만든 사람만 바꿀 수 있어요",
+  ACCOUNT_ONLY: "계정으로 로그인해야 별을 줄 수 있어요",
 };
 
 export const agentName = (id, agents) => agents?.find((a) => a.id === id)?.name ?? id;
@@ -85,7 +90,18 @@ export function agentNote(a) {
   return [a.space ? spaceName(a.space) : null, ROLES[a.role] ?? (a.origin === "external" ? "External" : null)].filter(Boolean).join(" · ");
 }
 
-const ACTIONS = { register: "등록됨", connect: "연결됨", disconnect: "연결 해제", remove: "삭제됨", discover: "Agent Card로 등록", refresh: "카드 새로 읽음" };
+const ACTIONS = {
+  register: "등록됨", connect: "연결됨", disconnect: "연결 해제", remove: "삭제됨", discover: "Agent Card로 등록",
+  refresh: "카드 새로 읽음", share: "Hub에 공유", unshare: "공유 중지", signup: "가입",
+};
+
+/** "@alice" or the maker's name, for an agent's card. */
+export const makerText = (a) => (a.origin === "platform" ? "우리 집 기본 에이전트" : a.created_by ? `@${a.created_by}${a.creator_name ? ` · ${a.creator_name}` : ""}` : "외부 에이전트");
+
+export const dateText = (iso) => (iso ? iso.slice(0, 10) : "");
+
+/** 1234 -> "1.2k" */
+export const countText = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n ?? 0));
 export const actionText = (a) => ACTIONS[a] ?? a;
 
 const CODES = {

@@ -1,12 +1,13 @@
 "use client";
 
 // The agents connected now (Hub GET /agents?connected=true), each with whether it is running
-// (Collector GET /agents reads every agent's card).
-import { FIELDS, agentNote, deviceName } from "../../lib/labels.js";
+// (Collector GET /agents reads every agent's card), and the agents this account made or added.
+import { FIELDS, agentNote, countText, deviceName } from "../../lib/labels.js";
 import { Notice, Status, agentSymbol } from "./ui.js";
 
-export default function MyAgents({ agents, error, online, devices, onSelect }) {
+export default function MyAgents({ agents, error, online, devices, me, onSelect }) {
   const mine = (agents ?? []).filter((a) => a.connected);
+  const made = (agents ?? []).filter((a) => a.mine);
   return (
     <main className="my-agents" aria-label="My agents">
       <header className="my-agents-heading">
@@ -30,6 +31,29 @@ export default function MyAgents({ agents, error, online, devices, onSelect }) {
             </span>
             <span className="my-agent-meta">
               <span>권한 {agent.permissions.length}개</span>
+              <span aria-hidden="true">↗</span>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <header className="my-agents-heading made-heading">
+        <span className="eyebrow">MADE BY {me ? `@${me.id}`.toUpperCase() : "YOU"}</span>
+        <h2>내가 만든 에이전트</h2>
+        <p>Studio에서 만들거나 직접 등록한 에이전트예요. 상세 화면에서 Hub에 공유하면 다른 사람도 설치할 수 있어요.</p>
+      </header>
+      {agents && made.length === 0 && <p className="empty-note">아직 없어요. Agent Studio에서 첫 에이전트를 만들어 보세요.</p>}
+      <div className="my-agents-grid">
+        {made.map((agent) => (
+          <button key={agent.id} className="my-agent-card" onClick={() => onSelect(agent)}>
+            <span className="my-agent-card-top">
+              <span className="my-agent-symbol" aria-hidden="true">{agentSymbol(agent)}</span>
+              <span className={`result-badge ${agent.shared ? "is-on" : ""}`}>{agent.shared ? "공유 중" : "나만 보기"}</span>
+            </span>
+            <span className="my-agent-name">{agent.name}</span>
+            <span className="my-agent-note">{agentNote(agent) || agent.origin}</span>
+            <span className="my-agent-meta">
+              <span>★ {countText(agent.stars)} · 설치 {countText(agent.installs)}{agent.connected ? " · 연결됨" : ""}</span>
               <span aria-hidden="true">↗</span>
             </span>
           </button>

@@ -5,9 +5,38 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, useApi } from "../../lib/api.js";
 import {
-  FIELDS, ORIGINS, ROLES, SKILLS, actionLine, actionText, agentName, codeText, deviceName, permission, spaceName, stateText, timeAgo,
+  FIELDS, ORIGINS, ROLES, SKILLS, actionLine, actionText, agentName, codeText, countText, dateText, deviceName, makerText, permission,
+  spaceName, stateText, timeAgo,
 } from "../../lib/labels.js";
+import { StarButton } from "./SearchResults.js";
 import { Modal, Notice, Status, agentSymbol } from "./ui.js";
+
+/** Its maker lists it in the Hub catalog for everyone, or takes it back. */
+export function ShareToggle({ agent, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  if (!agent.mine || agent.origin === "platform") return null;
+  const toggle = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      onChanged(await api(`hub/agents/${agent.id}/share`, { method: "POST", body: { shared: !agent.shared } }));
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="share-row">
+      <p>{agent.shared ? "Hub 카탈로그에 공유 중이에요. 누구나 찾아서 설치할 수 있어요." : "나만 보이는 에이전트예요. 공유하면 다른 사람도 찾아 설치할 수 있어요."}</p>
+      <button type="button" className={agent.shared ? "ghost-button" : "primary-button small"} disabled={busy} onClick={toggle}>
+        {agent.shared ? "공유 중지" : "Hub에 공유"}
+      </button>
+      <Notice error={error} />
+    </div>
+  );
+}
 
 /** Nodes around the agent: its devices (with their state now) and the context it reads or shares. */
 function nodesOf(agent, devices) {
@@ -54,7 +83,7 @@ function TokenModal({ result, agent, onClose }) {
   );
 }
 
-function ConnectPanel({ agent, devices, agents, onChanged }) {
+export function ConnectPanel({ agent, devices, agents, onChanged }) {
   const [picked, setPicked] = useState(() => new Set(agent.permissions));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -118,7 +147,7 @@ function ConnectPanel({ agent, devices, agents, onChanged }) {
           ? <button type="button" className="ghost-button" disabled={busy} onClick={disconnect}>연결 해제</button>
           : <button type="button" className="primary-button small" disabled={busy} onClick={connect}>{busy ? "처리 중…" : "연결하기"}</button>}
         {agent.url && <button type="button" className="text-button" disabled={busy} onClick={refresh}>카드 새로 읽기</button>}
-        {agent.origin !== "platform" && <button type="button" className="text-button danger" disabled={busy} onClick={remove}>삭제</button>}
+        {agent.origin !== "platform" && agent.mine && <button type="button" className="text-button danger" disabled={busy} onClick={remove}>삭제</button>}
       </div>
       {result && <TokenModal result={result} agent={agent} onClose={() => setResult(null)} />}
     </section>
@@ -193,9 +222,16 @@ export default function AgentDetail({ agentId, agents, devices, online, onBack, 
               {agent.role && <div><dt>역할</dt><dd>{ROLES[agent.role] ?? agent.role}</dd></div>}
               {agent.space && <div><dt>공간</dt><dd>{spaceName(agent.space)}</dd></div>}
               {agent.skills.length > 0 && <div><dt>스킬</dt><dd>{agent.skills.map((s) => SKILLS[s] ?? s).join(", ")}</dd></div>}
+              <div><dt>만든 사람</dt><dd>{makerText(agent)}</dd></div>
+              <div><dt>등록일</dt><dd>{dateText(agent.created_at)} · 설치 {countText(agent.installs)}</dd></div>
               {agent.url && <div><dt>Agent Card</dt><dd className="mono">{agent.url}</dd></div>}
             </dl>
             {agent.description && <p className="panel-note">{agent.description}</p>}
+            <div className="share-row">
+              <p>{agent.starred ? "별을 줬어요." : "마음에 들면 별을 주세요."}</p>
+              <StarButton agent={agent} onChanged={changed} />
+            </div>
+            <ShareToggle agent={agent} onChanged={changed} />
           </section>
           {!agent.removed && <ConnectPanel agent={agent} devices={devices} agents={agents} onChanged={changed} />}
         </aside>
