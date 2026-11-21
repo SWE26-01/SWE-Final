@@ -6,7 +6,7 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "test": "node --test lib/*.test.mjs"
   },
   "dependencies": {
     "next": "16.4.6",

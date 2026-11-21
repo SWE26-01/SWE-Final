@@ -104,7 +104,8 @@ services:
       HUB_URL: http://hub:8400
       STUDIO_URL: http://studio:8500
       COLLECTOR_URL: http://collector:8200
-    depends_on: [hub, studio, collector]
+      GATEWAY_URL: http://gateway:8100
+    depends_on: [hub, studio, collector, gateway]
     ports: ["127.0.0.1:3000:3000"]
     restart: unless-stopped
 
