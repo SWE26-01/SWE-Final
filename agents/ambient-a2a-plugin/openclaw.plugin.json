@@ -16,6 +16,8 @@
       "publicUrl": { "type": "string" },
       "peers": { "type": "object" },
       "tokens": { "type": "object" },
+      "token": { "type": "string" },
+      "hubUrl": { "type": "string" },
       "gatewayUrl": { "type": "string" },
       "collectorUrl": { "type": "string" }
     },

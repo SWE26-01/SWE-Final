@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run openclaw against one Ambient-A2A agent profile.
+# Run openclaw against one agent profile.
 #   scripts/oc.sh room1 gateway                       # start that agent's gateway (foreground)
 #   scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"
 set -euo pipefail
@@ -27,6 +27,10 @@ app=$AMBIENT_HOME/app
 export AMBIENT_ROOT=$ROOT OPENCLAW_INCLUDE_ROOTS=$app/agents OPENCLAW_ALLOW_MULTI_GATEWAY=1
 state=$AMBIENT_HOME/state/$id
 mkdir -p "$state/workspace"
+# An agent made in Studio: its Hub-issued token, saved by scripts/launcher.mjs when the user connected it.
+if [ -z "${AMBIENT_AGENT_TOKEN:-}" ] && [ -f "$state/agent-token" ]; then
+  AMBIENT_AGENT_TOKEN=$(cat "$state/agent-token"); export AMBIENT_AGENT_TOKEN
+fi
 # OpenClaw rewrites its active config file, so point it at a stub that includes the mirrored config.
 printf '{ "$include": "%s" }\n' "$app/agents/$dir/openclaw.json5" > "$state/openclaw.json"
 cp "$ROOT/agents/$dir/AGENTS.md" "$state/workspace/AGENTS.md"

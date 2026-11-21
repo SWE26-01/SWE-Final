@@ -9,6 +9,7 @@ import {
 } from "./core.ts";
 import { agentCard, cardInfo, fetchCard, send } from "./a2a.ts";
 import { deviceClient } from "./devices.ts";
+import { hubClient } from "./hub.ts";
 
 export type Config = {
   agentId: string;
@@ -26,7 +27,9 @@ export type Config = {
   policies?: Policy[];
   rules?: Rule[];
   energySaving?: Action[];
+  token?: string; // this agent's own token when it is not in `tokens` (agents made in Studio: issued by the Hub)
   // SWE-Final services/. Empty = off.
+  hubUrl?: string; // Agent Hub: Hub-issued tokens, connected peers, context ACL and device owners
   gatewayUrl?: string; // Device Gateway: the virtual home's devices; called with this agent's own token, it re-checks ownership
   collectorUrl?: string; // Event Collector: every log line is also POSTed here
   ttlSec?: number;
@@ -37,7 +40,9 @@ type Result = Decision & Record<string, unknown>;
 
 export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m: string): void } = console) {
   const owned = cfg.owned ?? [];
-  const myToken = cfg.tokens[cfg.agentId];
+  const myToken = cfg.token || cfg.tokens[cfg.agentId];
+  const hubUrl = cfg.hubUrl?.replace(/\/+$/, "");
+  const hub = hubUrl ? hubClient(hubUrl, myToken) : null;
   const gatewayUrl = cfg.gatewayUrl?.replace(/\/+$/, "");
   const collectorUrl = cfg.collectorUrl?.replace(/\/+$/, "");
   const devices = gatewayUrl ? deviceClient(gatewayUrl, myToken, owned) : null;
@@ -66,8 +71,16 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     }
   };
 
+  /** Connected peers from the Hub ({} when there is no Hub or it is down). */
+  const hubPeers = async (): Promise<Record<string, string>> => (hub ? hub.peers().catch(() => ({})) : {});
+
+  /** The Hub's context ACL for this agent, merged into the static `fieldAcl`. */
+  async function syncAcl() {
+    if (hub) pub.extraAcl = await hub.acl(cfg.agentId).catch(() => pub.extraAcl);
+  }
+
   async function call(peer: string, data: Record<string, unknown>): Promise<any> {
-    const url = cfg.peers[peer];
+    const url = cfg.peers[peer] ?? (await hubPeers())[peer];
     if (!url) return deny("UNKNOWN_PEER", `no URL for ${peer}`);
     log({ dir: "out", to: peer, type: data.type, request_id: data.request_id, action: data.action, fields: data.fields });
     try {
@@ -84,7 +97,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   /** Home: learn device ownership from room Agent Cards (Agent Discovery). */
   async function discover() {
     if (cfg.role !== "home") return;
-    for (const [id, url] of Object.entries(cfg.peers)) {
+    for (const [id, url] of Object.entries({ ...(await hubPeers()), ...cfg.peers })) {
       if (id === cfg.agentId) continue;
       try {
         const p = cardInfo(await fetchCard(url));
@@ -145,7 +158,15 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     }
     if (!action.device) return deny("BAD_REQUEST", "device required");
     if (cfg.role === "home" && !ownership[action.device] && !owned.includes(action.device)) await discover();
-    const owner = route(action.device, owned, ownership);
+    let owner = route(action.device, owned, ownership);
+    if (owner !== "self" && cfg.role === "home" && hub) {
+      // The Hub knows who is connected as the owner now (the user may have handed a room device to a Studio agent).
+      const now = await hub.ownership().catch(() => undefined);
+      if (now && action.device in now) {
+        if (!now[action.device]) return deny("NOT_OWNER", `${action.device} has no connected owner`);
+        owner = now[action.device] === cfg.agentId ? "self" : now[action.device];
+      }
+    }
     if (owner === "self") return local(action, request_id);
     if (owner && cfg.role === "home") {
       const r = await call(owner, { type: "device.control", request_id, target: owner, on_behalf_of: requester, action });
@@ -169,6 +190,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     if (data.requester && data.requester !== requester) return deny("UNAUTHORIZED", "requester does not match credentials");
     switch (data.type) {
       case "context.subscribe": {
+        await syncAcl();
         const r = pub.subscribe(requester, data.fields ?? []);
         return { accepted: r.granted.length > 0, reason_code: r.reason_code, message: `granted ${r.granted.join(",") || "nothing"}`, granted_fields: r.granted, denied_fields: r.denied };
       }
@@ -176,6 +198,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
         pub.subs.delete(requester);
         return ok("unsubscribed");
       case "context.query": {
+        await syncAcl();
         const r = pub.query(requester, data.fields ?? []);
         return { accepted: r.granted.length > 0, message: "context snapshot", ...r };
       }
@@ -197,14 +220,21 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     }
   }
 
+  /** Who sent this: a peer from `tokens`, else an agent the user connected in the Hub. */
+  async function identify(token: string | undefined): Promise<string | undefined> {
+    if (!token) return undefined;
+    return byToken.get(token) ?? (hub ? await hub.verify(token).catch(() => undefined) : undefined);
+  }
+
   async function inbound(token: string | undefined, data: Record<string, any>): Promise<Result> {
-    const requester = token ? byToken.get(token) : undefined;
+    const requester = await identify(token);
     const r = requester ? await handle(requester, data) : deny("UNAUTHORIZED", "unknown bearer token");
     log({ dir: "in", from: requester ?? "?", type: data.type, request_id: data.request_id, on_behalf_of: data.on_behalf_of, action: data.action, fields: data.fields, accepted: r.accepted, reason_code: r.reason_code, message: r.message });
     return r;
   }
 
   async function publish(changes: Record<string, unknown>) {
+    await syncAcl(); // a context permission the user revoked in the Hub stops here
     const updates = pub.publish(changes, cfg.ttlSec ?? 3600);
     const sent = await Promise.all(Object.entries(updates).map(async ([to, u]) => ({ to, ...(await call(to, u)) })));
     return { sequence: pub.sequence, expires_at: pub.expires_at, delivered: sent };

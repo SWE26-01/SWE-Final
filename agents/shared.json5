@@ -19,6 +19,9 @@
   // services/: the Device Gateway keeps the virtual home's devices (each agent calls it with its own
   // token, and it re-checks ownership); the Event Collector gathers every log line (empty = off).
   gatewayUrl: "${AMBIENT_GATEWAY_URL:-http://127.0.0.1:8100}",
+  // Agent Hub (empty = off): agents the user connected there (made in Studio) are found, verified
+  // and allowed through it. Docker sets it to http://hub:8400.
+  hubUrl: "${AMBIENT_HUB_URL:-}",
   collectorUrl: "${AMBIENT_COLLECTOR_URL:-}",
   logFile: "${AMBIENT_ROOT}/logs/events.jsonl",
   ttlSec: 3600,

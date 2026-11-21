@@ -22,6 +22,9 @@ services:
     environment:
       AMBIENT_GATEWAY_URL: http://gateway:8100
       AMBIENT_COLLECTOR_URL: http://collector:8200
+      AMBIENT_HUB_URL: http://hub:8400  # agents connected in the Hub (made in Studio)
+    # scripts/launcher.mjs listens on 18700 inside the Compose network only (the Hub starts and
+    # stops Studio agents through it); their ports (19400+) are not published either.
     volumes:
       - agents-state:/state
       - ./logs:/repo/logs  # events.jsonl for scripts/logs.sh, one log per agent
@@ -38,6 +41,8 @@ services:
   gateway:
     <<: *service
     command: uvicorn gateway.main:build --factory --host 0.0.0.0 --port 8100
+    environment:
+      GATEWAY_HUB_URL: http://hub:8400  # Hub tokens and current device owners decide
     ports: ["127.0.0.1:8100:8100"]
 
   collector:
@@ -46,6 +51,7 @@ services:
     environment:
       COLLECTOR_DB: /data/collector.sqlite
       AMBIENT_AGENTS_HOST: agents  # read the agents' cards
+      COLLECTOR_HUB_URL: http://hub:8400  # events and status of agents connected in the Hub
     volumes: ["collector-data:/data"]
     ports: ["127.0.0.1:8200:8200"]
 
@@ -73,6 +79,7 @@ services:
       POSTGRES_HOST: postgres
       HUB_AGENTS_HOST: agents  # read the agents' cards
       HUB_COLLECTOR_URL: http://collector:8200  # request flows for GET /agents/{id}/activity
+      HUB_LAUNCHER_URL: http://agents:18700  # start/stop Studio agents on connect/disconnect
     depends_on:
       postgres: {condition: service_healthy}
     ports: ["127.0.0.1:8400:8400"]
@@ -92,6 +99,12 @@ services:
 
   hub-web:
     build: ./agent_hub_FE
+    env_file: .env  # HOME_USER_TOKEN, DASHBOARD_TOKEN: read on the server side only
+    environment:
+      HUB_URL: http://hub:8400
+      STUDIO_URL: http://studio:8500
+      COLLECTOR_URL: http://collector:8200
+    depends_on: [hub, studio, collector]
     ports: ["127.0.0.1:3000:3000"]
     restart: unless-stopped
 

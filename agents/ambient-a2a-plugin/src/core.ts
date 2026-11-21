@@ -72,11 +72,13 @@ export class Publisher {
   state: Record<string, unknown> = {};
   expires_at = new Date(0).toISOString();
   subs = new Map<string, string[]>();
+  extraAcl: Record<string, string[]> = {}; // from the Agent Hub: what the user approved when connecting an agent
 
   constructor(private self: string, private subject: string, private provides: string[], private acl: Record<string, string[]>) {}
 
   private allowed(requester: string, fields: string[]) {
-    const ok = new Set((this.acl[requester] ?? []).filter((f) => this.provides.includes(f)));
+    const mine = [...(this.acl[requester] ?? []), ...(this.extraAcl[requester] ?? [])];
+    const ok = new Set(mine.filter((f) => this.provides.includes(f)));
     return { granted: fields.filter((f) => ok.has(f)), denied: fields.filter((f) => !ok.has(f)) };
   }
 
@@ -102,7 +104,8 @@ export class Publisher {
     this.sequence = Math.max(this.sequence + 1, now);
     this.expires_at = new Date(now + ttlSec * 1000).toISOString();
     const out: Record<string, ContextUpdate> = {};
-    for (const [requester, granted] of this.subs) {
+    for (const [requester, subscribed] of this.subs) {
+      const granted = this.allowed(requester, subscribed).granted; // re-checked: permissions can be revoked
       const data = Object.fromEntries(granted.filter((f) => f in changes).map((f) => [f, changes[f]]));
       if (Object.keys(data).length)
         out[requester] = { type: "context.update", source: this.self, subject: this.subject, sequence: this.sequence, expires_at: this.expires_at, data };
