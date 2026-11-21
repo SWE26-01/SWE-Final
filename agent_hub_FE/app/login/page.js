@@ -4,6 +4,7 @@
 // server keeps it in an httpOnly cookie (app/api/auth/[action]).
 import { useEffect, useState } from "react";
 import { reasonText } from "../../lib/labels.js";
+import { Icon } from "../components/ui.js";
 
 function safeNext() {
   const next = new URLSearchParams(window.location.search).get("next") || "/";
@@ -52,6 +53,7 @@ export default function Login() {
   return (
     <main className="login-page">
       <section className="login-card" aria-label={signup ? "회원가입" : "로그인"}>
+        <span className="hub-mark"><Icon name="hub" size={26} /></span>
         <span className="eyebrow">AGENT HUB</span>
         <h1>{signup ? "Join the Hub" : "Welcome back"}</h1>
         <p className="login-lead">{signup ? "계정을 만들면 에이전트를 만들고, 공유하고, 다른 사람의 에이전트를 설치할 수 있어요." : "에이전트를 찾고, 만들고, 우리 집에 연결해요."}</p>
@@ -83,7 +85,7 @@ export default function Login() {
           )}
           {error && <p className="notice notice-error" role="alert">{error}</p>}
           <button type="submit" className="primary-button" disabled={busy || mismatch}>
-            {busy ? "잠시만요…" : signup ? "가입하고 시작하기" : "로그인"} <span>→</span>
+            {busy ? "잠시만요…" : signup ? "가입하고 시작하기" : "로그인"}
           </button>
         </form>
       </section>

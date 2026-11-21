@@ -75,6 +75,15 @@ export function permission(p, devices) {
   return { kind: "context", id: p, label: FIELDS[field] ?? field, detail: `${agent}의 상태 읽기` };
 }
 
+/** The device kind from its entity id (icons): input_boolean.room1_light -> light. */
+export function kindOf(entity = "") {
+  const name = entity.split(".").pop();
+  for (const kind of ["light_mode", "tv_muted", "sleep_mode", "light", "tv"]) if (name.endsWith(kind)) return kind;
+  if (name.endsWith("_ac")) return "ac";
+  if (name.endsWith("occupied")) return "occupancy";
+  return "device";
+}
+
 export const deviceName = (entity, devices) => devices?.find((d) => d.entity === entity)?.attributes?.friendly_name ?? entity;
 
 export function stateText(device) {

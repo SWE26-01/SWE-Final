@@ -1,12 +1,12 @@
 "use client";
 
 // The Hub catalog: agents people shared, the home's own and the caller's, as a grid of cards
-// (Hub GET /agents?q=&shared=&mine=&sort=). Starring happens on the card; installing on the detail.
-// Signing up an agent by its Agent Card URL stays, folded away, for developers.
+// (Hub GET /agents?q=&shared=&mine=&sort=). Stars on the card; details and installing in the sheet.
+// Signing up an agent by its Agent Card URL stays, in a modal, for developers.
 import { useState } from "react";
 import { api, useApi } from "../../lib/api.js";
 import { agentNote, countText, dateText, makerText } from "../../lib/labels.js";
-import { Notice, SearchIcon } from "./ui.js";
+import { AgentAvatar, Icon, Modal, Notice, Segmented, useToast } from "./ui.js";
 
 const PAGE = 9;
 const SCOPES = [
@@ -40,12 +40,12 @@ export function AddByCard({ onAdded }) {
   };
   return (
     <form className="card-url-form" onSubmit={submit}>
-      <label htmlFor="card-url">Agent Card URL로 외부 에이전트 등록</label>
+      <label htmlFor="card-url">Agent Card URL</label>
       <div>
         <input id="card-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… /.well-known/agent-card.json" required />
-        <button type="submit" disabled={busy || !url.trim()}>{busy ? "읽는 중…" : "등록"}</button>
+        <button type="submit" className="primary-button small" disabled={busy || !url.trim()}>{busy ? "읽는 중…" : "등록"}</button>
       </div>
-      <small>등록한 에이전트는 나만 보여요. 상세 화면에서 Hub에 공유하거나 연결할 수 있어요.</small>
+      <small>A2A 1.0 Agent Card를 읽어 등록해요. 처음엔 나만 보이고, 상세에서 공유하거나 연결할 수 있어요.</small>
       <Notice error={error} />
     </form>
   );
@@ -53,13 +53,15 @@ export function AddByCard({ onAdded }) {
 
 export function StarButton({ agent, onChanged, className = "" }) {
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const toggle = async (e) => {
     e.stopPropagation();
     setBusy(true);
     try {
       onChanged?.(await api(`hub/agents/${agent.id}/star`, { method: "POST", body: { starred: !agent.starred } }));
-    } catch {
-      // ACCOUNT_ONLY and the like: the count simply stays
+      if (!agent.starred) toast(`${agent.name}에 별을 줬어요`);
+    } catch (err) {
+      toast(err.message, "error");
     } finally {
       setBusy(false);
     }
@@ -72,23 +74,23 @@ export function StarButton({ agent, onChanged, className = "" }) {
   );
 }
 
-function CatalogCard({ agent, onSelect, onChanged }) {
+export function CatalogCard({ agent, onSelect, onChanged }) {
   const open = () => onSelect(agent);
   return (
     <article className="catalog-card" tabIndex={0} role="link" aria-label={`${agent.name} 열기`} onClick={open} onKeyDown={(e) => e.key === "Enter" && open()}>
       <header>
-        <h2>{agent.name}</h2>
-        <span className="catalog-arrow" aria-hidden="true">→</span>
+        <AgentAvatar agent={agent} />
+        <span className="catalog-title">
+          <h2>{agent.name}</h2>
+          <small>{makerText(agent)}</small>
+        </span>
+        <Icon name="arrow" size={18} className="catalog-arrow" />
       </header>
-      <p className="catalog-maker">
-        <span aria-hidden="true">{agent.origin === "platform" ? "✦" : agent.origin === "studio" ? "✧" : "◇"}</span>
-        {makerText(agent)}
-      </p>
       <p className="catalog-desc">{agent.description || agentNote(agent) || "설명이 없어요."}</p>
-      <div className="catalog-tags">
-        {agent.connected && <span className="is-on">우리 집에 연결됨</span>}
-        {agent.mine && <span>{agent.shared ? "공유 중" : "나만 보기"}</span>}
-        {agentNote(agent) && <span>{agentNote(agent)}</span>}
+      <div className="chips">
+        {agent.connected && <span className="chip is-on">우리 집에 연결됨</span>}
+        {agent.mine && <span className="chip">{agent.shared ? "공유 중" : "나만 보기"}</span>}
+        {agentNote(agent) && <span className="chip">{agentNote(agent)}</span>}
       </div>
       <div className="catalog-foot">
         <span>{dateText(agent.created_at)}</span>
@@ -101,11 +103,12 @@ function CatalogCard({ agent, onSelect, onChanged }) {
   );
 }
 
-export default function SearchResults({ query, onQuery, onBack, onSelect }) {
+export default function SearchResults({ query, onQuery, onSelect }) {
   const [draft, setDraft] = useState(query);
   const [scope, setScope] = useState("all");
   const [sort, setSort] = useState("stars");
   const [shown, setShown] = useState(PAGE);
+  const [adding, setAdding] = useState(false);
   const params = new URLSearchParams({ sort });
   if (query.trim()) params.set("q", query.trim());
   if (scope === "shared") params.set("shared", "true");
@@ -114,53 +117,50 @@ export default function SearchResults({ query, onQuery, onBack, onSelect }) {
   const results = data ?? [];
 
   return (
-    <main className="search-results catalog">
-      <div className="results-toolbar">
-        <button className="results-back" type="button" onClick={onBack} aria-label="Back to Agent Hub">←</button>
-        <form className="results-search" onSubmit={(e) => { e.preventDefault(); onQuery(draft); }}>
-          <label className="sr-only" htmlFor="results-agent-search">Search agents</label>
-          <input id="results-agent-search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="이름, 설명, 만든 사람으로 찾기" />
-          <button type="submit" aria-label="Search"><SearchIcon /></button>
-        </form>
-      </div>
-
-      <div className="results-heading">
+    <main className="page catalog">
+      <section className="page-hero">
         <span className="eyebrow">AGENT CATALOG</span>
-        <h1>{query.trim() ? `Agents for “${query.trim()}”` : "Explore agents"}</h1>
-        <p className="results-count">
-          {loading && !data ? "찾는 중…" : `${results.length}개 · 사람들이 만들어 공유한 에이전트를 찾아 우리 집에 설치하세요`}
-        </p>
-      </div>
+        <h1>{query.trim() ? `“${query.trim()}” 검색 결과` : "에이전트 둘러보기"}</h1>
+        <p>사람들이 만들어 공유한 에이전트를 찾아 우리 집에 설치하세요.</p>
+        <form className="search-bar" role="search" onSubmit={(e) => { e.preventDefault(); onQuery(draft); }}>
+          <Icon name="search" size={20} />
+          <label className="sr-only" htmlFor="catalog-search">에이전트 검색</label>
+          <input id="catalog-search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="이름, 설명, 만든 사람으로 찾기" />
+          {draft && <button type="button" className="icon-button" onClick={() => { setDraft(""); onQuery(""); }} aria-label="지우기"><Icon name="close" size={16} /></button>}
+          <button type="submit" className="primary-button small">검색</button>
+        </form>
+      </section>
 
-      <div className="catalog-filters">
-        <div role="group" aria-label="범위">
-          {SCOPES.map(([id, label]) => (
-            <button type="button" key={id} className={scope === id ? "active" : ""} onClick={() => { setScope(id); setShown(PAGE); }}>{label}</button>
-          ))}
-        </div>
-        <div role="group" aria-label="정렬">
-          {SORTS.map(([id, label]) => (
-            <button type="button" key={id} className={sort === id ? "active" : ""} onClick={() => setSort(id)}>{label}</button>
-          ))}
-        </div>
+      <div className="toolbar">
+        <Segmented items={SCOPES} value={scope} onChange={(v) => { setScope(v); setShown(PAGE); }} label="범위" />
+        <span className="toolbar-count">{loading && !data ? "찾는 중…" : `${results.length}개`}</span>
+        <Segmented items={SORTS} value={sort} onChange={setSort} label="정렬" size="sm" />
       </div>
 
       <Notice error={error} />
       {data && results.length === 0 && (
-        <p className="empty-note">{scope === "mine" ? "아직 만든 에이전트가 없어요. Agent Studio에서 만들어 보세요." : "맞는 에이전트가 없어요. Agent Studio에서 직접 만들 수 있어요."}</p>
+        <div className="empty">
+          <Icon name="search" size={28} />
+          <p>{scope === "mine" ? "아직 만든 에이전트가 없어요." : "맞는 에이전트가 없어요."}</p>
+          <a className="primary-button small" href="/?tab=agent-studio">Agent Studio에서 만들기</a>
+        </div>
       )}
 
       <section className="catalog-grid" aria-label="Agents">
         {results.slice(0, shown).map((agent) => <CatalogCard key={agent.id} agent={agent} onSelect={onSelect} onChanged={reload} />)}
       </section>
       {results.length > shown && (
-        <button type="button" className="catalog-more" onClick={() => setShown((n) => n + PAGE)}>더 많은 에이전트 보기 <span>→</span></button>
+        <button type="button" className="more-button" onClick={() => setShown((n) => n + PAGE)}>더 많은 에이전트 보기 <Icon name="arrow" size={18} /></button>
       )}
 
-      <details className="dev-add">
-        <summary>개발자용: Agent Card URL로 직접 등록</summary>
-        <AddByCard onAdded={onSelect} />
-      </details>
+      <p className="dev-add">
+        개발자이신가요? <button type="button" className="text-button" onClick={() => setAdding(true)}>Agent Card URL로 직접 등록</button>
+      </p>
+      {adding && (
+        <Modal title="외부 에이전트 등록" onClose={() => setAdding(false)}>
+          <AddByCard onAdded={(agent) => { setAdding(false); reload(); onSelect(agent); }} />
+        </Modal>
+      )}
     </main>
   );
 }

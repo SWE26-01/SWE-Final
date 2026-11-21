@@ -1,139 +1,99 @@
 "use client";
 
-// Agent Hub home: every agent registered in the Hub, around the search box.
-import { useEffect, useMemo, useRef, useState } from "react";
+// Agent Hub home: the agents in this home floating around a search card. Each node opens the agent's
+// sheet; searching opens the catalog.
+import { useEffect, useMemo, useState } from "react";
 import { agentNote } from "../../lib/labels.js";
-import { Notice, SearchIcon, agentSymbol } from "./ui.js";
+import { AgentAvatar, Icon, Notice } from "./ui.js";
 
-// Places around the centre circle (percent of the area), filled in order; more agents go on an ellipse.
-const SLOTS = [[22, 22], [18, 76], [87, 18], [88, 54], [79, 82], [10, 49], [66, 9], [35, 91], [34, 8], [64, 92], [95, 85], [5, 92]];
+// Places around the centre card (percent of the area), filled in order; more agents go on an ellipse.
+const SLOTS = [[17, 24], [15, 74], [84, 22], [87, 52], [80, 80], [9, 49], [62, 10], [36, 90], [36, 10], [64, 90], [94, 86], [6, 90]];
+const QUICK = ["회의", "수면", "내 방", "외출", "절전"];
 
 function place(index, total) {
   if (index < SLOTS.length) return SLOTS[index];
   const angle = (index / Math.max(total, 1)) * Math.PI * 2;
-  return [50 + Math.cos(angle) * 42, 52 + Math.sin(angle) * 40];
-}
-
-/** Small dots fanning out from an agent: one per device or shared field (at most 3). */
-function satellites(x, y, count) {
-  const away = Math.atan2(y - 52, x - 50);
-  return Array.from({ length: Math.min(count, 3) }, (_, i) => {
-    const angle = away + (i - (Math.min(count, 3) - 1) / 2) * 0.75;
-    return [x + Math.cos(angle) * 11, y + Math.sin(angle) * 10];
-  }).map(([px, py]) => [Math.min(97, Math.max(3, px)), Math.min(96, Math.max(4, py))]);
+  return [50 + Math.cos(angle) * 42, 50 + Math.sin(angle) * 40];
 }
 
 export function layout(agents) {
   return agents.map((agent, i) => {
     const [x, y] = place(i, agents.length);
-    const things = agent.owned_devices.length + agent.provided_fields.length;
-    return { ...agent, x, y, labelSide: x < 50 ? "right" : "left", points: satellites(x, y, Math.max(things, 1)) };
+    return { ...agent, x, y };
   });
 }
 
-export default function HubNetwork({ agents, error, query, onQuery, onSearch, onSelect }) {
-  const [motionTime, setMotionTime] = useState(0);
-  const [isMounted, setIsMounted] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchGeometry, setSearchGeometry] = useState(null);
-  const searchFormRef = useRef(null);
-  const searchTimer = useRef(null);
+export default function HubNetwork({ agents, error, query, onQuery, onSearch, onSelect, online, stats }) {
+  const [t, setT] = useState(0);
   const placed = useMemo(() => layout(agents ?? []), [agents]);
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? placed.filter((a) => `${a.id} ${a.name} ${a.description} ${agentNote(a)}`.toLowerCase().includes(q)) : placed;
-  }, [placed, query]);
+  const q = query.trim().toLowerCase();
+  const hit = (a) => !q || `${a.id} ${a.name} ${a.description} ${agentNote(a)}`.toLowerCase().includes(q);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-    setIsMounted(true);
     let frame;
     let last = 0;
-    const startedAt = performance.now();
-    const animate = (now) => {
-      if (now - last >= 33) {
-        setMotionTime((now - startedAt) / 1000);
+    const start = performance.now();
+    const tick = (now) => {
+      if (now - last >= 40) {
+        setT((now - start) / 1000);
         last = now;
       }
-      frame = requestAnimationFrame(animate);
+      frame = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(animate);
+    frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(() => () => searchTimer.current && window.clearTimeout(searchTimer.current), []);
-
-  const startSearch = () => {
-    if (isSearching) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return onSearch();
-    const rect = searchFormRef.current.getBoundingClientRect();
-    const containing = searchFormRef.current.closest(".hub-core").getBoundingClientRect();
-    const mobile = window.innerWidth <= 640;
-    const pad = mobile ? 20 : window.innerWidth * 0.05;
-    const toolbar = Math.min(680, window.innerWidth - pad * 2);
-    const targetLeft = mobile ? pad + 50 : (window.innerWidth - toolbar) / 2 + 60;
-    setSearchGeometry({
-      "--search-start-top": `${rect.top - containing.top}px`,
-      "--search-start-left": `${rect.left - containing.left}px`,
-      "--search-start-width": `${rect.width}px`,
-      "--search-start-height": `${rect.height}px`,
-      "--search-target-top": `${(mobile ? 76 : 86) - containing.top}px`,
-      "--search-target-left": `${targetLeft - containing.left}px`,
-      "--search-target-width": `${mobile ? toolbar - 50 : toolbar - 120}px`,
-      "--search-target-height": `${mobile ? 46 : 52}px`,
-      "--search-target-button": `${mobile ? 36 : 40}px`,
-    });
-    setIsSearching(true);
-    searchTimer.current = window.setTimeout(onSearch, 820);
-  };
-
-  const moving = placed.map((agent, i) => {
-    if (!isMounted) return { ...agent, mx: agent.x, my: agent.y, mpoints: agent.points };
-    const phase = motionTime * 0.55 + i * 1.37;
-    return {
-      ...agent,
-      mx: agent.x + Math.sin(phase) * 0.9,
-      my: agent.y + Math.cos(phase * 0.86) * 0.7,
-      mpoints: agent.points.map(([x, y], p) => {
-        const pp = motionTime * (0.62 + p * 0.09) + i * 1.61 + p * 0.83;
-        return [x + Math.sin(pp) * 1.65, y + Math.cos(pp * 0.91) * 1.3];
-      }),
-    };
-  });
-
-  const found = query.trim() ? `${matches.length} agent${matches.length === 1 ? "" : "s"} found in the network` : null;
+  const moving = placed.map((a, i) => ({ ...a, mx: a.x + Math.sin(t * 0.5 + i * 1.4) * 0.8, my: a.y + Math.cos(t * 0.43 + i * 1.4) * 0.7 }));
 
   return (
-    <div className={`network ${isSearching ? "is-searching" : ""}`} aria-label="Agent network">
-      <svg className="connections" viewBox="0 0 100 100" aria-hidden="true" preserveAspectRatio="none">
-        {moving.map((a) => <line key={`${a.id}-hub`} className="hub-connection" x1={a.mx} y1={a.my} x2="50" y2="53" />)}
-        {moving.flatMap((a) => a.mpoints.map(([x, y], p) => <line key={`${a.id}-${p}`} x1={a.mx} y1={a.my} x2={x} y2={y} />))}
+    <main className="hub-home" aria-label="Agent network">
+      <svg className="hub-lines" viewBox="0 0 100 100" aria-hidden="true" preserveAspectRatio="none">
+        {moving.map((a) => <line key={a.id} x1={a.mx} y1={a.my} x2="50" y2="50" className={`${a.connected ? "is-on" : ""} ${hit(a) ? "" : "is-muted"}`} />)}
       </svg>
-      {moving.flatMap((a) => a.mpoints.map(([x, y], p) => (
-        <span key={`${a.id}-dot-${p}`} className={`connection-dot ${p === 0 ? "connection-dot-large" : ""}`} style={{ left: `${x}%`, top: `${y}%` }} aria-hidden="true" />
-      )))}
 
-      <div className="hub-core">
+      <section className="hub-card">
+        <span className="hub-mark"><Icon name="hub" size={26} /></span>
         <span className="eyebrow">FIND YOUR PERFECT AGENT</span>
-        <h1>Agent Hubs</h1>
-        <form ref={searchFormRef} className="search" style={searchGeometry || undefined} onSubmit={(e) => { e.preventDefault(); startSearch(); }}>
-          <label className="sr-only" htmlFor="agent-search">Search agents</label>
-          <input id="agent-search" value={query} onChange={(e) => onQuery(e.target.value)} placeholder="어떤 에이전트를 찾으세요? 예: 회의, 내 방" />
-          <button type="submit" aria-label="Search" disabled={isSearching}><SearchIcon /></button>
+        <h1>Agent Hub</h1>
+        <p>우리 집 기기와 함께 일할 에이전트를 찾고, 만들고, 연결하세요.</p>
+        <form className="search-bar" role="search" onSubmit={(e) => { e.preventDefault(); onSearch(query); }}>
+          <Icon name="search" size={20} />
+          <label className="sr-only" htmlFor="agent-search">에이전트 검색</label>
+          <input id="agent-search" value={query} onChange={(e) => onQuery(e.target.value)} placeholder="어떤 에이전트를 찾으세요?" />
+          <button type="submit" className="primary-button small">검색</button>
         </form>
-        <p>{found ?? (agents ? `${agents.length} agents in your home network.` : "Explore a network of agents built around your life.")}</p>
+        <div className="chips chips-center">
+          {QUICK.map((w) => <button type="button" key={w} className="chip chip-button" onClick={() => onSearch(w)}>{w}</button>)}
+          <button type="button" className="chip chip-button is-on" onClick={() => onSearch("")}>전체 카탈로그 →</button>
+        </div>
+        {stats && (
+          <dl className="hub-stats">
+            <div><dt>연결된 에이전트</dt><dd>{stats.connected}</dd></div>
+            <div><dt>공유된 에이전트</dt><dd>{stats.shared}</dd></div>
+            <div><dt>집의 기기</dt><dd>{stats.devices}</dd></div>
+          </dl>
+        )}
         <Notice error={error} />
-      </div>
+      </section>
 
-      {moving.map((a) => {
-        const hidden = query.trim() && !matches.some((m) => m.id === a.id);
-        return (
-          <button key={a.id} className={`agent-node label-${a.labelSide} ${hidden ? "is-muted" : ""} ${a.connected ? "" : "is-idle"}`} style={{ left: `${a.mx}%`, top: `${a.my}%` }} onClick={() => onSelect(a)}>
-            <span className="agent-symbol">{agentSymbol(a)}</span>
-            <span className="agent-copy"><strong>{a.name}</strong><small>{agentNote(a) || a.origin}</small></span>
-          </button>
-        );
-      })}
-    </div>
+      {moving.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          className={`hub-node ${a.x < 50 ? "is-left" : "is-right"} ${a.connected ? "" : "is-idle"} ${hit(a) ? "" : "is-muted"}`}
+          style={{ left: `${a.mx}%`, top: `${a.my}%` }}
+          onClick={() => onSelect(a)}
+        >
+          <AgentAvatar agent={a} size="sm" />
+          <span className="hub-node-text">
+            <strong>{a.name}</strong>
+            <small>{agentNote(a) || "에이전트"}</small>
+          </span>
+          {a.connected && <i className={`dot ${online?.[a.id] === false ? "is-off" : ""}`} aria-label={online?.[a.id] === false ? "Offline" : "Online"} />}
+        </button>
+      ))}
+    </main>
   );
 }

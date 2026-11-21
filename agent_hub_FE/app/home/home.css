@@ -7,7 +7,7 @@
   --sh-blue-soft: #e8f0fd;
   --sh-line: rgba(29, 36, 51, .08);
   --sh-card: rgba(255, 255, 255, .92);
-  --sh-warn: #b4232f;
+  --sh-warn: #c2333f;
   min-height: 100svh; display: flex; align-items: center; justify-content: center; gap: 56px; padding: 32px 16px;
   background: radial-gradient(1200px 600px at 20% 0%, #eaf1fc 0%, transparent 60%), linear-gradient(180deg, #f6f8fc, #eef2f8);
   color: var(--sh-ink);
@@ -39,7 +39,7 @@
 .sh-head h1 { flex: 1; color: #fff; text-shadow: 0 1px 8px rgba(29, 80, 160, .25); }
 .sh-head svg { filter: drop-shadow(0 1px 6px rgba(29, 80, 160, .25)); }
 .sh-bell { position: relative; border: 0; background: transparent; color: #fff; padding: 6px; cursor: pointer; }
-.sh-bell i, .sh-tabbar i { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #ff5a5f; box-shadow: 0 0 0 2px #fff; }
+.sh-bell i, .sh-tabbar i { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #2f6fe4; box-shadow: 0 0 0 2px #fff; }
 .sh-summary { margin: 2px 4px 16px; font-size: 12.5px; color: rgba(255, 255, 255, .92); font-weight: 600; }
 
 .sh-segment { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px; margin-bottom: 14px; border-radius: 22px; background: rgba(255, 255, 255, .38); backdrop-filter: blur(10px); }
@@ -59,17 +59,17 @@
 .sh-row-text small { font-size: 12px; color: var(--sh-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-row-text small.is-warn { color: var(--sh-warn); }
 .sh-chevron { color: #9aa3b2; flex-shrink: 0; }
-.sh-row .my-agent-status { font-size: 9px; }
-.sh-row .my-agent-status i { background: #22a06b; box-shadow: 0 0 0 3px rgba(34, 160, 107, .15); }
-.sh-row .my-agent-status.is-offline i { background: #9aa3b2; box-shadow: none; }
+.sh-row .status { font-size: 9px; }
+.sh-row .status i { background: #22a06b; box-shadow: 0 0 0 3px rgba(34, 160, 107, .15); }
+.sh-row .status.is-offline i { background: #9aa3b2; box-shadow: none; }
 
 .sh-pill { flex-shrink: 0; padding: 5px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; background: var(--sh-blue-soft); color: var(--sh-blue); }
 .sh-pill.is-muted { background: rgba(29, 36, 51, .06); color: var(--sh-muted); }
 
 .sh-device-icon { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border-radius: 14px; background: rgba(29, 36, 51, .05); color: #7b8494; transition: background .3s ease, color .3s ease; }
 .sh-device .sh-pill { background: rgba(29, 36, 51, .06); color: var(--sh-muted); }
-.sh-device.is-on .sh-device-icon, .sh-device-hero.is-on .sh-device-icon { background: linear-gradient(160deg, #ffe7a3, #ffd166); color: #8a5a00; }
-.sh-device.is-on .sh-pill { background: #fff3d1; color: #8a5a00; }
+.sh-device.is-on .sh-device-icon, .sh-device-hero.is-on .sh-device-icon { background: linear-gradient(160deg, #6ea3f2, #2f6fe4); color: #fff; box-shadow: 0 6px 14px rgba(47, 111, 228, .3); }
+.sh-device.is-on .sh-pill { background: var(--sh-blue-soft); color: var(--sh-blue); }
 
 .sh-external { padding: 6px 8px 14px; }
 .sh-card-title { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 8px; border: 0; background: transparent; cursor: pointer; color: var(--sh-blue); font-size: 15px; }
@@ -124,7 +124,7 @@
 .sh-device-hero, .sh-agent-hero { display: flex; align-items: center; gap: 14px; padding: 16px; margin-bottom: 14px; border-radius: 22px; background: #fff; }
 .sh-device-hero .sh-device-icon { width: 56px; height: 56px; border-radius: 18px; }
 .sh-agent-hero > div { flex: 1; min-width: 0; }
-.sh-agent-hero .my-agent-status i { background: #22a06b; box-shadow: 0 0 0 3px rgba(34, 160, 107, .15); }
+.sh-agent-hero .status i { background: #22a06b; box-shadow: 0 0 0 3px rgba(34, 160, 107, .15); }
 .sh-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 14px; }
 .sh-tags span { padding: 6px 10px; border-radius: 14px; background: #fff; border: 1px solid var(--sh-line); font-size: 12px; font-weight: 600; }
 .sh-link { display: block; margin: 14px 4px 0; font-size: 13px; font-weight: 700; color: var(--sh-blue); text-decoration: none; }

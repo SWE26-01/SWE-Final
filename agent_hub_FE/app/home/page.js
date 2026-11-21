@@ -9,7 +9,7 @@ import { logout, useApi } from "../../lib/api.js";
 import { FIELDS, ORIGINS, actionLine, agentName, agentNote, codeText, countText, makerText, spaceName, timeAgo } from "../../lib/labels.js";
 import { ConnectPanel, ShareToggle } from "../components/AgentDetail.js";
 import { StarButton } from "../components/SearchResults.js";
-import { Notice, Status } from "../components/ui.js";
+import { Notice, Status, ToastProvider, useEscape } from "../components/ui.js";
 import { Icon, SPACE_ICONS, agentIcon } from "./icons.js";
 
 const POLL = 4000;
@@ -81,11 +81,7 @@ function Row({ icon, title, sub, right, onClick, tone }) {
 }
 
 function Sheet({ title, onClose, children }) {
-  useEffect(() => {
-    const esc = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+  useEscape(onClose); // a confirm opened on top closes first
   return (
     <div className="sh-sheet-backdrop" role="presentation" onClick={onClose}>
       <section className="sh-sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
@@ -558,6 +554,7 @@ export default function SmartHome() {
   }
 
   return (
+    <ToastProvider>
     <div className="sh-stage">
       <div className="sh-phone">
         <StatusBar />
@@ -580,5 +577,6 @@ export default function SmartHome() {
         <a href="/">Agent Hub 열기 →</a>
       </aside>
     </div>
+    </ToastProvider>
   );
 }
