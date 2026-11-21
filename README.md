@@ -138,7 +138,7 @@ SWE-Final/
 │   ├── externel/             #   desktop, smartphone (집 밖 에이전트)
 │   ├── internel/             #   orchestrator(Root), room1, room2 (집 안 에이전트)
 │   ├── generated/            #   Studio가 만든 에이전트 (git에 올리지 않음)
-│   └── Dockerfile            #   다섯 에이전트를 한 컨테이너에서 실행
+│   └── Dockerfile            #   다섯 에이전트 + Studio 에이전트 실행기(scripts/launcher.mjs)를 한 컨테이너에서 실행
 ├── services/                 # Python (FastAPI)
 │   ├── gateway/              #   Device Gateway: 가상 집의 기기 상태 + 주인 확인
 │   ├── collector/            #   Event Collector: 모든 에이전트의 통신·실행 기록, 요청 흐름
@@ -146,9 +146,9 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: 자연어 → 에이전트 (LangChain + OpenRouter), 하네스, 실행기 교체(runtime.py)
 │   ├── config/               #   agents.yaml(호출자), devices.yaml(가상 기기), skills.yaml(기본 스킬)
 │   └── contracts/            #   화면이 받는 메시지 형식 (JSON Schema)
-├── agent_hub_FE/             # Agent Hub 화면 (Next.js)
+├── agent_hub_FE/             # Agent Hub 화면 (Next.js): 검색·상세·연결·내 에이전트·Studio. 토큰은 서버 쪽 프록시에만
 ├── spec/                     # Ambient-A2A 확장 명세
-├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh
+├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO 실험 (에이전트별 SLM의 근거)
 └── docs/                     # 발표 자료, 실행 가이드, 인수인계, 아키텍처, 검증·성능 기록
 ```
@@ -218,11 +218,12 @@ docker compose down                              # 종료
 | 안전 정책 거절 | room2 수면 중 에어컨 끄기 → `SAFETY_POLICY` |
 | Root 중단 시 독립 동작 | `--kill-home` |
 | 집 전체 협업 | 전체 절전 → room1 실행, room2 일부 거절 → Root가 `PARTIAL`로 취합 |
-| 신규 Agent 연결 | Root는 room Agent Card의 `owned_devices`로 소유권을 자동 학습, Hub는 기기 주인 중복 연결을 거절 |
+| 신규 Agent 연결 | Hub는 기기 주인 중복 연결을 거절하고, 연결한 Studio 에이전트를 바로 실행. Root와 Gateway는 Hub의 지금 주인을 따른다 |
 | 자연어 에이전트 생성 | Studio가 만든 에이전트는 권한 잠금 검사와 사용자 승인을 통과해야 Hub에 등록 |
 
 ## 알려진 한계
 - 토큰은 에이전트당 하나이고 피어끼리 공유한다. 상호 신뢰하지 않는 환경이라면 쌍별 토큰이나 mTLS로 바꿔야 한다.
 - 가상 집의 기기 상태는 Gateway 메모리에 있어서 Gateway를 다시 시작하면 처음 상태로 돌아간다.
 - 구독 정보는 publisher 메모리에만 있다. external을 재시작하면 구독하던 쪽도 재시작해야 한다.
-- 실행 중인 에이전트와 Gateway는 아직 Hub의 연결·토큰이 아니라 `agents/shared.json5`와 `devices.yaml`을 읽는다.
+- OpenClaw gateway 하나가 메모리를 약 1GB 쓴다. Studio 에이전트를 여러 개 연결하려면 Docker 메모리를 늘려야 한다.
+- 기본 에이전트 5개의 토큰과 주소는 여전히 `.env`·`agents/shared.json5`에 있다. Hub는 그 위에서 연결·주인을 정한다.

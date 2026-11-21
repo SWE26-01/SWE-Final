@@ -69,8 +69,8 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 | `GET /agents?q=&skill=&space=&role=&origin=&connected=` | 토큰 있는 누구나 | 검색. 플랫폼 에이전트 5개는 시작할 때 연결된 상태로 들어간다 |
 | `POST /agents` | Studio | Studio가 만든 에이전트 등록(기기·스킬·권한 검사) |
 | `POST /agents/discover {card_url}` | 사용자 | 외부 에이전트를 Agent Card URL로 등록(A2A 1.0 확인) |
-| `POST /connections {agent_id, permissions?}` | 사용자 | 승인한 권한으로 연결. 다른 에이전트가 가진 기기면 409 `OWNERSHIP_CONFLICT`. 새 토큰은 이때 한 번만 보여 주고 해시만 저장 |
-| `DELETE /connections/{id}` | 사용자 | 해제: 토큰·권한·기기 소유가 바로 풀린다 |
+| `POST /connections {agent_id, permissions?}` | 사용자 | 승인한 권한으로 연결. 다른 에이전트가 가진 기기면 409 `OWNERSHIP_CONFLICT`. 새 토큰은 이때 한 번만 보여 주고 해시만 저장. Studio 에이전트는 실행기가 바로 띄운다(`launch`) |
+| `DELETE /connections/{id}` | 사용자 | 해제: 토큰·권한·기기 소유가 바로 풀리고, Studio 에이전트는 멈춘다 |
 | `POST /tokens/verify {token}` | 에이전트·서비스 | Hub가 발급한 토큰이 지금 연결돼 있는지, 권한은 무엇인지 |
 | `GET /ownership`, `GET /spaces` | 토큰 있는 누구나 | 기기별 지금 주인(연결 기준)과 `devices.yaml`의 주인 |
 | `GET /runtime/peers`, `GET /runtime/acl/{agent}` | 토큰 있는 누구나 | 연결된 에이전트 주소, 누가 그 에이전트의 어떤 상태를 읽어도 되는지 |
@@ -84,9 +84,16 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 문제가 나오면 LLM에게 돌려보내 최대 2번 다시 채우게 한다. LLM은 `STUDIO_LLM`(기본 LangChain + `OPENROUTER_API_KEY`,
 `STUDIO_MODEL` 기본 `anthropic/claude-haiku-5.5`), `STUDIO_LLM=rules`는 키 없이 도는 키워드 채우기다.
 
-**아직 연결 안 된 부분**: Hub의 연결·토큰은 지금 Hub 안의 기록이다. 실행 중인 에이전트와 Gateway는 아직 `agents/shared.json5`의
-`peers`·`tokens`와 `config/devices.yaml`의 주인을 그대로 쓴다. 그래서 Studio가 만든 에이전트를 실제로 돌리려면
-`AMBIENT_TOKEN_<ID>`를 `.env`에, 주소와 토큰을 `shared.json5`에 넣고, desktop 등의 `fieldAcl`에 읽기 권한을 더해야 한다.
-다음 단계는 플러그인이 `GET /runtime/peers`·`/runtime/acl/{agent}`와 `POST /tokens/verify`를 읽고, Gateway가 주인 확인에
-`GET /ownership`을 쓰게 하는 것이다.
+**연결이 곧 실행이다** (Docker에서는 기본으로 켜져 있음): 사용자가 Hub에서 Studio 에이전트를 연결하면
+1. Hub가 새 토큰을 agents 컨테이너의 실행기(`scripts/launcher.mjs`, `HUB_LAUNCHER_URL`, Compose 내부 전용)에 넘긴다.
+   실행기는 그 에이전트 상태 폴더에만 토큰을 두고 `oc.sh <id> gateway`로 띄운다. Hub에는 해시만 남는다.
+2. 플러그인(`hubUrl`)은 모르는 토큰을 Hub `POST /tokens/verify`로 확인하고, 상대 주소는 `GET /runtime/peers`, desktop 같은
+   외부 에이전트의 공개 범위는 `GET /runtime/acl/<자기>`, Home의 위임 대상은 `GET /ownership`으로 정한다.
+3. Gateway(`GATEWAY_HUB_URL`)는 Hub 토큰을 확인하고, 기기의 주인을 `devices.yaml`이 아니라 지금 연결된 주인(`GET /ownership`)으로
+   판단한다. Hub에 닿지 않으면 명령을 거절한다. Collector(`COLLECTOR_HUB_URL`)도 Hub 토큰의 이벤트를 받고 상태를 본다.
+4. 연결을 해제하거나 에이전트를 삭제하면 실행기가 멈추고, 몇 초(캐시) 안에 그 토큰은 Gateway·다른 에이전트에서 거절된다.
+   컨테이너가 다시 뜨면 실행기는 Hub가 아직 받아 주는 토큰의 에이전트만 다시 띄운다.
+
+이 세 서비스는 `runtime` 서비스 토큰(`RUNTIME_TOKEN`, `config/agents.yaml`)으로 Hub에 묻는다. 이 토큰으로는 에이전트를 등록할 수 없다.
+OpenClaw gateway 하나가 메모리를 약 1GB 쓰므로, Studio 에이전트를 여러 개 띄우려면 Docker Desktop 메모리를 늘려야 한다(기본 5개 + 1개면 약 6.5GB).
 

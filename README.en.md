@@ -136,7 +136,7 @@ SWE-Final/
 │   ├── externel/             #   desktop, smartphone (agents outside the home)
 │   ├── internel/             #   orchestrator (Root), room1, room2 (agents inside the home)
 │   ├── generated/            #   agents made in Studio (not in git)
-│   └── Dockerfile            #   runs the five agents in one container
+│   └── Dockerfile            #   runs the five agents and the Studio agent launcher (scripts/launcher.mjs) in one container
 ├── services/                 # Python (FastAPI)
 │   ├── gateway/              #   Device Gateway: the virtual home's device states + owner check
 │   ├── collector/            #   Event Collector: every agent's messages and actions, request flows
@@ -144,9 +144,9 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: plain language → agent (LangChain + OpenRouter), harness, runtime (runtime.py)
 │   ├── config/               #   agents.yaml (callers), devices.yaml (virtual devices), skills.yaml (built-in skills)
 │   └── contracts/            #   message formats for screens (JSON Schema)
-├── agent_hub_FE/             # Agent Hub screen (Next.js)
+├── agent_hub_FE/             # Agent Hub screen (Next.js): search, detail, connect, my agents, Studio; tokens stay in its server-side proxy
 ├── spec/                     # Ambient-A2A extension spec
-├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh
+├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO experiments (basis for per-agent SLMs)
 └── docs/                     # presentation, run guide, handoff, architecture, verification and performance records
 ```
@@ -216,11 +216,12 @@ Step-by-step instructions and troubleshooting: [docs/RUN.md](docs/RUN.md) (Korea
 | Safety policies refuse requests | turning off the AC in room2 while asleep → `SAFETY_POLICY` |
 | Rooms work without Root | `--kill-home` |
 | Whole-home collaboration | energy saving → room1 complies, room2 partly refuses → Root aggregates `PARTIAL` |
-| New agents join | Root learns ownership from the rooms' Agent Cards (`owned_devices`); the Hub refuses a connection that would give a device a second owner |
+| New agents join | the Hub refuses a connection that would give a device a second owner and starts a connected Studio agent; Root and the Gateway follow the Hub's current owners |
 | Agents from natural language | agents made in Studio are registered in the Hub only after the capability-lock check and user approval |
 
 ## Known Limitations
 - Each agent has one token, shared with its peers. For mutually untrusted agents, switch to per-pair tokens or mTLS.
 - The virtual home's device states live in the Gateway's memory; restarting the Gateway resets them.
 - Subscriptions live only in the publisher's memory. When an external agent restarts, its subscribers must restart too.
-- The running agents and the Gateway still read `agents/shared.json5` and `devices.yaml`, not the Hub's connections and tokens.
+- One OpenClaw gateway uses about 1 GB of memory; connecting several Studio agents needs more Docker memory.
+- The five platform agents still take their tokens and addresses from `.env` and `agents/shared.json5`; the Hub decides connections and owners on top.

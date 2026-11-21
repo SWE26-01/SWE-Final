@@ -108,7 +108,14 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 3. `scripts/say.sh room2 "수면 모드 켜 줘"`: 보호 방의 주인 에이전트가 자기 기기를 켠다.
 4. **"나 나간다"**: room2가 에어컨 끄기를 `SAFETY_POLICY`로 거절하는 장면을 보여 준다(정책 기반 거절).
 5. **`scripts/scenario.sh --kill-home`**: Root 없이도 방이 동작하는 장면을 보여 준다(방 자율성).
-6. Studio로 자연어 에이전트를 만들고 Hub에 등록·연결한다(`scripts/test_hub_studio.sh`가 같은 흐름을 HTTP로 보여 준다).
+6. **화면에서 기획 흐름 끝까지** (http://127.0.0.1:3000):
+   1. Agent Studio에 "회의할 때 내 방 조명을 회의 모드로 바꿔 줘"를 쓰고 `내 방`을 고른다. 요약·권한·경고를 확인하고 승인한다.
+   2. "Hub에서 연결하기" → 연결하기를 누르면 `room1이 이미 주인`이라는 안내가 뜬다. "room1 연결 해제하고 연결하기"로 넘긴다.
+      토큰은 이때 한 번만 보인다. Studio 에이전트는 실행기가 바로 띄운다(My Agent에서 Online).
+   3. `scripts/say.sh desktop "나 회의 시작할게"`를 보내면 새 에이전트의 규칙이 조명 모드를 바꾼다. room1은 더 이상 주인이 아니라서
+      Gateway가 403으로 막는다. 상세 화면의 "최근 요청"에 흐름이 보인다.
+   4. 연결 해제 → 에이전트가 멈추고 그 토큰은 Gateway에서 401이 된다. room1 상세에서 다시 연결해 처음 상태로 돌린다.
+   같은 흐름을 HTTP로만 확인하려면 `scripts/test_hub_studio.sh`.
 
 ## 6. 문제 해결
 
@@ -121,6 +128,9 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 | 에이전트가 응답하지 않음 / OpenRouter 타임아웃 | `OPENROUTER_API_KEY`와 네트워크를 확인한다 |
 | Studio가 `failed` | LLM 호출 실패. 키를 확인하거나 `.env`에 `STUDIO_LLM=rules` 후 `docker compose up -d studio` |
 | `verify_integration.py`에서 어떤 에이전트의 이벤트가 0개 | 그 에이전트가 아직 아무 요청도 처리하지 않았다. `scripts/scenario.sh`를 한 번 돌린 뒤 다시 확인한다 |
+| Studio 에이전트가 Online이 안 되거나 다른 에이전트가 갑자기 꺼짐 | OpenClaw gateway 하나가 약 1GB를 쓴다. `docker stats`로 agents 메모리를 보고 Docker Desktop 메모리를 늘린다. 실행기 기록: `docker compose logs agents \| grep launcher` |
+| 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `HOME_USER_TOKEN`·`DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d hub-web` |
+| 기기 명령이 모두 503 | Gateway가 Hub에 닿지 않는다(`docker compose logs hub`). Hub가 주인을 정하므로 Hub 없이 명령하지 않는다 |
 | 에이전트 상태를 초기화하고 싶음 | `docker compose down` 후 `docker volume rm swe-final_agents-state` |
 
 ## 7. 개별 실행 (참고)

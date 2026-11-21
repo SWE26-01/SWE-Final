@@ -31,4 +31,6 @@ Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docke
 - Since 2026-10-18 SWE26-01/A2A-agents and SWE26-01/SWE-frontend are no longer developed; everything
   is edited here.
 - Screens read live data only through the services with read-only or user tokens; the browser never
-  holds the OpenClaw gateway token or an agent token.
+  holds the OpenClaw gateway token or an agent token. `agent_hub_FE` calls them only through its
+  server-side proxy (`app/api/[service]/[...path]`, allowlist in `lib/proxy.js`): add a route there
+  only for a call the screen needs, and never device commands, `tokens/verify` or agent registration.

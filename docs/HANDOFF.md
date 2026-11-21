@@ -47,7 +47,12 @@
   (HA REST와 같은 모양), 기록을 Collector로 보낸다. 상태는 Gateway 메모리에 있고 다시 시작하면 처음 상태로 돌아간다.
 - **실행은 루트 `docker compose up -d --build` 하나로 한다.** 에이전트 5개는 한 컨테이너(`agents`)에서 돌아 서로 127.0.0.1로 부른다.
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
-- **화면은 `agent_hub_FE/`(Next.js)다.** 프런트엔드를 모노레포로 모으는 작업은 따로 한다.
+- **화면은 `agent_hub_FE/`(Next.js, lahee3423/swe_AgentHub에서 들여옴)다(2026-11-21).** 모든 데이터는 Next 서버 쪽 프록시
+  (`app/api/[service]/[...path]`, 허용 목록 `lib/proxy.js`)를 거친다. 토큰은 화면 서버에만 있다. 병원 이송 시뮬레이터는 없앴다.
+- **Hub 연결이 곧 실행이다(2026-11-21).** Studio 에이전트를 연결하면 실행기(`scripts/launcher.mjs`)가 띄우고, Gateway·Collector·플러그인은
+  Hub(`/tokens/verify`, `/ownership`, `/runtime/*`)를 읽는다. Hub에 닿지 않으면 Gateway는 명령을 거절한다.
+- **에이전트 간 메시지는 표준 A2A v1.0만 쓴다(2026-11-20, 확장 제거).** Agent Card는 표준 필드만 있고, 역할·공간·소유 기기·공유 필드는
+  `skills[].tags`(`room`, `space:`, `device:`, `field:`)로 알린다.
 
 ## 아직 정할 것
 
@@ -82,5 +87,5 @@
 - Agent Hub·Studio(`services/agenthub`, `services/studio`): Hub는 등록·검색·연결(기기마다 주인 하나, 에이전트별 토큰은 해시만 저장)·해제·토큰 확인,
   Studio는 요청 → 입력 차단 → LLM 빈칸 채우기(LangChain, OpenRouter) → 기본 스킬을 규칙으로 변환 → 실행기 파일 생성(지금 OpenClaw,
   `STUDIO_RUNTIME`으로 교체 가능) → 도구 잠금 검사 → 사용자 승인 → Hub 등록. HTTP 확인 `scripts/test_hub_studio.sh [--local]`(26단계).
-  남은 것: 실행 중인 에이전트·Gateway가 Hub를 읽게 하기(지금은 `shared.json5`·`devices.yaml` 고정), Hub 화면과 API 연결,
-  다른 사용자와의 공유·설치, 클라우드 배포.
+  2026-11-21: 화면과 API 연결, 연결된 에이전트 실행(실행기), Gateway·Collector·플러그인의 Hub 확인까지 끝났다.
+  남은 것: 다른 사용자와의 공유·설치, 클라우드 배포, OpenClaw 한 개당 약 1GB라 Studio 에이전트 수가 메모리에 묶이는 문제.

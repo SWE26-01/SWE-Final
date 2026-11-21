@@ -11,6 +11,11 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   in memory, starting in its initial state. There is no Home Assistant. It changes a device only when
   every target entity is owned by the calling agent and the service is in `SERVICES`
   (`gateway/main.py`); everything else is refused before anything changes. Never add a bypass.
+- With `GATEWAY_HUB_URL` the Agent Hub is in charge (`common/hublink.py`): Hub-issued tokens are
+  verified there and the owner of a device is the agent connected as its owner now (Hub
+  `GET /ownership`). If the Hub cannot be reached, commands are refused; never fall back to
+  `devices.yaml` owners. The Collector (`COLLECTOR_HUB_URL`) accepts and watches the same agents.
+  Both ask the Hub with the `runtime` service token, which must never register agents.
 - The Event Collector stores only the fields of `collector/events.py`; unknown fields are dropped.
   Never add a free-form data field: context values (calendar titles, GPS) must not reach the log.
 - After changing `collector/events.py`, `collector/flows.py` or `gateway/stream.py`, run
@@ -21,11 +26,14 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
 - Agent Hub (`agenthub/`): every device has one owner among active connections; `POST /connections`
   refuses a device another connected agent holds. Store only the sha256 of a Hub-issued token and
   show the token once. Platform agents (config/agents.yaml) can be disconnected, never removed.
+  Connecting a Studio agent hands its token once to the launcher (`HUB_LAUNCHER_URL`,
+  `../scripts/launcher.mjs`), which starts it; disconnecting or removing stops it. A launcher
+  failure never undoes the connection; it is reported in `launch`.
 - Studio (`studio/`): the LLM only fills the slot form (`studio/slots.py`, enums from the catalogs).
   It never writes rules, device ids, tools or paths: rules come from `config/skills.yaml` through
   `studio/compile.py`, and the runtime's capability lock (`studio/runtime.py`; for OpenClaw
   `harness.check_rendered`) must pass before an agent is written or registered. Generated agents get
-  only the ambient-a2a plugin tools. There is no Skill Marketplace: users pick a room, never skills.
+  only the ambient-a2a plugin tools, and read their own token only from `${AMBIENT_AGENT_TOKEN:-}`. There is no Skill Marketplace: users pick a room, never skills.
   A new runtime (e.g. Python) is one class in `runtime.RUNTIMES`; AgentSpec and the Hub stay as
   they are. New dangerous patterns go in
   `harness._RULES` with a test in `tests/test_studio_harness.py`.
