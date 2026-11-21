@@ -4,6 +4,9 @@ The agents (../agents) POST each event-log line here with their own token. Dashb
 with GET /events or live over WebSocket /ws, and whole requests with GET /flows
 (collector/flows.py).
 
+With COLLECTOR_HUB_URL, agents the user connected in the Agent Hub post with their Hub-issued token
+and are watched like the home's own agents (common/hublink.py).
+
 Run: uvicorn collector.main:build --factory --port 8200 --env-file ../.env
      (database file: env COLLECTOR_DB, default collector.sqlite)
 """
@@ -28,6 +31,7 @@ from collector.flows import Flow, StoredEvent, flow_of, in_time_order, summarize
 from common.auth import make_auth, ws_caller
 from common.cors import allow_dashboards
 from common.hub import Hub, push
+from common.hublink import HubLink, agent_auth, hub_link
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
 from homeconfig.models import Role
@@ -100,13 +104,17 @@ class EventStore:
         rows = self._db.execute(
             "SELECT json_extract(json, '$.agent'), MAX(id), COUNT(*) FROM events GROUP BY 1"
         ).fetchall()
-        latest = dict(
-            self._db.execute(
-                f"SELECT id, json_extract(json, '$.ts') FROM events WHERE id IN "
-                f"({','.join('?' * len(rows))})",
-                [r[1] for r in rows],
-            ).fetchall()
-        ) if rows else {}
+        latest = (
+            dict(
+                self._db.execute(
+                    f"SELECT id, json_extract(json, '$.ts') FROM events WHERE id IN "
+                    f"({','.join('?' * len(rows))})",
+                    [r[1] for r in rows],
+                ).fetchall()
+            )
+            if rows
+            else {}
+        )
         return {agent: (latest[last_id], count) for agent, last_id, count in rows}
 
     def recent_flows(self, limit: int) -> list[str]:
@@ -144,6 +152,7 @@ def create_app(
     *,
     watch_agents: bool = True,
     agent_transport: httpx.AsyncBaseTransport | None = None,
+    hub_link_: HubLink | None = None,
 ) -> FastAPI:
     """Build the collector. The database is opened at startup and closed at shutdown, and the
     agents' cards are checked in the background (`watch_agents=False` skips that, for tests)."""
@@ -166,8 +175,11 @@ def create_app(
         config.agents(),
         on_change=lambda: hub.publish({"type": "agents", "agents": agents_message()}),
         transport=agent_transport,
+        hub=hub_link_,
+        agents_host=os.environ.get("AMBIENT_AGENTS_HOST") or None,
     )
     auth = make_auth(config)
+    agent = agent_auth(config, hub_link_)  # config agents, or agents connected in the Hub
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -192,7 +204,7 @@ def create_app(
 
     # Handlers that touch the store or hub are async, so they all run on the event loop thread.
     @app.post("/events", status_code=status.HTTP_201_CREATED)
-    async def post_event(event: AgentEvent, who: auth.agent) -> dict:
+    async def post_event(event: AgentEvent, who: agent) -> dict:
         if event.agent != who.id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, f"token belongs to {who.id!r}")
         stored = store.add(event)
@@ -248,4 +260,9 @@ def create_app(
 
 def build() -> FastAPI:
     """App for `uvicorn collector.main:build --factory` (config files + environment)."""
-    return create_app(load_config(), os.environ.get("COLLECTOR_DB", "collector.sqlite"))
+    config = load_config()
+    return create_app(
+        config,
+        os.environ.get("COLLECTOR_DB", "collector.sqlite"),
+        hub_link_=hub_link(config, os.environ.get("COLLECTOR_HUB_URL")),
+    )

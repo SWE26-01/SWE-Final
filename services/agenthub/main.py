@@ -8,6 +8,9 @@
   DELETE /connections/{id} revokes the token, the permissions and the device ownership at once.
 - Runtime checks: POST /tokens/verify, GET /ownership and GET /runtime/* answer the Gateway and the
   agents. The Hub manages and routes; the agent that owns a device still makes the final decision.
+- Running: with HUB_LAUNCHER_URL, connecting a Studio-made agent hands its token to the launcher in
+  the agents container (../scripts/launcher.mjs), which starts it; disconnecting or removing stops
+  it. The token is passed once and only its hash stays here.
 - Monitoring: GET /agents/{id}/activity joins the Hub's own record of the agent (registered,
   connected ...) with the requests it took part in, from the Event Collector's GET /flows.
 
@@ -132,7 +135,14 @@ class ConnectionOut(BaseModel):
     revoked_by: str | None
 
 
-class Connected(ConnectionOut):
+class Launched(ConnectionOut):
+    launch: str | None = Field(
+        default=None,
+        description="Studio-made agents: started / stopped in the agents container, or why not",
+    )
+
+
+class Connected(Launched):
     token: str | None = Field(description="shown once; None for platform agents")
 
 
@@ -291,6 +301,8 @@ def create_app(
     agents_host: str | None = None,
     collector_url: str | None = None,
     collector_transport: httpx.BaseTransport | None = None,
+    launcher_url: str | None = None,
+    launcher_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     """Build the Hub. Tables are created and platform agents seeded at startup; their Agent Cards
     are read in the background (`sync_cards=False` skips that, for tests). With `collector_url`
@@ -309,7 +321,35 @@ def create_app(
         if collector_url
         else None
     )
+    runtime = config.callers.get("runtime")
+    launcher = (
+        httpx.Client(
+            base_url=launcher_url.rstrip("/"),
+            headers={"Authorization": f"Bearer {runtime.token}"},
+            transport=launcher_transport,
+            timeout=10,
+        )
+        if launcher_url and runtime
+        else None
+    )
     auth = make_auth(config)
+
+    def launch(row: AgentRow, token: str | None) -> str | None:
+        """Start (token) or stop (None) a Studio-made agent in the agents container."""
+        if launcher is None or row.origin != "studio":
+            return None
+        try:
+            if token is None:
+                r = launcher.delete(f"/launch/{row.id}")
+            else:
+                r = launcher.post("/launch", json={"id": row.id, "token": token})
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            log.warning(
+                "launcher: %s %s failed: %r", "stop" if token is None else "start", row.id, e
+            )
+            return f"failed: {e.__class__.__name__}"
+        return "stopped" if token is None else "started"
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -332,6 +372,8 @@ def create_app(
             cards.close()
             if collector is not None:
                 collector.close()
+            if launcher is not None:
+                launcher.close()
             engine.dispose()
 
     app = FastAPI(title="Agent Hub", version="0.1.0", lifespan=lifespan)
@@ -437,6 +479,8 @@ def create_app(
 
     @app.post("/agents", status_code=status.HTTP_201_CREATED)
     def register_agent(reg: AgentRegistration, db: DB, who: auth.service) -> AgentOut:
+        if who.id != "studio":  # the runtime service only reads connections
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "studio only")
         check_registration(reg)
         old = db.get(AgentRow, reg.id)
         if old is not None and not old.removed:
@@ -521,6 +565,7 @@ def create_app(
         row.updated_at = now()
         audit(db, who.id, "remove", agent_id)
         db.commit()
+        launch(row, None)
         return _agent_out(row, None)
 
     def _revoke(conn: ConnectionRow, who: Caller) -> None:
@@ -585,10 +630,12 @@ def create_app(
         db.add(conn)
         audit(db, who.id, "connect", row.id, conn.id, detail=f"{len(approved)} permissions")
         db.commit()
-        return Connected(**_connection_out(conn).model_dump(), token=token)
+        return Connected(
+            **_connection_out(conn).model_dump(), token=token, launch=launch(row, token)
+        )
 
     @app.delete("/connections/{connection_id}")
-    def disconnect(connection_id: str, db: DB, who: auth.user) -> ConnectionOut:
+    def disconnect(connection_id: str, db: DB, who: auth.user) -> Launched:
         conn = db.get(ConnectionRow, connection_id)
         if conn is None:
             raise _problem(404, "UNKNOWN_CONNECTION", f"no connection {connection_id!r}")
@@ -597,7 +644,9 @@ def create_app(
         _revoke(conn, who)
         audit(db, who.id, "disconnect", conn.agent_id, conn.id)
         db.commit()
-        return _connection_out(conn)
+        row = db.get(AgentRow, conn.agent_id)
+        stopped = launch(row, None) if row is not None else None
+        return Launched(**_connection_out(conn).model_dump(), launch=stopped)
 
     @app.post("/tokens/verify")
     def verify_token(body: VerifyRequest, db: DB, who: auth.caller) -> VerifyResult:
@@ -692,4 +741,5 @@ def build() -> FastAPI:
         database_url("hub"),
         agents_host=os.environ.get("HUB_AGENTS_HOST") or None,
         collector_url=os.environ.get("HUB_COLLECTOR_URL", "http://127.0.0.1:8200") or None,
+        launcher_url=os.environ.get("HUB_LAUNCHER_URL") or None,
     )

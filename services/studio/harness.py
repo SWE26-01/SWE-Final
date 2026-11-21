@@ -24,6 +24,9 @@ PORT_RANGE = range(19400, 25000)  # generated agents' OpenClaw gateway ports
 HOME_PLUGIN_PATH = "${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"
 TOOLS = {"profile": "minimal", "alsoAllow": ["ambient-a2a"], "toolSearch": False}
 SKILLS = {"allowBundled": []}
+# A generated agent's own token: issued by the Hub when the user connects it, handed to the
+# launcher, and exported by ../scripts/oc.sh from the agent's state directory. Never in the files.
+AGENT_TOKEN = "${AMBIENT_AGENT_TOKEN:-}"
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,8 @@ def check_rendered(
     config = plugins.get("entries", {}).get("ambient-a2a", {}).get("config", {})
     if config.get("agentId") != agent_id or config.get("$include") != "../../shared.json5":
         problems.append("plugin config must be this agent's and include ../../shared.json5")
+    if config.get("token") != AGENT_TOKEN:
+        problems.append(f"the agent's token must come from the environment ({AGENT_TOKEN})")
     used = {a.get("device") for r in config.get("rules", []) for a in r.get("actions", [])}
     used |= {a.get("device") for a in config.get("energySaving", [])}
     used |= {d for p in config.get("policies", []) for d in p.get("deny", {}).get("devices", [])}

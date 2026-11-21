@@ -9,6 +9,7 @@ ENV = {
     "DASHBOARD_TOKEN": "t-dashboard",
     "HOME_USER_TOKEN": "t-user",
     "STUDIO_TOKEN": "t-studio",
+    "RUNTIME_TOKEN": "t-runtime",
 }
 
 
@@ -23,3 +24,4 @@ DESKTOP = bearer("t-desktop")
 DASHBOARD = bearer("t-dashboard")
 USER = bearer("t-user")
 STUDIO = bearer("t-studio")
+RUNTIME = bearer("t-runtime")

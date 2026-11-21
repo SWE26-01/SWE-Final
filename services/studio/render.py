@@ -9,7 +9,7 @@ from typing import Any
 
 from homeconfig import HomeConfig
 from studio.compile import AgentSpec
-from studio.harness import HOME_PLUGIN_PATH, SKILLS, TOOLS
+from studio.harness import AGENT_TOKEN, HOME_PLUGIN_PATH, SKILLS, TOOLS
 from studio.templates import TEMPLATES
 
 DEFAULT_MODEL = "${AMBIENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}"
@@ -19,6 +19,7 @@ def profile_of(spec: AgentSpec, port: int) -> dict[str, Any]:
     plugin: dict[str, Any] = {
         "$include": "../../shared.json5",
         "agentId": spec.agent_id,
+        "token": AGENT_TOKEN,  # the Hub-issued token, never written into the files
         "publicUrl": f"http://127.0.0.1:{port}/plugins/ambient",
         "role": spec.role,
         "space": spec.space,

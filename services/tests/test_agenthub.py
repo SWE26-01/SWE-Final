@@ -1,10 +1,11 @@
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from support import DASHBOARD, ENV, ROOM1, STUDIO, USER
+from support import DASHBOARD, ENV, ROOM1, RUNTIME, STUDIO, USER
 
 from agenthub.main import create_app
 from homeconfig import load_config
@@ -331,3 +332,59 @@ def test_agent_activity_without_the_collector(hub):
         activity = other.get("/agents/room1/activity", headers=USER).json()
         assert activity["collector"] == "unreachable: ConnectError" and activity["flows"] == []
         assert activity["hub"][0]["action"] == "register"
+
+
+def test_the_runtime_service_cannot_register_agents(hub):
+    assert hub.post("/agents", json=meeting_agent(), headers=RUNTIME).status_code == 403
+    token = {"token": "whatever"}
+    assert hub.post("/tokens/verify", json=token, headers=RUNTIME).json()["active"] is False
+
+
+class FakeLauncher:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict | None]] = []
+        self.down = False
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if self.down:
+            raise httpx.ConnectError("refused")
+        assert request.headers["authorization"] == "Bearer t-runtime"
+        body = json.loads(request.content) if request.content else None
+        self.calls.append((request.method, request.url.path, body))
+        return httpx.Response(200, json={"ok": True})
+
+
+def test_connecting_a_studio_agent_starts_it_and_disconnecting_stops_it():
+    launcher = FakeLauncher()
+    app = create_app(
+        load_config(env=ENV),
+        "sqlite://",
+        sync_cards=False,
+        launcher_url="http://agents:18700",
+        launcher_transport=httpx.MockTransport(launcher),
+    )
+    with TestClient(app) as hub:
+        hub.post("/agents", json=meeting_agent(), headers=STUDIO)
+        free_room1(hub)  # a platform agent: the launcher is not involved
+        assert launcher.calls == []
+
+        conn = hub.post(
+            "/connections", json={"agent_id": "my-room-meeting-mode-ab12"}, headers=USER
+        )
+        token = conn.json()["token"]
+        assert conn.json()["launch"] == "started"
+        assert launcher.calls == [
+            ("POST", "/launch", {"id": "my-room-meeting-mode-ab12", "token": token})
+        ]
+        off = hub.delete(f"/connections/{conn.json()['id']}", headers=USER)
+        assert off.json()["launch"] == "stopped"
+        assert launcher.calls[-1] == ("DELETE", "/launch/my-room-meeting-mode-ab12", None)
+
+        launcher.down = True  # the connection stands; the screen shows why it is not running
+        again = hub.post(
+            "/connections", json={"agent_id": "my-room-meeting-mode-ab12"}, headers=USER
+        )
+        assert again.status_code == 201 and again.json()["launch"] == "failed: ConnectError"
+        launcher.down = False
+        hub.delete("/agents/my-room-meeting-mode-ab12", headers=USER)
+        assert launcher.calls[-1] == ("DELETE", "/launch/my-room-meeting-mode-ab12", None)

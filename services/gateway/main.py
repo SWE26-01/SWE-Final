@@ -5,10 +5,17 @@ The agents (../agents) call it like the Home Assistant REST API with their own a
 `gatewayUrl` points here. For every command the Gateway checks that the caller owns each target
 entity, and only then changes the device. Dashboards read device states over WebSocket /ws.
 
+With GATEWAY_HUB_URL the Agent Hub is in charge (common/hublink.py): agents the user connected in
+the Hub call with their Hub-issued token, and the owner of a device is the agent connected as its
+owner now (Hub GET /ownership), not config/devices.yaml. If the Hub cannot be reached, commands are
+refused.
+
 Run: uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
 """
 
 import logging
+import os
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,9 +23,10 @@ from fastapi import FastAPI, Request, WebSocket, status
 from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocketDisconnect
 
-from common.auth import make_auth, ws_caller
+from common.auth import ws_caller
 from common.cors import allow_dashboards
 from common.hub import Hub, push
+from common.hublink import HubDown, HubLink, agent_auth, hub_link
 from common.logs import hide_tokens_in_server_logs
 from gateway.home import BadValue, VirtualHome
 from gateway.stream import DeviceState, Snapshot, StateChanged
@@ -42,8 +50,16 @@ class Blocked(Exception):
         self.message = message
 
 
-def targets(config: HomeConfig, agent_id: str, domain: str, service: str, body: Any) -> list[str]:
+def targets(
+    config: HomeConfig,
+    agent_id: str,
+    domain: str,
+    service: str,
+    body: Any,
+    owners: Mapping[str, str | None] | None = None,
+) -> list[str]:
     """Entities a service call would touch, after checking that `agent_id` owns every one.
+    `owners` (the Hub's current owners) replaces config/devices.yaml owners when given.
     Raises Blocked for anything that is not a plain command on the caller's own devices."""
     data_keys = SERVICES.get(domain, {}).get(service)
     if data_keys is None:
@@ -64,9 +80,11 @@ def targets(config: HomeConfig, agent_id: str, domain: str, service: str, body: 
     if not entities or not all(entities):
         raise Blocked(400, "entity_id is empty")
     for entity in entities:
-        owner = config.owner_of(entity)
-        if owner is None:
+        if entity not in config.devices:
             raise Blocked(403, f"{entity} is not a home device")
+        owner = config.owner_of(entity) if owners is None else owners.get(entity)
+        if owner is None:
+            raise Blocked(403, f"{entity} has no connected owner (connect one in the Agent Hub)")
         if owner != agent_id:
             raise Blocked(403, f"{entity} is owned by {owner}; send device.control to {owner}")
         if not entity.startswith(f"{domain}."):
@@ -122,9 +140,10 @@ class Devices:
         return states
 
 
-def create_app(config: HomeConfig) -> FastAPI:
+def create_app(config: HomeConfig, hub: HubLink | None = None) -> FastAPI:
     devices = Devices(config)
-    auth = make_auth(config)
+    agent = agent_auth(config, hub)  # config agents, or agents connected in the Hub
+    reader = agent_auth(config, hub, readers=True)
     app = FastAPI(title="Device Gateway")
     hide_tokens_in_server_logs()
     app.state.devices = devices
@@ -135,24 +154,29 @@ def create_app(config: HomeConfig) -> FastAPI:
         return {"ok": True, "devices": len(config.devices)}
 
     @app.get("/devices")
-    async def list_devices(_: auth.caller) -> list[dict]:
+    async def list_devices(_: reader) -> list[dict]:
         return [devices.view(e).model_dump(mode="json") for e in config.devices]
 
     @app.get("/api/states/{entity_id}")
-    async def get_state(entity_id: str, _: auth.caller) -> JSONResponse:
+    async def get_state(entity_id: str, _: reader) -> JSONResponse:
         state = devices.home.get(entity_id)
         if state is None:
             return _message(status.HTTP_404_NOT_FOUND, "Entity not found.")
         return JSONResponse(state)
 
     @app.post("/api/services/{domain}/{service}")
-    async def call_service(domain: str, service: str, request: Request, who: auth.agent):
+    async def call_service(domain: str, service: str, request: Request, who: agent):
         try:
             body = await request.json()
         except ValueError:
             body = None
         try:
-            entities = targets(config, who.id, domain, service, body)
+            owners = await hub.owners() if hub is not None else None
+        except HubDown as e:
+            log.warning("blocked %s -> %s.%s: %s", who.id, domain, service, e)
+            return _message(status.HTTP_503_SERVICE_UNAVAILABLE, f"{e}; commands are refused")
+        try:
+            entities = targets(config, who.id, domain, service, body, owners)
             states = devices.call(service, entities, body)
         except Blocked as e:
             log.warning("blocked %s -> %s.%s: %s", who.id, domain, service, e.message)
@@ -182,4 +206,5 @@ def create_app(config: HomeConfig) -> FastAPI:
 
 def build() -> FastAPI:
     """App for `uvicorn gateway.main:build --factory` (config files + environment)."""
-    return create_app(load_config())
+    config = load_config()
+    return create_app(config, hub_link(config, os.environ.get("GATEWAY_HUB_URL")))

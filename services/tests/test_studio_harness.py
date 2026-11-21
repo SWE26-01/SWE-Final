@@ -96,6 +96,10 @@ def test_a_rendered_agent_passes_the_capability_lock():
             "must be ASCII",
         ),
         (lambda p: p.update(elevated={"enabled": True}), "forbidden capability"),
+        (
+            lambda p: p["plugins"]["entries"]["ambient-a2a"]["config"].update(token="plain"),
+            "token must come from the environment",
+        ),
     ],
 )
 def test_the_capability_lock_catches_tampering(tamper, problem):

@@ -21,5 +21,9 @@ users:
 
 # Backend services calling each other: Studio registers the agents it creates in the Hub.
 # Optional: without STUDIO_TOKEN, Studio can draft agents but not register them.
+# runtime: the Gateway and the Collector ask the Hub which Hub-issued token is whose and who owns
+# each device (POST /tokens/verify, GET /ownership); the Hub uses it to start and stop agents in the
+# agents container (scripts/launcher.mjs). Optional: without RUNTIME_TOKEN the Hub is not consulted.
 services:
   studio: {token_env: STUDIO_TOKEN}
+  runtime: {token_env: RUNTIME_TOKEN}
