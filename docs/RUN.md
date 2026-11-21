@@ -29,6 +29,7 @@ scripts/run_all.sh          # docker compose up -d --build 후 전부 뜰 때까
 | 이름 | 주소 | 내용 |
 |---|---|---|
 | hub-web | http://127.0.0.1:3000 | Agent Hub 화면 |
+| hub-web | http://127.0.0.1:3000/home | 스마트홈 앱(공간·기기·외부 연결, 폰 화면) |
 | hub | http://127.0.0.1:8400/docs | Agent Hub API |
 | studio | http://127.0.0.1:8500/docs | Agent Studio API |
 | gateway | http://127.0.0.1:8100/devices | 가상 집의 기기 상태 (`Authorization: Bearer $DASHBOARD_TOKEN`) |
@@ -103,7 +104,7 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 
 ## 5. 데모 추천 순서
 
-1. Hub 화면(http://127.0.0.1:3000)과 `scripts/logs.sh`를 나란히 띄운다.
+1. Hub 화면(http://127.0.0.1:3000)과 `scripts/logs.sh`를 나란히 띄운다. 처음이면 회원가입한다(아이디·이름·비밀번호만).
 2. **"나 회의 시작할게"**: 외부 기기 정보 활용과 위임 체인(desktop → home → room1)을 보여 준다.
 3. `scripts/say.sh room2 "수면 모드 켜 줘"`: 보호 방의 주인 에이전트가 자기 기기를 켠다.
 4. **"나 나간다"**: room2가 에어컨 끄기를 `SAFETY_POLICY`로 거절하는 장면을 보여 준다(정책 기반 거절).
@@ -115,7 +116,12 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
    3. `scripts/say.sh desktop "나 회의 시작할게"`를 보내면 새 에이전트의 규칙이 조명 모드를 바꾼다. room1은 더 이상 주인이 아니라서
       Gateway가 403으로 막는다. 상세 화면의 "최근 요청"에 흐름이 보인다.
    4. 연결 해제 → 에이전트가 멈추고 그 토큰은 Gateway에서 401이 된다. room1 상세에서 다시 연결해 처음 상태로 돌린다.
+   5. **공유와 설치**: 만든 에이전트 상세에서 "Hub에 공유" → 로그아웃 → 다른 계정으로 가입 → 검색(카탈로그)에서
+      `@만든사람` 카드를 찾아 별을 주고, 상세에서 연결(설치)한다. 공유하지 않은 에이전트는 다른 계정에 보이지 않는다.
    같은 흐름을 HTTP로만 확인하려면 `scripts/test_hub_studio.sh`.
+7. **스마트홈 앱** (http://127.0.0.1:3000/home, Hub 화면 옆에 띄운다): 공간별 기기 상태와 주인 에이전트가 실시간으로 바뀐다.
+   기기를 누르면 주인과 "이 기기를 맡을 수 있는 에이전트"가 나오고, 거기서 바로 연결·해제한다(6의 2단계와 같은 동작).
+   기기를 직접 켜고 끄는 버튼은 없다. 명령은 주인 에이전트만 보낸다.
 
 ## 6. 문제 해결
 
@@ -129,7 +135,8 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 | Studio가 `failed` | LLM 호출 실패. 키를 확인하거나 `.env`에 `STUDIO_LLM=rules` 후 `docker compose up -d studio` |
 | `verify_integration.py`에서 어떤 에이전트의 이벤트가 0개 | 그 에이전트가 아직 아무 요청도 처리하지 않았다. `scripts/scenario.sh`를 한 번 돌린 뒤 다시 확인한다 |
 | Studio 에이전트가 Online이 안 되거나 다른 에이전트가 갑자기 꺼짐 | OpenClaw gateway 하나가 약 1GB를 쓴다. `docker stats`로 agents 메모리를 보고 Docker Desktop 메모리를 늘린다. 실행기 기록: `docker compose logs agents \| grep launcher` |
-| 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `HOME_USER_TOKEN`·`DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d hub-web` |
+| 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d hub-web` |
+| 화면이 계속 로그인 페이지로 돌아간다 | 세션이 끝났거나(7일) Hub가 다시 만들어졌다. 다시 로그인한다. Hub가 안 뜨면 `docker compose logs hub` |
 | 기기 명령이 모두 503 | Gateway가 Hub에 닿지 않는다(`docker compose logs hub`). Hub가 주인을 정하므로 Hub 없이 명령하지 않는다 |
 | 에이전트 상태를 초기화하고 싶음 | `docker compose down` 후 `docker volume rm swe-final_agents-state` |
 

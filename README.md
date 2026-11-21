@@ -110,7 +110,7 @@ Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설
 | 에이전트 | OpenClaw + TypeScript 플러그인 (`STUDIO_RUNTIME`으로 Python 실행기로 교체 가능) |
 | 백엔드 | Python, FastAPI, Pydantic v2 |
 | 에이전트 생성 (Studio) | LangChain structured output, OpenRouter |
-| 저장소 | PostgreSQL (Hub·Studio, Docker / RDS), SQLite (Collector, 테스트) |
+| 저장소 | PostgreSQL (Hub·Studio·Collector, Docker / RDS), SQLite (테스트) |
 | 화면 | Next.js (Agent Hub) |
 | 실행·배포 | Docker Compose (로컬), AWS ECS Fargate (계획), GitHub Actions |
 | 테스트 | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
@@ -146,7 +146,7 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: 자연어 → 에이전트 (LangChain + OpenRouter), 하네스, 실행기 교체(runtime.py)
 │   ├── config/               #   agents.yaml(호출자), devices.yaml(가상 기기), skills.yaml(기본 스킬)
 │   └── contracts/            #   화면이 받는 메시지 형식 (JSON Schema)
-├── agent_hub_FE/             # Agent Hub 화면 (Next.js): 검색·상세·연결·내 에이전트·Studio. 토큰은 서버 쪽 프록시에만
+├── agent_hub_FE/             # Agent Hub 화면 (Next.js): 검색·상세·연결·내 에이전트·Studio, /home 스마트홈 앱. 토큰은 서버 쪽 프록시에만
 ├── spec/                     # Ambient-A2A 확장 명세
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO 실험 (에이전트별 SLM의 근거)
@@ -194,6 +194,7 @@ docker compose up -d --build   # 또는 scripts/run_all.sh (다 뜰 때까지 �
 | 이름 | 주소 |
 |---|---|
 | Agent Hub 화면 | http://127.0.0.1:3000 |
+| 스마트홈 앱 (공간·기기·외부 연결) | http://127.0.0.1:3000/home |
 | Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
 | Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN`) |
 | 에이전트 | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 |
@@ -227,3 +228,4 @@ docker compose down                              # 종료
 - 구독 정보는 publisher 메모리에만 있다. external을 재시작하면 구독하던 쪽도 재시작해야 한다.
 - OpenClaw gateway 하나가 메모리를 약 1GB 쓴다. Studio 에이전트를 여러 개 연결하려면 Docker 메모리를 늘려야 한다.
 - 기본 에이전트 5개의 토큰과 주소는 여전히 `.env`·`agents/shared.json5`에 있다. Hub는 그 위에서 연결·주인을 정한다.
+- 계정은 여럿이지만 집은 하나다. 다른 계정이 설치(연결)한 에이전트도 같은 가상 집의 기기를 움직인다. 회원가입은 약관·이메일 확인이 없는 데모 수준이다.

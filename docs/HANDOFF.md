@@ -49,6 +49,8 @@
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
 - **화면은 `agent_hub_FE/`(Next.js, lahee3423/swe_AgentHub에서 들여옴)다(2026-11-21).** 모든 데이터는 Next 서버 쪽 프록시
   (`app/api/[service]/[...path]`, 허용 목록 `lib/proxy.js`)를 거친다. 토큰은 화면 서버에만 있다. 병원 이송 시뮬레이터는 없앴다.
+- **스마트홈 앱은 `/home`이다(2026-11-22).** 시연용 폰 화면(공간·기기·외부 연결). Hub 화면과 같은 프록시·데이터·검색(`GET /agents?q=`)을 쓰고 기기는 읽기만 한다.
+  기기 주인은 에이전트 연결로 바꾼다(기기 시트 → "이 기기를 맡을 수 있는 에이전트"). 기본 에이전트의 한국어 이름은 앱 안의 `HOME_NAMES`.
 - **Hub 연결이 곧 실행이다(2026-11-21).** Studio 에이전트를 연결하면 실행기(`scripts/launcher.mjs`)가 띄우고, Gateway·Collector·플러그인은
   Hub(`/tokens/verify`, `/ownership`, `/runtime/*`)를 읽는다. Hub에 닿지 않으면 Gateway는 명령을 거절한다.
 - **에이전트 간 메시지는 표준 A2A v1.0만 쓴다(2026-11-20, 확장 제거).** Agent Card는 표준 필드만 있고, 역할·공간·소유 기기·공유 필드는
@@ -83,9 +85,12 @@
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트, 아키텍처 문서 `docs/architecture-services.md`(영문),
   검증 결과 보고서 `docs/verification-report.md`(2026-10-18 HA 시절 기록).
 - 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다. 측정과 바꾼 설정은 `docs/performance.md`.
-- EXAONE 4.0 1.2B 학습 실험(`training/`, 문서 `docs/dpo-experiment.md`): 발표의 "에이전트별 SLM"의 근거. 기본 LLM은 계속 Haiku.
+- EXAONE 4.0 1.2B 학습 실험(`training/`, 문서 `docs/dpo-experiment.md`): 발표의 "에이전트별 SLM"의 근거였지만, 2026-11-22에
+  SLM 대신 Claude Haiku 호출(OpenRouter `anthropic/claude-haiku-5.5`)로 가기로 했다. 실험 기록으로만 남긴다.
 - Agent Hub·Studio(`services/agenthub`, `services/studio`): Hub는 등록·검색·연결(기기마다 주인 하나, 에이전트별 토큰은 해시만 저장)·해제·토큰 확인,
   Studio는 요청 → 입력 차단 → LLM 빈칸 채우기(LangChain, OpenRouter) → 기본 스킬을 규칙으로 변환 → 실행기 파일 생성(지금 OpenClaw,
   `STUDIO_RUNTIME`으로 교체 가능) → 도구 잠금 검사 → 사용자 승인 → Hub 등록. HTTP 확인 `scripts/test_hub_studio.sh [--local]`(26단계).
   2026-11-21: 화면과 API 연결, 연결된 에이전트 실행(실행기), Gateway·Collector·플러그인의 Hub 확인까지 끝났다.
-  남은 것: 다른 사용자와의 공유·설치, 클라우드 배포, OpenClaw 한 개당 약 1GB라 Studio 에이전트 수가 메모리에 묶이는 문제.
+  2026-11-22: 계정(회원가입·로그인, 세션은 해시만 저장·화면 쪽 httpOnly 쿠키), 카탈로그(공유·별·설치 수), 계정별 Studio 초안,
+  Collector를 PostgreSQL로(예전 SQLite 기록은 한 번 옮김). 사용자들은 같은 한 집을 쓴다(집마다 따로 나누지 않음).
+  남은 것: 집(가구)별 분리, 클라우드 배포, OpenClaw 한 개당 약 1GB라 Studio 에이전트 수가 메모리에 묶이는 문제.

@@ -108,7 +108,7 @@ Whoever sends a request, **room policies keep control**. The result is an extens
 | Agents | OpenClaw + TypeScript plugin (swappable for a Python runtime with `STUDIO_RUNTIME`) |
 | Backend | Python, FastAPI, Pydantic v2 |
 | Agent creation (Studio) | LangChain structured output, OpenRouter |
-| Storage | PostgreSQL (Hub and Studio, Docker / RDS), SQLite (Collector, tests) |
+| Storage | PostgreSQL (Hub, Studio and Collector, Docker / RDS), SQLite (tests) |
 | Screen | Next.js (Agent Hub) |
 | Run and deploy | Docker Compose (local), AWS ECS Fargate (planned), GitHub Actions |
 | Testing | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
@@ -144,7 +144,7 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: plain language → agent (LangChain + OpenRouter), harness, runtime (runtime.py)
 │   ├── config/               #   agents.yaml (callers), devices.yaml (virtual devices), skills.yaml (built-in skills)
 │   └── contracts/            #   message formats for screens (JSON Schema)
-├── agent_hub_FE/             # Agent Hub screen (Next.js): search, detail, connect, my agents, Studio; tokens stay in its server-side proxy
+├── agent_hub_FE/             # Agent Hub screen (Next.js): search, detail, connect, my agents, Studio, /home smart home app; tokens stay in its server-side proxy
 ├── spec/                     # Ambient-A2A extension spec
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO experiments (basis for per-agent SLMs)
@@ -192,6 +192,7 @@ docker compose up -d --build   # or scripts/run_all.sh (waits until everything i
 | Name | Address |
 |---|---|
 | Agent Hub screen | http://127.0.0.1:3000 |
+| Smart home app (spaces, devices, external connections) | http://127.0.0.1:3000/home |
 | Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
 | Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN`) |
 | Agents | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 |
@@ -225,3 +226,4 @@ Step-by-step instructions and troubleshooting: [docs/RUN.md](docs/RUN.md) (Korea
 - Subscriptions live only in the publisher's memory. When an external agent restarts, its subscribers must restart too.
 - One OpenClaw gateway uses about 1 GB of memory; connecting several Studio agents needs more Docker memory.
 - The five platform agents still take their tokens and addresses from `.env` and `agents/shared.json5`; the Hub decides connections and owners on top.
+- There are many accounts but one home: an agent another account installs (connects) moves the same virtual home's devices. Sign-up is demo-grade (no terms, no e-mail check).

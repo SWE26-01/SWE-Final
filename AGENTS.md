@@ -30,7 +30,9 @@ Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docke
   `docker-compose.yml`, with ports published on 127.0.0.1 only.
 - Since 2026-10-18 SWE26-01/A2A-agents and SWE26-01/SWE-frontend are no longer developed; everything
   is edited here.
-- Screens read live data only through the services with read-only or user tokens; the browser never
-  holds the OpenClaw gateway token or an agent token. `agent_hub_FE` calls them only through its
-  server-side proxy (`app/api/[service]/[...path]`, allowlist in `lib/proxy.js`): add a route there
-  only for a call the screen needs, and never device commands, `tokens/verify` or agent registration.
+- People log in with Hub accounts (`POST /auth/signup|login`). The browser holds only its own session,
+  in an httpOnly cookie set by `agent_hub_FE` (`app/api/auth/[action]`); never a service, OpenClaw or
+  agent token. `agent_hub_FE` calls the services only through its server-side proxy
+  (`app/api/[service]/[...path]`, allowlist in `lib/proxy.js`): the session goes to the Hub and Studio,
+  the read-only dashboard token to the Collector and Gateway after the session is checked. Add a route
+  there only for a call the screen needs, and never device commands, `tokens/verify` or agent registration.
