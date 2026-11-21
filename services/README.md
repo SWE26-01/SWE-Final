@@ -17,8 +17,8 @@
 | 폴더 | 내용 |
 | --- | --- |
 | `gateway/` | 가상 집(`home.py`), 주인 검사(`main.py`), 대시보드 WebSocket 메시지(`stream.py`) |
-| `collector/` | 이벤트 저장(SQLite), 조회, 대시보드 WebSocket |
-| `agenthub/` | 에이전트 등록·검색, Agent Card 읽기, 연결·해제, 토큰 확인 (PostgreSQL/SQLite) |
+| `collector/` | 이벤트 저장(`store.py`: PostgreSQL/SQLite), 조회, 대시보드 WebSocket |
+| `agenthub/` | 계정·로그인(`accounts.py`), 에이전트 등록·카탈로그·공유·별, Agent Card 읽기, 연결·해제, 토큰 확인 (PostgreSQL/SQLite) |
 | `studio/` | 빈칸 양식(`slots.py`), LLM 채우기(`filler.py`), 스킬→규칙 변환(`compile.py`), 하네스(`harness.py`), 실행기 선택(`runtime.py`), OpenClaw 파일 생성(`render.py`) |
 | `common/` | 서비스들이 같이 쓰는 토큰 인증, WebSocket 전달, DB 연결(`db.py`) |
 | `homeconfig/` | `config/*.yaml` 로더와 검사 (토큰은 환경 변수에서 읽음) |
@@ -36,7 +36,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
 uvicorn gateway.main:build --factory --port 8100 --env-file ../.env
-uvicorn collector.main:build --factory --port 8200 --env-file ../.env
+uvicorn collector.main:build --factory --port 8200 --env-file ../.env # collector.sqlite (Docker에서는 PostgreSQL)
 uvicorn agenthub.main:build --factory --port 8400 --env-file ../.env # hub.sqlite (Docker에서는 PostgreSQL)
 uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sqlite, STUDIO_HUB_URL=http://127.0.0.1:8400
 ```
@@ -47,8 +47,10 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 
 ### Agent Hub · Studio
 
-루트의 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터베이스 `hub`·`studio`)과 함께 띄운다. 루트 `.env`에
-`HOME_USER_TOKEN`(Studio·Hub 화면의 사용자), `STUDIO_TOKEN`(Studio가 Hub에 등록할 때), `POSTGRES_PASSWORD`가 있어야 한다.
+루트의 `docker compose up -d --build`가 PostgreSQL(`postgres`, 데이터베이스 `hub`·`studio`·`collector`)과 함께 띄운다.
+DB는 없으면 시작할 때 만들고, 예전 볼륨의 테이블에는 새 컬럼을 더한다. Collector는 예전 SQLite 기록(`COLLECTOR_DB`)을 빈 DB에 한 번 옮긴다.
+루트 `.env`에 `HOME_USER_TOKEN`(스크립트·테스트용 집 관리자), `STUDIO_TOKEN`(Studio가 Hub에 등록할 때), `POSTGRES_PASSWORD`가 있어야 한다.
+사람은 화면에서 회원가입·로그인한다(약관·이메일 확인 없는 데모).
 `../scripts/setup.sh`를 다시 돌리면 빠진 키를 넣고 값을 만든다.
 
 **HTTP로 한 번에 확인**: `../scripts/test_hub_studio.sh`(실행 중인 서비스) 또는 `../scripts/test_hub_studio.sh --local`
@@ -57,7 +59,7 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 
 | Studio (`:8500`) | 누가 | 하는 일 |
 |---|---|---|
-| `POST /drafts {request, space?}` | 사용자 | 요청 → 초안. `space`는 화면에서 고른 방: LLM이 바꿀 수 없다. 스킬은 사용자가 고르지 않고 요청에서 정해진다(`config/skills.yaml`). 상태: `blocked`(입력 차단) · `clarify`(질문) · `unsupported` · `invalid`(수리 2회 후에도 실패) · `failed`(LLM 호출 실패) · `ready` |
+| `POST /drafts {request, space?}` | 사용자 (초안은 쓴 계정의 것: 다른 계정에는 404) | 요청 → 초안. `space`는 화면에서 고른 방: LLM이 바꿀 수 없다. 스킬은 사용자가 고르지 않고 요청에서 정해진다(`config/skills.yaml`). 상태: `blocked`(입력 차단) · `clarify`(질문) · `unsupported` · `invalid`(수리 2회 후에도 실패) · `failed`(LLM 호출 실패) · `ready` |
 | `POST /drafts/{id}/answer {answer}` | 사용자 | `clarify` 질문에 답하고 다시 만든다 |
 | `POST /drafts/{id}/approve` | 사용자 | Hub에 등록하고 `agents/generated/<id>/`에 실행기 파일을 쓴다(OpenClaw: `openclaw.json5`·`AGENTS.md`) |
 | `GET /drafts`, `GET /drafts/{id}` | 사용자·대시보드 | 요약(`summary`), 요청 권한, 생성 파일 미리보기 |
@@ -66,10 +68,14 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 
 | Hub (`:8400`) | 누가 | 하는 일 |
 |---|---|---|
-| `GET /agents?q=&skill=&space=&role=&origin=&connected=` | 토큰 있는 누구나 | 검색. 플랫폼 에이전트 5개는 시작할 때 연결된 상태로 들어간다 |
-| `POST /agents` | Studio | Studio가 만든 에이전트 등록(기기·스킬·권한 검사) |
-| `POST /agents/discover {card_url}` | 사용자 | 외부 에이전트를 Agent Card URL로 등록(A2A 1.0 확인) |
-| `POST /connections {agent_id, permissions?}` | 사용자 | 승인한 권한으로 연결. 다른 에이전트가 가진 기기면 409 `OWNERSHIP_CONFLICT`. 새 토큰은 이때 한 번만 보여 주고 해시만 저장. Studio 에이전트는 실행기가 바로 띄운다(`launch`) |
+| `POST /auth/signup {username, name, password}`, `POST /auth/login` | 누구나 | 계정 만들기·로그인. 세션 토큰은 한 번만 주고 해시만 저장(7일) |
+| `POST /auth/logout`, `GET /auth/me` | 세션 | 로그아웃, 이 토큰이 누구인지(Studio가 세션 확인에 씀) |
+| `GET /agents?q=&shared=&mine=&sort=stars\|installs\|new&…` | 토큰·세션 | 검색과 카탈로그(`shared=true`). 계정에는 기본 에이전트, 자기 것, 공유된 것, 지금 연결된 것만 보인다. 각 에이전트에 만든 사람·공유 여부·별·설치 수 |
+| `POST /agents/{id}/share {shared}` | 만든 계정 | 카탈로그에 공유 / 공유 중지 |
+| `POST /agents/{id}/star {starred}` | 계정 | 별 주기 / 취소 |
+| `POST /agents` | Studio | Studio가 만든 에이전트 등록(기기·스킬·권한 검사, `created_by`) |
+| `POST /agents/discover {card_url}` | 사용자 | 개발자용: 외부 에이전트를 Agent Card URL로 등록(A2A 1.0 확인). 처음엔 등록한 계정만 본다 |
+| `POST /connections {agent_id, permissions?}` | 사용자 | 설치: 보이는 에이전트를 승인한 권한으로 집에 연결. 다른 에이전트가 가진 기기면 409 `OWNERSHIP_CONFLICT`. 새 토큰은 이때 한 번만 보여 주고 해시만 저장. Studio 에이전트는 실행기가 바로 띄운다(`launch`) |
 | `DELETE /connections/{id}` | 사용자 | 해제: 토큰·권한·기기 소유가 바로 풀리고, Studio 에이전트는 멈춘다 |
 | `POST /tokens/verify {token}` | 에이전트·서비스 | Hub가 발급한 토큰이 지금 연결돼 있는지, 권한은 무엇인지 |
 | `GET /ownership`, `GET /spaces` | 토큰 있는 누구나 | 기기별 지금 주인(연결 기준)과 `devices.yaml`의 주인 |

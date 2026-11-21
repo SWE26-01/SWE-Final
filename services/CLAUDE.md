@@ -37,6 +37,15 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   A new runtime (e.g. Python) is one class in `runtime.RUNTIMES`; AgentSpec and the Hub stay as
   they are. New dangerous patterns go in
   `harness._RULES` with a test in `tests/test_studio_harness.py`.
-- The home user (`HOME_USER_TOKEN`) creates, connects and disconnects agents; Studio's service token
-  (`STUDIO_TOKEN`) only registers agents in the Hub. Neither commands a device.
+- People are Hub accounts (`agenthub/accounts.py`): scrypt password hashes, and login sessions stored
+  as sha256 only, like agent tokens. A session is a `user` caller everywhere: the Hub checks it itself,
+  Studio asks the Hub (`GET /auth/me`, cached briefly). An account sees the platform agents, its own,
+  the shared ones and whatever is connected; only an agent's maker shares or removes it, and each
+  Studio draft belongs to the account that wrote it. Config callers (`HOME_USER_TOKEN`, scripts and
+  tests) see and manage everything. Studio's service token (`STUDIO_TOKEN`) only registers agents in
+  the Hub (with `created_by`). None of them commands a device.
+- The Hub, Studio and the Collector use PostgreSQL in Docker (databases `hub`, `studio`, `collector`;
+  made at startup if missing) and SQLite elsewhere (`common/db.py`). `create_all` never changes a
+  table: a new column must be nullable or have a server default, and `add_missing_columns` adds it
+  to older databases at startup.
 

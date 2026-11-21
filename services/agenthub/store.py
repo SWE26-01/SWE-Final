@@ -1,5 +1,6 @@
-"""Hub tables: agents, connections (who is plugged into the home, with which permissions) and an
-audit trail of every registration, connection and revocation."""
+"""Hub tables: agents, connections (who is plugged into the home, with which permissions), an audit
+trail of every registration, connection and revocation, and the people who use the Hub: accounts,
+their login sessions and the agents they starred."""
 
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ import hashlib
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, select
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, false, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 
@@ -44,8 +45,41 @@ class AgentRow(Base):
     spec_id: Mapped[str | None] = mapped_column(String(64))  # Studio draft it came from
     card: Mapped[dict[str, Any] | None] = mapped_column(default=None)
     removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The account that made it in Studio or added it; None for the home's own agents.
+    created_by: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
+    # Shared: listed in the Hub catalog for every account. Otherwise only its maker sees it (and
+    # everyone, while it is connected to the home).
+    shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)  # login id, shown as @id
+    name: Mapped[str] = mapped_column(String(40))
+    password: Mapped[str] = mapped_column(
+        String(200)
+    )  # agenthub/accounts.py hash, never the password
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class SessionRow(Base):
+    __tablename__ = "sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 only
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class StarRow(Base):
+    __tablename__ = "stars"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class ConnectionRow(Base):

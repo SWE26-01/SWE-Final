@@ -15,10 +15,12 @@ Run: uvicorn studio.main:build --factory --port 8500 --env-file ../.env
      (database: PostgreSQL with POSTGRES_HOST, else studio.sqlite; see common/db.py)
 """
 
-# No `from __future__ import annotations`: FastAPI reads the common.auth annotations at runtime.
+# No `from __future__ import annotations`: FastAPI reads the route annotations at runtime.
+import hashlib
 import logging
 import os
 import secrets
+import time
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -27,13 +29,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import URL, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from common.auth import make_auth
 from common.cors import allow_dashboards
-from common.db import database_url, make_engine
+from common.db import add_missing_columns, database_url, ensure_database, make_engine
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
 from homeconfig.models import Caller, Role
@@ -48,6 +50,7 @@ from studio.templates import TEMPLATES
 
 log = logging.getLogger("studio")
 
+SESSION_CACHE_SECONDS = 30  # how long a person's session answer from the Hub is reused
 MAX_REPAIRS = 2  # extra attempts after the first, with the problems fed back to the filler
 DEFAULT_GENERATED_DIR = Path(__file__).resolve().parents[2] / "agents" / "generated"
 
@@ -103,6 +106,7 @@ class DraftOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     registered_at: datetime | None
+    owner: str | None = None
 
 
 def _out(row: DraftRow) -> DraftOut:
@@ -127,6 +131,7 @@ def _out(row: DraftRow) -> DraftOut:
         created_at=row.created_at,
         updated_at=row.updated_at,
         registered_at=row.registered_at,
+        owner=row.owner,
     )
 
 
@@ -145,7 +150,7 @@ def create_app(
     runtime = runtime or OpenClawRuntime(config)
     engine = make_engine(db_url)
     sessions = sessionmaker(engine, expire_on_commit=False)
-    auth = make_auth(config)
+    sessions_seen: dict[str, tuple[float, Caller]] = {}  # sha256(token) -> (until, caller)
     filler_name = (
         f"langchain:{filler.model}" if isinstance(filler, LangChainFiller) else filler.name
     )[:120]  # drafts.filler column
@@ -153,7 +158,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         hide_tokens_in_server_logs()
+        ensure_database(db_url)
         Base.metadata.create_all(engine)
+        add_missing_columns(engine, Base.metadata)
         try:
             yield
         finally:
@@ -167,13 +174,51 @@ def create_app(
         with sessions() as db:
             yield db
 
-    def reader(who: auth.caller) -> Caller:
+    bearer = HTTPBearer(auto_error=False)
+
+    def caller(cred: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]) -> Caller:
+        """A config caller, or a person logged in to the Hub (the Hub is asked, then the answer is
+        kept for SESSION_CACHE_SECONDS)."""
+        if cred is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing or unknown bearer token")
+        found = config.caller_by_token(cred.credentials)
+        if found is not None:
+            return found
+        key = hashlib.sha256(cred.credentials.encode()).hexdigest()
+        hit = sessions_seen.get(key)
+        if hit is not None and hit[0] > time.monotonic():
+            return hit[1]
+        try:
+            me = hub.me(cred.credentials)
+        except HubError as e:
+            if e.status == 401:
+                raise HTTPException(
+                    status.HTTP_401_UNAUTHORIZED, "missing or unknown bearer token"
+                ) from e
+            raise _problem(503, "HUB", "cannot check the login with the Hub") from e
+        who = Caller(id=me["id"], role=Role(me["role"]), token=cred.credentials)
+        if len(sessions_seen) > 1000:
+            sessions_seen.clear()
+        sessions_seen[key] = (time.monotonic() + SESSION_CACHE_SECONDS, who)
+        return who
+
+    def a_user(who: Annotated[Caller, Depends(caller)]) -> Caller:
+        if who.role is not Role.USER:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "user only")
+        return who
+
+    def reader(who: Annotated[Caller, Depends(caller)]) -> Caller:
         if who.role not in (Role.USER, Role.OPERATOR):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "user or operator only")
         return who
 
     DB = Annotated[Session, Depends(get_db)]
+    User = Annotated[Caller, Depends(a_user)]
     Reader = Annotated[Caller, Depends(reader)]
+
+    def member(who: Caller) -> bool:
+        """A Hub account: sees only its own drafts. Config callers see all of them."""
+        return who.id not in config.callers
 
     def next_port(db: Session) -> int:
         used = set(db.scalars(select(DraftRow.port).where(DraftRow.status == "registered")).all())
@@ -246,9 +291,9 @@ def create_app(
             feedback = problems
         row.status, row.errors = "invalid", feedback
 
-    def find_draft(db: Session, draft_id: str) -> DraftRow:
+    def find_draft(db: Session, draft_id: str, who: Caller) -> DraftRow:
         row = db.get(DraftRow, draft_id)
-        if row is None:
+        if row is None or (member(who) and row.owner != who.id):
             raise _problem(404, "UNKNOWN_DRAFT", f"no draft {draft_id!r}")
         return row
 
@@ -269,7 +314,7 @@ def create_app(
         return [FindingOut(**asdict(f)) for f in check_request(body.text)]
 
     @app.post("/drafts", status_code=status.HTTP_201_CREATED)
-    def create_draft(body: DraftRequest, db: DB, _: auth.user) -> DraftOut:
+    def create_draft(body: DraftRequest, db: DB, who: User) -> DraftOut:
         """From a sentence, optionally with a room picked on screen."""
         if not body.request.strip():
             raise _problem(422, "EMPTY", "write a request")
@@ -282,6 +327,7 @@ def create_app(
             status="new",
             filler=filler_name,
             suffix=secrets.token_hex(2),
+            owner=who.id,
         )
         db.add(row)
         run_pipeline(db, row)
@@ -290,19 +336,22 @@ def create_app(
 
     @app.get("/drafts")
     def list_drafts(
-        db: DB, _: Reader, limit: Annotated[int, Query(ge=1, le=200)] = 50
+        db: DB, who: Reader, limit: Annotated[int, Query(ge=1, le=200)] = 50
     ) -> list[DraftOut]:
-        rows = db.scalars(select(DraftRow).order_by(DraftRow.created_at.desc()).limit(limit))
+        query = select(DraftRow).order_by(DraftRow.created_at.desc()).limit(limit)
+        if member(who):
+            query = query.where(DraftRow.owner == who.id)
+        rows = db.scalars(query)
         return [_out(r) for r in rows]
 
     @app.get("/drafts/{draft_id}")
-    def get_draft(draft_id: str, db: DB, _: Reader) -> DraftOut:
-        return _out(find_draft(db, draft_id))
+    def get_draft(draft_id: str, db: DB, who: Reader) -> DraftOut:
+        return _out(find_draft(db, draft_id, who))
 
     @app.post("/drafts/{draft_id}/answer")
-    def answer_draft(draft_id: str, body: Answer, db: DB, _: auth.user) -> DraftOut:
+    def answer_draft(draft_id: str, body: Answer, db: DB, who: User) -> DraftOut:
         """Answer Studio's question (status `clarify`); the request is run again with it."""
-        row = find_draft(db, draft_id)
+        row = find_draft(db, draft_id, who)
         if row.status != "clarify":
             raise _problem(409, "NOT_ASKING", f"draft {draft_id} is {row.status}, not clarify")
         row.request = "\n".join(filter(None, [row.request, body.answer.strip()]))[:REQUEST_LIMIT]
@@ -311,9 +360,10 @@ def create_app(
         return _out(row)
 
     @app.post("/drafts/{draft_id}/approve")
-    def approve_draft(draft_id: str, db: DB, _: auth.user) -> DraftOut:
-        """The user approves: register in the Hub, then write the runtime's files."""
-        row = find_draft(db, draft_id)
+    def approve_draft(draft_id: str, db: DB, who: User) -> DraftOut:
+        """The user approves: register in the Hub (as made by them), then write the runtime's
+        files. The agent starts private to its maker; they can share it in the Hub."""
+        row = find_draft(db, draft_id, who)
         if row.status != "ready" or row.spec is None:
             raise _problem(409, "NOT_READY", f"draft {draft_id} is {row.status}, not ready")
         spec = AgentSpec.model_validate(row.spec)
@@ -342,6 +392,7 @@ def create_app(
                     "owned_devices": spec.owned,
                     "permissions": spec.permissions,
                     "spec_id": row.id,
+                    "created_by": row.owner or who.id,
                 }
             )
         except HubError as e:

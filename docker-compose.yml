@@ -6,7 +6,7 @@
 #   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)
 #   studio     Agent Studio: makes agents from plain language (LangChain + OpenRouter)
 #   hub-web    Agent Hub screen (agent_hub_FE, Next.js)
-#   postgres   the databases of the Hub, Studio and the Collector
+#   postgres   the databases of the Hub (with accounts), Studio and the Collector
 #
 # Tokens and keys come from the root .env (scripts/setup.sh writes it; add OPENROUTER_API_KEY).
 # Ports are published on 127.0.0.1 only.
@@ -102,7 +102,7 @@ services:
 
   hub-web:
     build: ./agent_hub_FE
-    env_file: .env  # HOME_USER_TOKEN, DASHBOARD_TOKEN: read on the server side only
+    env_file: .env  # DASHBOARD_TOKEN, read on the server side only; people log in with accounts
     environment:
       HUB_URL: http://hub:8400
       STUDIO_URL: http://studio:8500

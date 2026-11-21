@@ -39,6 +39,10 @@ class HubClient:
     def ownership(self) -> dict[str, str | None]:
         return self._call("GET", "/ownership")
 
+    def me(self, token: str) -> dict[str, Any]:
+        """Who a Bearer token belongs to (Hub GET /auth/me): a person's login session, mostly."""
+        return self._call("GET", "/auth/me", headers={"Authorization": f"Bearer {token}"})
+
     def register(self, registration: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/agents", json=registration)
 

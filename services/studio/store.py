@@ -39,6 +39,8 @@ class DraftRow(Base):
     summary: Mapped[list[str]] = mapped_column(default=list)
     files: Mapped[dict[str, Any]] = mapped_column(default=dict)
     agent_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    # The account that wrote the request (a Hub login id) or the config user (home_user).
+    owner: Mapped[str | None] = mapped_column(String(64), index=True)
     port: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

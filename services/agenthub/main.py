@@ -11,6 +11,11 @@
 - Running: with HUB_LAUNCHER_URL, connecting a Studio-made agent hands its token to the launcher in
   the agents container (../scripts/launcher.mjs), which starts it; disconnecting or removing stops
   it. The token is passed once and only its hash stays here.
+- People: anyone can sign up (POST /auth/signup) and log in (POST /auth/login); the session token
+  is a Bearer token like the config callers' (agenthub/accounts.py). An account sees the home's own
+  agents, its own, the shared ones (the catalog: GET /agents?shared=true) and whatever is connected
+  now. It can share what it made (POST /agents/{id}/share), star any agent it sees, and install
+  (connect) them. Config callers (home_user, dashboard, services, agents) see everything.
 - Monitoring: GET /agents/{id}/activity joins the Hub's own record of the agent (registered,
   connected ...) with the requests it took part in, from the Event Collector's GET /flows.
 
@@ -25,21 +30,27 @@ import os
 import secrets
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import URL, select
+from sqlalchemy import URL, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from agenthub.accounts import check_password, expired, hash_password, new_session
 from agenthub.cards import CardError, CardInfo, fetch_card, read_card
 from agenthub.store import (
     AgentRow,
     AuditRow,
     Base,
     ConnectionRow,
+    SessionRow,
+    StarRow,
+    UserRow,
     active_connection,
     audit,
     now,
@@ -48,7 +59,7 @@ from agenthub.store import (
 )
 from common.auth import make_auth
 from common.cors import allow_dashboards
-from common.db import database_url, make_engine
+from common.db import add_missing_columns, database_url, ensure_database, make_engine
 from common.logs import hide_tokens_in_server_logs
 from homeconfig import HomeConfig, load_config
 from homeconfig.models import Caller, EntityId, FieldName, Role
@@ -66,8 +77,32 @@ Permission = Annotated[
 ]
 
 
+# Login ids: lower case, digits and _, shown as @id. Config caller ids and these are not available.
+UserId = Annotated[str, Field(pattern=r"^[a-z0-9_]{3,20}$")]
+RESERVED_IDS = {"platform", "admin", "root", "studio", "runtime", "hub", "system", "anonymous"}
+
+
 class _In(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class SignupRequest(_In):
+    username: UserId
+    name: Annotated[str, Field(min_length=1, max_length=40)]
+    password: Annotated[str, Field(min_length=6, max_length=128)]
+
+
+class LoginRequest(_In):
+    username: Annotated[str, Field(min_length=1, max_length=64)]
+    password: Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class ShareRequest(_In):
+    shared: bool
+
+
+class StarRequest(_In):
+    starred: bool
 
 
 class AgentRegistration(_In):
@@ -84,6 +119,7 @@ class AgentRegistration(_In):
     provided_fields: list[FieldName] = []
     permissions: list[Permission] = []
     spec_id: Annotated[str, Field(max_length=64)] | None = None
+    created_by: Annotated[str, Field(max_length=64)] | None = None  # who approved it in Studio
 
 
 class DiscoverRequest(_In):
@@ -119,6 +155,26 @@ class AgentOut(BaseModel):
     connected: bool
     connection_id: str | None
     created_at: datetime
+    created_by: str | None = Field(default=None, description="account that made or added it")
+    creator_name: str | None = None
+    shared: bool = Field(default=False, description="listed in the catalog for every account")
+    mine: bool = Field(default=False, description="made or added by the caller")
+    stars: int = 0
+    starred: bool = Field(default=False, description="starred by the caller")
+    installs: int = Field(default=0, description="how many times it was connected")
+
+
+class UserOut(BaseModel):
+    id: str
+    name: str
+    role: str
+    member: bool = Field(description="a Hub account (False: a config caller such as home_user)")
+
+
+class SessionOut(BaseModel):
+    user: UserOut
+    token: str = Field(description="session token, shown once; the Hub keeps only its hash")
+    expires_at: datetime
 
 
 class ConnectionOut(BaseModel):
@@ -192,7 +248,36 @@ def _token_env(agent_id: str) -> str:
     return "AMBIENT_TOKEN_" + agent_id.upper().replace("-", "_")
 
 
-def _agent_out(row: AgentRow, conn: ConnectionRow | None) -> AgentOut:
+@dataclass
+class View:
+    """What an agent looks like to one caller: names of makers, stars and installs."""
+
+    viewer: str | None = None
+    names: dict[str, str] = field(default_factory=dict)
+    stars: dict[str, int] = field(default_factory=dict)
+    starred: set[str] = field(default_factory=set)
+    installs: dict[str, int] = field(default_factory=dict)
+
+
+def view_of(db: Session, viewer: str | None) -> View:
+    count = func.count()
+    return View(
+        viewer=viewer,
+        names=dict(db.execute(select(UserRow.id, UserRow.name)).all()),
+        stars=dict(db.execute(select(StarRow.agent_id, count).group_by(StarRow.agent_id)).all()),
+        starred=set(db.scalars(select(StarRow.agent_id).where(StarRow.user_id == viewer))),
+        installs=dict(
+            db.execute(
+                select(ConnectionRow.agent_id, count)
+                .where(ConnectionRow.created_by != "platform")
+                .group_by(ConnectionRow.agent_id)
+            ).all()
+        ),
+    )
+
+
+def _agent_out(row: AgentRow, conn: ConnectionRow | None, view: View | None = None) -> AgentOut:
+    v = view or View()
     return AgentOut(
         id=row.id,
         name=row.name,
@@ -210,6 +295,13 @@ def _agent_out(row: AgentRow, conn: ConnectionRow | None) -> AgentOut:
         connected=conn is not None,
         connection_id=conn.id if conn else None,
         created_at=row.created_at,
+        created_by=row.created_by,
+        creator_name=v.names.get(row.created_by) if row.created_by else None,
+        shared=bool(row.shared),
+        mine=v.viewer is not None and row.created_by == v.viewer,
+        stars=v.stars.get(row.id, 0),
+        starred=row.id in v.starred,
+        installs=v.installs.get(row.id, 0),
     )
 
 
@@ -372,7 +464,10 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         hide_tokens_in_server_logs()
+        ensure_database(db_url)
         Base.metadata.create_all(engine)
+        for added in add_missing_columns(engine, Base.metadata):
+            log.info("database: added column %s", added)
         with sessions() as db:
             seed_platform_agents(db, config)
         task = (
@@ -400,6 +495,73 @@ def create_app(
             yield db
 
     DB = Annotated[Session, Depends(get_db)]
+    bearer = HTTPBearer(auto_error=False)
+    Cred = Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]
+
+    def anyone(cred: Cred, db: DB) -> Caller:
+        """A config caller (agents.yaml tokens) or an account with a live login session."""
+        if cred is not None:
+            found = config.caller_by_token(cred.credentials)
+            if found is not None:
+                return found
+            s = db.get(SessionRow, token_hash(cred.credentials))
+            if s is not None and not expired(s.expires_at):
+                return Caller(id=s.user_id, role=Role.USER, token=cred.credentials)
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "missing or unknown bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    def a_user(who: Annotated[Caller, Depends(anyone)]) -> Caller:
+        if who.role is not Role.USER:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "user only")
+        return who
+
+    Anyone = Annotated[Caller, Depends(anyone)]
+    User = Annotated[Caller, Depends(a_user)]
+
+    def member(who: Caller) -> bool:
+        """An account, not a config caller (those see and manage everything)."""
+        return who.id not in config.callers
+
+    def visible(row: AgentRow, who: Caller, connected: bool) -> bool:
+        return (
+            not member(who)
+            or row.origin == "platform"
+            or bool(row.shared)
+            or row.created_by == who.id
+            or connected
+        )
+
+    def seen_agent(db: Session, agent_id: str, who: Caller) -> AgentRow:
+        """An agent the caller may see; others are reported as unknown."""
+        row = find_agent(db, agent_id)
+        if not visible(row, who, active_connection(db, agent_id) is not None):
+            raise _problem(404, "UNKNOWN_AGENT", f"no agent {agent_id!r}")
+        return row
+
+    def made_by(row: AgentRow, who: Caller) -> None:
+        if member(who) and row.created_by != who.id:
+            raise _problem(403, "NOT_CREATOR", f"only @{row.created_by} can change {row.id}")
+
+    def user_out(db: Session, who: Caller) -> UserOut:
+        if member(who):
+            row = db.get(UserRow, who.id)
+            return UserOut(id=who.id, name=row.name if row else who.id, role=who.role, member=True)
+        return UserOut(id=who.id, name=who.id, role=who.role, member=False)
+
+    def start_session(db: Session, user: UserRow) -> SessionOut:
+        token, expires_at = new_session()
+        db.execute(
+            SessionRow.__table__.delete().where(
+                SessionRow.user_id == user.id, SessionRow.expires_at < now()
+            )
+        )
+        db.add(SessionRow(token_hash=token_hash(token), user_id=user.id, expires_at=expires_at))
+        db.commit()
+        out = UserOut(id=user.id, name=user.name, role=Role.USER, member=True)
+        return SessionOut(user=out, token=token, expires_at=expires_at)
 
     def find_agent(db: Session, agent_id: str) -> AgentRow:
         row = db.get(AgentRow, agent_id)
@@ -429,8 +591,47 @@ def create_app(
     async def health() -> dict:
         return {"ok": True}
 
+    @app.post("/auth/signup", status_code=status.HTTP_201_CREATED)
+    def signup(body: SignupRequest, db: DB) -> SessionOut:
+        """Make an account and log it in. Open to anyone (a demo: no terms, no e-mail check)."""
+        taken = (
+            body.username in config.callers
+            or body.username in RESERVED_IDS
+            or db.get(UserRow, body.username) is not None
+        )
+        if taken:
+            raise _problem(409, "USERNAME_TAKEN", f"@{body.username} is taken")
+        user = UserRow(
+            id=body.username, name=body.name.strip(), password=hash_password(body.password)
+        )
+        db.add(user)
+        audit(db, user.id, "signup")
+        db.flush()
+        return start_session(db, user)
+
+    @app.post("/auth/login")
+    def login(body: LoginRequest, db: DB) -> SessionOut:
+        user = db.get(UserRow, body.username.strip().lower())
+        if user is None or not check_password(body.password, user.password):
+            raise _problem(401, "BAD_LOGIN", "wrong id or password")
+        return start_session(db, user)
+
+    @app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+    def logout(cred: Cred, db: DB) -> Response:
+        if cred is not None:
+            s = db.get(SessionRow, token_hash(cred.credentials))
+            if s is not None:
+                db.delete(s)
+                db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @app.get("/auth/me")
+    def me(db: DB, who: Anyone) -> UserOut:
+        """Who this token is: an account, or a config caller. Studio asks this for a session."""
+        return user_out(db, who)
+
     @app.get("/spaces")
-    def list_spaces(db: DB, _: auth.caller) -> list[SpaceOut]:
+    def list_spaces(db: DB, _: Anyone) -> list[SpaceOut]:
         now_owned = owners(db)
         return [
             SpaceOut(
@@ -449,14 +650,14 @@ def create_app(
         ]
 
     @app.get("/ownership")
-    def ownership(db: DB, _: auth.caller) -> dict[str, str | None]:
+    def ownership(db: DB, _: Anyone) -> dict[str, str | None]:
         now_owned = owners(db)
         return {entity: now_owned.get(entity) for entity in config.devices}
 
     @app.get("/agents")
     def list_agents(
         db: DB,
-        _: auth.caller,
+        who: Anyone,
         q: Annotated[str | None, Query(max_length=80)] = None,
         skill: str | None = None,
         space: str | None = None,
@@ -464,15 +665,28 @@ def create_app(
         origin: str | None = None,
         connected: bool | None = None,
         include_removed: bool = False,
+        shared: bool | None = None,
+        mine: bool | None = None,
+        sort: Literal["created", "stars", "installs", "new"] = "created",
     ) -> list[AgentOut]:
+        """Search. `shared=true` is the catalog (agents people shared), `mine=true` what the caller
+        made or added. An account sees only the agents `visible` to it."""
         conns = {
             c.agent_id: c for c in db.scalars(select(ConnectionRow).where(ConnectionRow.active))
         }
+        view = view_of(db, who.id)
         found = []
         for row in db.scalars(select(AgentRow).order_by(AgentRow.created_at, AgentRow.id)):
             if row.removed and not include_removed:
                 continue
-            text = f"{row.id} {row.name} {row.description}".lower()
+            if not visible(row, who, row.id in conns):
+                continue
+            if shared is not None and bool(row.shared) != shared:
+                continue
+            if mine is not None and (row.created_by == who.id) != mine:
+                continue
+            maker = view.names.get(row.created_by or "", "")
+            text = f"{row.id} {row.name} {row.description} {row.created_by or ''} {maker}".lower()
             if q and q.lower() not in text:
                 continue
             if skill and skill not in row.skills:
@@ -483,15 +697,22 @@ def create_app(
                 continue
             if connected is not None and (row.id in conns) != connected:
                 continue
-            found.append(_agent_out(row, conns.get(row.id)))
+            found.append(_agent_out(row, conns.get(row.id), view))
+        if sort == "stars":
+            found.sort(key=lambda a: (a.stars, a.installs), reverse=True)
+        elif sort == "installs":
+            found.sort(key=lambda a: (a.installs, a.stars), reverse=True)
+        elif sort == "new":
+            found.sort(key=lambda a: a.created_at, reverse=True)
         return found
 
     @app.get("/agents/{agent_id}")
-    def get_agent(agent_id: str, db: DB, _: auth.caller) -> AgentOut:
+    def get_agent(agent_id: str, db: DB, who: Anyone) -> AgentOut:
         row = db.get(AgentRow, agent_id)
-        if row is None:
+        conn = active_connection(db, agent_id)
+        if row is None or not visible(row, who, conn is not None):
             raise _problem(404, "UNKNOWN_AGENT", f"no agent {agent_id!r}")
-        return _agent_out(row, active_connection(db, agent_id))
+        return _agent_out(row, conn, view_of(db, who.id))
 
     @app.post("/agents", status_code=status.HTTP_201_CREATED)
     def register_agent(reg: AgentRegistration, db: DB, who: auth.service) -> AgentOut:
@@ -506,12 +727,12 @@ def create_app(
             db.flush()
         row = AgentRow(origin="studio", **reg.model_dump())
         db.add(row)
-        audit(db, who.id, "register", reg.id, detail=f"skills: {', '.join(reg.skills)}")
+        audit(db, reg.created_by or who.id, "register", reg.id, detail=", ".join(reg.skills))
         db.commit()
-        return _agent_out(row, None)
+        return _agent_out(row, None, view_of(db, reg.created_by))
 
     @app.post("/agents/discover", status_code=status.HTTP_201_CREATED)
-    def discover_agent(body: DiscoverRequest, db: DB, who: auth.user) -> AgentOut:
+    def discover_agent(body: DiscoverRequest, db: DB, who: User) -> AgentOut:
         """Register an external agent from its Agent Card. Registering grants nothing: the agent
         works only after the user connects it and approves its permissions."""
         try:
@@ -546,15 +767,16 @@ def create_app(
             provided_fields=info.provided_fields,
             permissions=[f"device:{d}" for d in info.owned_devices],
             card=card,
+            created_by=who.id,
         )
         db.add(row)
         audit(db, who.id, "discover", agent_id, detail=info.base_url)
         db.commit()
-        return _agent_out(row, None)
+        return _agent_out(row, None, view_of(db, who.id))
 
     @app.post("/agents/{agent_id}/refresh")
-    def refresh_agent(agent_id: str, db: DB, who: auth.user) -> AgentOut:
-        row = find_agent(db, agent_id)
+    def refresh_agent(agent_id: str, db: DB, who: User) -> AgentOut:
+        row = seen_agent(db, agent_id, who)
         if not row.url:
             raise _problem(422, "NO_URL", f"{agent_id} has no A2A URL")
         try:
@@ -565,15 +787,16 @@ def create_app(
         _apply_card(row, info, card)
         audit(db, who.id, "refresh", agent_id)
         db.commit()
-        return _agent_out(row, active_connection(db, agent_id))
+        return _agent_out(row, active_connection(db, agent_id), view_of(db, who.id))
 
     @app.delete("/agents/{agent_id}")
-    def remove_agent(agent_id: str, db: DB, who: auth.user) -> AgentOut:
-        row = find_agent(db, agent_id)
+    def remove_agent(agent_id: str, db: DB, who: User) -> AgentOut:
+        row = seen_agent(db, agent_id, who)
         if row.origin == "platform":
             raise _problem(
                 400, "PLATFORM_AGENT", "platform agents can be disconnected, not removed"
             )
+        made_by(row, who)
         conn = active_connection(db, agent_id)
         if conn is not None:
             _revoke(conn, who)
@@ -582,7 +805,34 @@ def create_app(
         audit(db, who.id, "remove", agent_id)
         db.commit()
         launch(row, None)
-        return _agent_out(row, None)
+        return _agent_out(row, None, view_of(db, who.id))
+
+    @app.post("/agents/{agent_id}/share")
+    def share_agent(agent_id: str, body: ShareRequest, db: DB, who: User) -> AgentOut:
+        """List the agent in the catalog for every account (or take it back). Its maker only."""
+        row = seen_agent(db, agent_id, who)
+        if row.origin == "platform":
+            raise _problem(400, "PLATFORM_AGENT", "the home's own agents are not shared")
+        made_by(row, who)
+        row.shared = body.shared
+        row.updated_at = now()
+        audit(db, who.id, "share" if body.shared else "unshare", agent_id)
+        db.commit()
+        return _agent_out(row, active_connection(db, agent_id), view_of(db, who.id))
+
+    @app.post("/agents/{agent_id}/star")
+    def star_agent(agent_id: str, body: StarRequest, db: DB, who: User) -> AgentOut:
+        """Star (or unstar) an agent the account sees. Config callers have no stars."""
+        row = seen_agent(db, agent_id, who)
+        if not member(who):
+            raise _problem(403, "ACCOUNT_ONLY", "log in with an account to star agents")
+        star = db.get(StarRow, (who.id, agent_id))
+        if body.starred and star is None:
+            db.add(StarRow(user_id=who.id, agent_id=agent_id))
+        elif not body.starred and star is not None:
+            db.delete(star)
+        db.commit()
+        return _agent_out(row, active_connection(db, agent_id), view_of(db, who.id))
 
     def _revoke(conn: ConnectionRow, who: Caller) -> None:
         conn.active = False
@@ -591,7 +841,7 @@ def create_app(
 
     @app.get("/connections")
     def list_connections(
-        db: DB, _: auth.caller, agent_id: str | None = None, active: bool | None = None
+        db: DB, _: Anyone, agent_id: str | None = None, active: bool | None = None
     ) -> list[ConnectionOut]:
         query = select(ConnectionRow).order_by(ConnectionRow.created_at)
         if agent_id is not None:
@@ -601,10 +851,10 @@ def create_app(
         return [_connection_out(c) for c in db.scalars(query)]
 
     @app.post("/connections", status_code=status.HTTP_201_CREATED)
-    def connect(body: ConnectRequest, db: DB, who: auth.user) -> Connected:
+    def connect(body: ConnectRequest, db: DB, who: User) -> Connected:
         """Connect an agent with the permissions the user approved. Each device keeps exactly one
         owner: a device another connected agent owns must be released (disconnected) first."""
-        row = find_agent(db, body.agent_id)
+        row = seen_agent(db, body.agent_id, who)
         if active_connection(db, row.id) is not None:
             raise _problem(409, "ALREADY_CONNECTED", f"{row.id} is already connected")
         approved = row.permissions if body.permissions is None else body.permissions
@@ -651,7 +901,7 @@ def create_app(
         )
 
     @app.delete("/connections/{connection_id}")
-    def disconnect(connection_id: str, db: DB, who: auth.user) -> Launched:
+    def disconnect(connection_id: str, db: DB, who: User) -> Launched:
         conn = db.get(ConnectionRow, connection_id)
         if conn is None:
             raise _problem(404, "UNKNOWN_CONNECTION", f"no connection {connection_id!r}")
@@ -665,7 +915,7 @@ def create_app(
         return Launched(**_connection_out(conn).model_dump(), launch=stopped)
 
     @app.post("/tokens/verify")
-    def verify_token(body: VerifyRequest, db: DB, who: auth.caller) -> VerifyResult:
+    def verify_token(body: VerifyRequest, db: DB, who: Anyone) -> VerifyResult:
         """For the Gateway and the agents: is this Hub-issued token connected, and for what?"""
         if who.role not in (Role.AGENT, Role.SERVICE):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "agents and services only")
@@ -681,14 +931,14 @@ def create_app(
         )
 
     @app.get("/runtime/peers")
-    def runtime_peers(db: DB, _: auth.caller) -> dict[str, str]:
+    def runtime_peers(db: DB, _: Anyone) -> dict[str, str]:
         """A2A base URL of every connected agent (what agents/shared.json5 `peers` lists today)."""
         conns = {c.agent_id for c in db.scalars(select(ConnectionRow).where(ConnectionRow.active))}
         rows = db.scalars(select(AgentRow).where(AgentRow.id.in_(conns)))
         return {r.id: r.url for r in rows if r.url}
 
     @app.get("/runtime/acl/{agent_id}")
-    def runtime_acl(agent_id: str, db: DB, _: auth.caller) -> dict[str, list[str]]:
+    def runtime_acl(agent_id: str, db: DB, _: Anyone) -> dict[str, list[str]]:
         """Which connected agents the user allowed to read which of `agent_id`'s context fields
         (`context:<agent_id>.<field>` permissions): the plugin's `fieldAcl`, from the Hub."""
         acl: dict[str, list[str]] = {}
@@ -700,17 +950,18 @@ def create_app(
 
     @app.get("/audit")
     def list_audit(
-        db: DB, _: auth.caller, limit: Annotated[int, Query(ge=1, le=500)] = 100
+        db: DB, _: Anyone, limit: Annotated[int, Query(ge=1, le=500)] = 100
     ) -> list[AuditOut]:
         rows = db.scalars(select(AuditRow).order_by(AuditRow.id.desc()).limit(limit))
         return [_audit_out(r) for r in rows]
 
     @app.get("/agents/{agent_id}/activity")
     def agent_activity(
-        agent_id: str, db: DB, _: auth.caller, limit: Annotated[int, Query(ge=1, le=100)] = 20
+        agent_id: str, db: DB, who: Anyone, limit: Annotated[int, Query(ge=1, le=100)] = 20
     ) -> AgentActivity:
         """One agent's history: what the Hub did with it and the requests it handled."""
-        if db.get(AgentRow, agent_id) is None:
+        row = db.get(AgentRow, agent_id)
+        if row is None or not visible(row, who, active_connection(db, agent_id) is not None):
             raise _problem(404, "UNKNOWN_AGENT", f"no agent {agent_id!r}")
         rows = db.scalars(
             select(AuditRow)
