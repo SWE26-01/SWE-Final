@@ -114,6 +114,9 @@ export class Publisher {
   }
 }
 
+/** "true"/"False" (as models often write them) -> boolean; anything else unchanged. */
+export const asBoolean = (v: unknown) => (typeof v === "string" && /^(true|false)$/i.test(v.trim()) ? v.trim().toLowerCase() === "true" : v);
+
 // --- automation: rules fire when a just-accepted update sets field == equals.
 export type Rule = { field: string; equals: unknown; actions: (Action | { macro: "energy_saving" })[] };
 export const firedRules = (rules: Rule[], data: Record<string, unknown>) =>

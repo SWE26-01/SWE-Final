@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ContextStore, Publisher, checkPolicy, checkRequester, route, type Policy } from "./core.ts";
+import { ContextStore, Publisher, asBoolean, checkPolicy, checkRequester, route, type Policy } from "./core.ts";
 import { createAgent, type Config } from "./agent.ts";
 import { agentCard, cardInfo, readData, taskResult } from "./a2a.ts";
 
@@ -72,6 +72,10 @@ describe("core", () => {
     expect(p.publish({ pc_state: "IDLE" }, 60, 0).room1.sequence).toBe(out.room1.sequence + 1); // monotonic even if the clock goes back
     expect(() => p.publish({ meeting_title: "secret" }, 60)).toThrow();
     expect(p.query("orchestrator", ["pc_state"]).values).toEqual({});
+  });
+
+  it("boolean-looking strings from the model become booleans", () => {
+    expect([asBoolean("True"), asBoolean(" false "), asBoolean(true), asBoolean("AWAY"), asBoolean(1)]).toEqual([true, false, true, "AWAY", 1]);
   });
 
   it("wire: reads v1.0 and v0.3 DataParts", () => {

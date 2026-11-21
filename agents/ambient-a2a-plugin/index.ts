@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Type } from "typebox";
 import { createAgent, type Config } from "./src/agent.ts";
 import { readData, rpcError, taskResult } from "./src/a2a.ts";
+import { asBoolean } from "./src/core.ts";
 
 const BASE = "/plugins/ambient";
 const MAX_BODY = 1 << 20;
@@ -96,7 +97,8 @@ export default {
         "ambient_publish",
         "Publish the user's current state to subscribed agents. Pass only the fields that changed. Never include raw personal data (titles, locations).",
         Object.fromEntries((cfg.provides ?? []).map((f) => [f, Type.Optional(Type.Union([Type.String(), Type.Boolean(), Type.Number()]))])),
-        (fields) => agent.publish(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))),
+        // Models sometimes pass "True"/"false" as strings; rules compare with real booleans.
+        (fields) => agent.publish(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined).map(([k, v]) => [k, asBoolean(v)]))),
       );
 
     if (cfg.role !== "external") {
