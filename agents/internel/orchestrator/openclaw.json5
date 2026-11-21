@@ -9,7 +9,7 @@
       skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
     },
   },
-  // Lean prompt: only Ambient-A2A tools, exposed directly (no tool_search indirection), no bundled skills.
+  // Lean prompt: only the ambient-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
   tools: { profile: "minimal", alsoAllow: ["ambient-a2a"], toolSearch: false },
   skills: { allowBundled: [] },
   plugins: {

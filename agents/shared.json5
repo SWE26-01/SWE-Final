@@ -1,4 +1,4 @@
-// Shared Ambient-A2A settings merged into every agent's plugin config.
+// Shared plugin settings merged into every agent's plugin config.
 {
   peers: {
     desktop: "http://127.0.0.1:18800/plugins/ambient",

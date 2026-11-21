@@ -1,13 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 import { ContextStore, Publisher, checkPolicy, checkRequester, route, type Policy } from "./core.ts";
 import { createAgent, type Config } from "./agent.ts";
-import { readData, taskResult } from "./a2a.ts";
+import { agentCard, cardInfo, readData, taskResult } from "./a2a.ts";
 
 const sleep: Policy = {
   when: { entity: "input_boolean.room2_sleep_mode", state: "on" },
   deny: { devices: ["input_boolean.room2_ac"], commands: ["TURN_OFF"] },
   message: "Temperature regulation must remain enabled.",
 };
+
+describe("Agent Card", () => {
+  const card = agentCard({ agentId: "room1", role: "room", space: "my_room", publicUrl: "http://a/plugins/ambient",
+    owned: ["input_boolean.room1_light"], provides: [] });
+
+  it("uses only standard A2A v1.0 fields: no extensions", () => {
+    expect(card.capabilities).toEqual({ streaming: false, pushNotifications: false });
+    expect(Object.keys(card).sort()).toEqual(["capabilities", "defaultInputModes", "defaultOutputModes", "description", "name",
+      "securityRequirements", "securitySchemes", "skills", "supportedInterfaces", "version"]);
+    for (const s of card.skills) expect(Object.keys(s).sort()).toEqual(["description", "id", "inputModes", "name", "outputModes", "tags"]);
+  });
+
+  it("tells role, space, devices and fields through skill tags", () => {
+    expect(cardInfo(card)).toEqual({ role: "room", space: "my_room", owned_devices: ["input_boolean.room1_light"], provided_fields: [] });
+    const desktop = agentCard({ agentId: "desktop", role: "external", publicUrl: "http://d", owned: [], provides: ["meeting_app_active"] });
+    expect(cardInfo(desktop)).toMatchObject({ role: "external", space: undefined, provided_fields: ["meeting_app_active"] });
+    expect(cardInfo({ name: "plain" })).toEqual({ role: undefined, space: undefined, owned_devices: [], provided_fields: [] });
+  });
+});
 
 describe("core", () => {
   it("requester ACL matches device, command or *", () => {

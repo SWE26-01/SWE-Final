@@ -1,4 +1,4 @@
-// Ambient-A2A agent runtime: inbound message handling, delegation, automation, subscriptions.
+// Agent runtime: inbound message handling, delegation, automation, subscriptions.
 // SDK-free so it can be driven by the OpenClaw plugin entry (index.ts) or by tests.
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -7,7 +7,7 @@ import {
   type Action, type Decision, type Policy, type Role, type Rule, type ContextUpdate,
   ContextStore, Publisher, checkPolicy, checkRequester, deny, firedRules, ok, route,
 } from "./core.ts";
-import { agentCard, extParams, fetchCard, send } from "./a2a.ts";
+import { agentCard, cardInfo, fetchCard, send } from "./a2a.ts";
 import { deviceClient } from "./devices.ts";
 
 export type Config = {
@@ -87,8 +87,8 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     for (const [id, url] of Object.entries(cfg.peers)) {
       if (id === cfg.agentId) continue;
       try {
-        const p = extParams(await fetchCard(url));
-        if (p?.role !== "room") continue;
+        const p = cardInfo(await fetchCard(url));
+        if (p.role !== "room") continue;
         rooms.add(id);
         for (const d of p.owned_devices) ownership[d] = id;
       } catch {
@@ -240,7 +240,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
     });
   }
 
-  const card = agentCard({ agentId: cfg.agentId, role: cfg.role, space: cfg.space, publicUrl: cfg.publicUrl, owned, provides: cfg.provides ?? [], energySaving: cfg.energySaving });
+  const card = agentCard({ agentId: cfg.agentId, role: cfg.role, space: cfg.space, publicUrl: cfg.publicUrl, owned, provides: cfg.provides ?? [] });
 
   return { card, inbound, control, publish, status, call, energySavingAll, startSubscriptions };
 }

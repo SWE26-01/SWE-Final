@@ -1,4 +1,4 @@
-// OpenClaw plugin entry: exposes the Ambient-A2A endpoint + agent tools for one agent profile.
+// OpenClaw plugin entry: exposes the A2A v1.0 endpoint + agent tools for one agent profile.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Type } from "typebox";
 import { createAgent, type Config } from "./src/agent.ts";
@@ -35,8 +35,8 @@ const ActionParams = {
 
 export default {
   id: "ambient-a2a",
-  name: "Ambient-A2A",
-  description: "Ambient-A2A smart-home extension over A2A v1.0 (context sharing, subscription, ownership, policy)",
+  name: "Ambient A2A",
+  description: "Smart-home agents over standard A2A v1.0 (context sharing, subscription, ownership, policy)",
   register(api: any) {
     const cfg = api.pluginConfig as Config;
     if (!cfg?.agentId) return api.logger.warn("ambient-a2a: plugins.entries.ambient-a2a.config.agentId missing; disabled");
@@ -61,11 +61,10 @@ export default {
         if (rpc.method !== "SendMessage" && rpc.method !== "message/send")
           return json(res, 200, rpcError(rpc.id, rpc.method === "GetTask" ? -32004 : -32601, `unsupported method ${rpc.method}`)), true;
         const data = readData(rpc.params);
-        if (!data) return json(res, 200, rpcError(rpc.id, -32602, "Ambient-A2A requires a DataPart")), true;
+        if (!data) return json(res, 200, rpcError(rpc.id, -32602, "a request needs a DataPart")), true;
 
         const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
         const result = await agent.inbound(token, data);
-        res.setHeader("A2A-Extensions", "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1");
         // PARTIAL = some sub-actions ran, so the task completed; per-device verdicts live in result.results.
         const completed = result.accepted || result.reason_code === "PARTIAL";
         return json(res, 200, taskResult(rpc.id, rpc.params?.message?.contextId, result, completed)), true;
@@ -86,7 +85,7 @@ export default {
 
     tool(
       "ambient_request",
-      "Ask another Ambient-A2A agent to control a device (device.control). The target agent decides; the reply says accepted or rejected with reason_code.",
+      "Ask another agent to control a device (device.control). The target agent decides; the reply says accepted or rejected with reason_code.",
       { target: Type.String({ description: `Agent id: ${Object.keys(cfg.peers).join(", ")}` }), ...ActionParams, reason_code: Type.Optional(Type.String()) },
       ({ target, reason_code, ...action }) => agent.call(target, { type: "device.control", request_id: crypto.randomUUID(), target, action, reason_code }),
     );

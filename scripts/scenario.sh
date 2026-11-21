@@ -19,7 +19,7 @@ update() { # seq expires_offset_hours meeting_bool
 }
 SEQ=$(( $(date +%s) * 1000 )) # ms, like publishers (clock-seeded sequences)
 
-step "8. interop: a2a-sdk resolves every Agent Card + Ambient-A2A extension"
+step "8. interop: a2a-sdk resolves every standard Agent Card (no extensions)"
 probe cards
 
 step "A. desktop → home → room1: light meeting mode (home checks ACL, delegates; room1 decides)"

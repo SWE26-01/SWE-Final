@@ -1,6 +1,4 @@
-// Pure Ambient-A2A decision logic (no I/O) — everything here is unit-tested.
-
-export const EXT_URI = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1";
+// Pure decision logic (no I/O) — everything here is unit-tested.
 
 export type Role = "external" | "home" | "room";
 export type Command = "TURN_ON" | "TURN_OFF" | "SET" | "ENERGY_SAVING";
@@ -24,20 +22,20 @@ export type ContextUpdate = {
 export const ok = (message = "OK"): Decision => ({ accepted: true, reason_code: "OK", message });
 export const deny = (reason_code: string, message: string): Decision => ({ accepted: false, reason_code, message });
 
-// --- Extension 3: requester ACL. Entries match a device id, a command, or "*".
+// --- Requester ACL. Entries match a device id, a command, or "*".
 export function checkRequester(requester: string, action: Action, acl: Record<string, string[]>): Decision | null {
   const allowed = acl[requester] ?? [];
   if (allowed.includes("*") || allowed.includes(action.command) || (action.device && allowed.includes(action.device))) return null;
   return deny("UNAUTHORIZED", `${requester} may not request ${action.command} ${action.device ?? ""}`.trim());
 }
 
-// --- Extension 3: who executes this device. "self" | owner agentId | null
+// --- Ownership: who executes this device. "self" | owner agentId | null
 export function route(device: string, owned: string[], ownership: Record<string, string>): string | null {
   if (owned.includes(device)) return "self";
   return ownership[device] ?? null;
 }
 
-// --- Extension 4: space policy. states = current device states (Device Gateway) of the `when` entities.
+// --- Space policy. states = current device states (Device Gateway) of the `when` entities.
 export function checkPolicy(action: Action, policies: Policy[], states: Record<string, string>): Decision | null {
   for (const p of policies) {
     if (states[p.when.entity] !== p.when.state) continue;
@@ -48,7 +46,7 @@ export function checkPolicy(action: Action, policies: Policy[], states: Record<s
   return null;
 }
 
-// --- Extension 1: receiver side. Drops out-of-order or expired updates.
+// --- Context sharing, receiver side. Drops out-of-order or expired updates.
 export class ContextStore {
   private last: Record<string, number> = {};
   fields: Record<string, { value: unknown; source: string; expires_at: string }> = {};
@@ -67,7 +65,7 @@ export class ContextStore {
   }
 }
 
-// --- Extensions 1+2: publisher side (external agents). Only `provides` fields ever leave the agent.
+// --- Context sharing and subscription, publisher side (external agents). Only `provides` fields ever leave the agent.
 export class Publisher {
   // Clock-seeded so a restarted publisher keeps sending sequences its subscribers accept.
   sequence = Date.now();
