@@ -12,12 +12,11 @@ from collector.main import create_app
 from common.logs import HideTokens, hide_token
 from homeconfig import load_config
 
-EXT = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1"
-
 
 def card(role: str, owned: list[str]) -> dict:
-    params = {"role": role, "space": "my_room", "owned_devices": owned, "provided_fields": []}
-    return {"name": "x", "capabilities": {"extensions": [{"uri": EXT, "params": params}]}}
+    """Standard Agent Card: role, space and devices are skill tags (no extension)."""
+    tags = [role, "space:my_room", *(f"device:{d}" for d in owned)]
+    return {"name": "x", "skills": [{"id": "device.control", "name": "c", "tags": tags}]}
 
 
 class FakeAgents:

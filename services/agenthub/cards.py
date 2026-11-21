@@ -10,9 +10,9 @@ from typing import Any
 
 import httpx
 
+from common.agentcard import card_tags
 from homeconfig.loader import _on_host as on_host  # 127.0.0.1 -> a host a container can reach
 
-EXT_URI = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1"  # ../spec/ambient-a2a.md
 CARD_PATH = "/.well-known/agent-card.json"
 MAX_CARD_BYTES = 64_000
 
@@ -27,7 +27,7 @@ class CardInfo:
     description: str
     base_url: str  # A2A base URL (the JSON-RPC endpoint is <base>/a2a/v1)
     skills: list[str]
-    role: str | None = None  # None: a plain A2A agent without the Ambient-A2A extension
+    role: str | None = None  # None: a plain A2A agent without the smart-home skill tags
     space: str | None = None
     owned_devices: list[str] = field(default_factory=list)
     provided_fields: list[str] = field(default_factory=list)
@@ -63,8 +63,8 @@ def fetch_card(client: httpx.Client, url: str, agents_host: str | None = None) -
 
 
 def read_card(card: dict[str, Any]) -> CardInfo:
-    """Check the parts the Hub relies on: A2A 1.0 JSON-RPC interface, name, skills, and the
-    Ambient-A2A extension if present."""
+    """Check the parts the Hub relies on: A2A 1.0 JSON-RPC interface, name, and skills (whose
+    standard tags tell role, space, owned devices and shared fields; common/agentcard.py)."""
     name = card.get("name")
     if not isinstance(name, str) or not name.strip():
         raise CardError("card has no name")
@@ -82,24 +82,14 @@ def read_card(card: dict[str, Any]) -> CardInfo:
     if not isinstance(endpoint, str):
         raise CardError("card offers no A2A 1.0 interface")
     skills = [s["id"] for s in card.get("skills") or [] if isinstance(s, dict) and s.get("id")]
-    info: dict[str, Any] = {}
-    extensions = (card.get("capabilities") or {}).get("extensions") or []
-    ext = next((e for e in extensions if isinstance(e, dict) and e.get("uri") == EXT_URI), None)
-    if ext is not None:
-        params = ext.get("params") or {}
-        role = params.get("role")
-        info = {
-            "role": role if role in ("room", "home", "external") else None,
-            "space": params.get("space"),
-            "owned_devices": [d for d in params.get("owned_devices") or [] if isinstance(d, str)],
-            "provided_fields": [
-                f for f in params.get("provided_fields") or [] if isinstance(f, str)
-            ],
-        }
+    tags = card_tags(card)
     return CardInfo(
         name=name.strip()[:80],
         description=str(card.get("description") or "")[:300],
         base_url=endpoint.removesuffix("/a2a/v1"),
         skills=skills,
-        **info,
+        role=tags.role,
+        space=tags.space,
+        owned_devices=tags.owned_devices,
+        provided_fields=tags.provided_fields,
     )

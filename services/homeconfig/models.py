@@ -12,7 +12,7 @@ EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 CallerId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
 # What a device is, independent of the room: light, light_mode, ac, tv, sleep_mode ...
 DeviceKind = Annotated[str, Field(pattern=r"^[a-z][a-z_]*$", max_length=32)]
-# Ambient-A2A context field shared by an external agent, e.g. meeting_app_active
+# Context field shared by an external agent, e.g. meeting_app_active
 FieldName = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=64)]
 
 

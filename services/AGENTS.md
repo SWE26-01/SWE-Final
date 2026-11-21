@@ -25,7 +25,7 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   It never writes rules, device ids, tools or paths: rules come from `config/skills.yaml` through
   `studio/compile.py`, and the runtime's capability lock (`studio/runtime.py`; for OpenClaw
   `harness.check_rendered`) must pass before an agent is written or registered. Generated agents get
-  only the Ambient-A2A tools. There is no Skill Marketplace: users pick a room, never skills.
+  only the ambient-a2a plugin tools. There is no Skill Marketplace: users pick a room, never skills.
   A new runtime (e.g. Python) is one class in `runtime.RUNTIMES`; AgentSpec and the Hub stay as
   they are. New dangerous patterns go in
   `harness._RULES` with a test in `tests/test_studio_harness.py`.

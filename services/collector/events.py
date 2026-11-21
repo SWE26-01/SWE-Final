@@ -59,7 +59,7 @@ class AgentEvent(BaseModel):
     from_: AgentId | None = Field(
         default=None, alias="from", description="peer of an `in` event ('?' if unknown token)"
     )
-    type: Name | None = Field(default=None, description="Ambient-A2A message type")
+    type: Name | None = Field(default=None, description="message type, e.g. device.control")
     request_id: Annotated[str, Field(max_length=128)] | None = None
     on_behalf_of: AgentId | None = Field(default=None, description="original requester")
     action: Action | None = None

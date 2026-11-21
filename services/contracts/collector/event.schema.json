@@ -138,7 +138,7 @@
         }
       ],
       "default": null,
-      "description": "Ambient-A2A message type",
+      "description": "message type, e.g. device.control",
       "title": "Type"
     },
     "request_id": {

@@ -79,7 +79,7 @@ uvicorn studio.main:build --factory --port 8500 --env-file ../.env   # studio.sq
 
 **Studio 하네스**(`studio/harness.py`): ① 요청에 `rm -rf`, `sudo`, `curl … | sh`, 디스크 삭제, 프롬프트 인젝션 등이 있으면 LLM을
 부르지 않고 `blocked`. ② LLM은 템플릿·공간·기기 종류·스킬을 목록(enum)에서 고르기만 하고, 규칙과 기기 id는 코드가 만든다.
-③ 이름·설명 같은 자유 문장도 같은 규칙과 한 줄·마크업 금지로 검사한다. ④ 만든 OpenClaw 프로필은 도구가 Ambient-A2A 플러그인뿐이고
+③ 이름·설명 같은 자유 문장도 같은 규칙과 한 줄·마크업 금지로 검사한다. ④ 만든 OpenClaw 프로필은 도구가 ambient-a2a 플러그인뿐이고
 (셸·파일·웹 도구 없음), 작업 폴더·플러그인 경로가 고정이며, 자기 기기에만 동작하는지 쓰기 전에 다시 검사한다. ⑤ 사용자가 승인해야 등록된다.
 문제가 나오면 LLM에게 돌려보내 최대 2번 다시 채우게 한다. LLM은 `STUDIO_LLM`(기본 LangChain + `OPENROUTER_API_KEY`,
 `STUDIO_MODEL` 기본 `anthropic/claude-haiku-5.5`), `STUDIO_LLM=rules`는 키 없이 도는 키워드 채우기다.

@@ -7,7 +7,7 @@
 3. Output guard (`check_text`): the few free-text slots (name, description, question) are scanned
    like the input, and must be one plain line.
 4. Capability lock (`check_rendered`): the rendered OpenClaw profile must keep the fixed tool
-   allowlist (only the Ambient-A2A plugin; no shell, file or web tools), the fixed workspace and
+   allowlist (only the ambient-a2a plugin; no shell, file or web tools), the fixed workspace and
    plugin paths, ASCII-only config, and devices limited to what the agent owns.
 5. The user approves the draft before anything is written or registered (studio/main.py).
 """
@@ -127,7 +127,7 @@ def check_rendered(
         problems.append("workspace must be the agent's own state directory")
     plugins = profile.get("plugins", {})
     if plugins.get("load") != {"paths": [HOME_PLUGIN_PATH]}:
-        problems.append("only the Ambient-A2A plugin may be loaded")
+        problems.append("only the ambient-a2a plugin may be loaded")
     if set(plugins.get("entries", {})) != {"ambient-a2a"}:
         problems.append("only the ambient-a2a plugin entry is allowed")
     gateway = profile.get("gateway", {})

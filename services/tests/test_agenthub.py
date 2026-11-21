@@ -30,8 +30,9 @@ def meeting_agent(**kw) -> dict:
     }
 
 
-def card(name: str = "weather", version: str = "1.0", **params) -> dict:
-    """An Agent Card shaped like ../agents/ambient-a2a-plugin/src/a2a.ts `agentCard`."""
+def card(name: str = "weather", version: str = "1.0", fields=("rain_expected",)) -> dict:
+    """A standard Agent Card shaped like ../agents/ambient-a2a-plugin/src/a2a.ts `agentCard`:
+    no extensions; role and shared fields are skill tags."""
     base = "http://ext.test/plugins/ambient"
     return {
         "name": name,
@@ -39,15 +40,15 @@ def card(name: str = "weather", version: str = "1.0", **params) -> dict:
         "supportedInterfaces": [
             {"url": f"{base}/a2a/v1", "protocolBinding": "JSONRPC", "protocolVersion": version}
         ],
-        "capabilities": {
-            "extensions": [
-                {
-                    "uri": "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1",
-                    "params": {"role": "external", "provided_fields": ["rain_expected"], **params},
-                }
-            ]
-        },
-        "skills": [{"id": "context.query", "name": "Context query"}],
+        "capabilities": {"streaming": False, "pushNotifications": False},
+        "skills": [
+            {
+                "id": "context.query",
+                "name": "Context query",
+                "description": "Read permitted user-context fields once",
+                "tags": ["external", *(f"field:{f}" for f in fields)],
+            }
+        ],
     }
 
 
@@ -249,7 +250,7 @@ def test_external_agents_sign_up_with_their_card():
 
 
 def test_platform_details_come_from_their_running_cards():
-    desktop = card("desktop", provided_fields=["meeting_app_active", "pc_state"])
+    desktop = card("desktop", fields=("meeting_app_active", "pc_state"))
     transport = serve(
         {"http://127.0.0.1:18800/plugins/ambient/.well-known/agent-card.json": desktop}
     )

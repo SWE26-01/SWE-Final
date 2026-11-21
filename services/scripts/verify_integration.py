@@ -6,7 +6,7 @@ Collector, run ../scripts/scenario.sh, then:
     python scripts/verify_integration.py --env-file ../.env
 
 Checks (plan 8.3, "each Room Agent directly controls only its own devices", plus the log):
-  1. every Agent Card's `owned_devices` matches config/devices.yaml
+  1. every Agent Card's `device:` skill tags match config/devices.yaml
   2. the Gateway refuses each agent's command on a device it does not own,
      and anything that is not a plain device command
   3. the Event Collector has events from every agent
@@ -26,10 +26,10 @@ from dotenv import dotenv_values
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from common.agentcard import card_tags  # noqa: E402
 from homeconfig import HomeConfig, load_config  # noqa: E402
 from homeconfig.models import Role  # noqa: E402
 
-EXT_PREFIX = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/"
 failures: list[str] = []
 
 
@@ -47,12 +47,7 @@ def cards(config: HomeConfig) -> None:
         except httpx.HTTPError as e:
             check(False, f"{agent.id}: card not reachable ({e!r})")
             continue
-        ext = next(
-            (e for e in card.get("capabilities", {}).get("extensions", [])
-             if e.get("uri", "").startswith(EXT_PREFIX)),
-            None,
-        )
-        declared = set((ext or {}).get("params", {}).get("owned_devices", []))
+        declared = set(card_tags(card).owned_devices)
         expected = set(config.owned_by(agent.id))
         check(declared == expected, f"{agent.id}: owns {sorted(expected) or 'nothing'}")
         if declared != expected:

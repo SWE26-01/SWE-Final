@@ -32,7 +32,7 @@ class Template:
     id: str
     name: str
     description: str
-    role: str  # Ambient-A2A role in the plugin config
+    role: str  # role in the plugin config (room, home, external)
     agents_md: str  # the agent's guide (OpenClaw AGENTS.md) with {slots} for render.py
 
 

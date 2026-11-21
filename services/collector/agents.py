@@ -15,11 +15,11 @@ from typing import Any
 import httpx
 from pydantic import AwareDatetime, BaseModel, Field
 
+from common.agentcard import card_tags
 from homeconfig.models import Caller
 
 log = logging.getLogger(__name__)
 
-EXT_PREFIX = "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/"
 CHECK_EVERY = 5.0  # seconds between card checks
 
 
@@ -40,17 +40,15 @@ class AgentStatus(BaseModel):
 
 
 def from_card(agent_id: str, card: dict[str, Any], checked_at: datetime) -> AgentStatus:
-    extensions = card.get("capabilities", {}).get("extensions", [])
-    ext = next((e for e in extensions if str(e.get("uri", "")).startswith(EXT_PREFIX)), {})
-    params = ext.get("params") or {}
+    tags = card_tags(card)
     return AgentStatus(
         id=agent_id,
         online=True,
         checked_at=checked_at,
-        role=params.get("role"),
-        space=params.get("space"),
-        owned_devices=params.get("owned_devices") or [],
-        provided_fields=params.get("provided_fields") or [],
+        role=tags.role,
+        space=tags.space,
+        owned_devices=tags.owned_devices,
+        provided_fields=tags.provided_fields,
     )
 
 

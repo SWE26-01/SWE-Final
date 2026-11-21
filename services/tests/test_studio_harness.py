@@ -83,7 +83,7 @@ def test_a_rendered_agent_passes_the_capability_lock():
         (lambda p: p["tools"].update(profile="full"), "tools must be exactly"),
         (lambda p: p["skills"].update(allowBundled=["*"]), "bundled OpenClaw skills"),
         (lambda p: p["agents"]["defaults"].update(workspace="/"), "workspace"),
-        (lambda p: p["plugins"]["load"]["paths"].append("/tmp/evil"), "only the Ambient-A2A"),
+        (lambda p: p["plugins"]["load"]["paths"].append("/tmp/evil"), "only the ambient-a2a"),
         (lambda p: p["gateway"].update(port=22), "generated-agent port"),
         (
             lambda p: p["plugins"]["entries"]["ambient-a2a"]["config"]["rules"][0][

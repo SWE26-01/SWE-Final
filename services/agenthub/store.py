@@ -33,7 +33,7 @@ class AgentRow(Base):
     # platform: the home's own agents (config/agents.yaml), studio: made in Studio,
     # external: registered from another server's Agent Card
     origin: Mapped[str] = mapped_column(String(16))
-    role: Mapped[str | None] = mapped_column(String(16))  # Ambient-A2A role: room, home, external
+    role: Mapped[str | None] = mapped_column(String(16))  # card skill tag: room, home, external
     space: Mapped[str | None] = mapped_column(String(64))
     url: Mapped[str | None] = mapped_column(String(300))  # A2A base URL
     skills: Mapped[list[str]] = mapped_column(default=list)
