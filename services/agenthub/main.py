@@ -277,9 +277,11 @@ def seed_platform_agents(db: Session, config: HomeConfig) -> None:
 
 def refresh_platform_cards(
     sessions: sessionmaker[Session], client: httpx.Client, agents_host: str | None = None
-) -> None:
+) -> int:
     """Fill role, fields and skills of the platform agents from their running Agent Cards.
-    Best effort: agents that are not running keep what config gave them."""
+    Best effort: agents that are not running keep what config gave them. Returns how many
+    cards could not be read."""
+    missing = 0
     with sessions() as db:
         for row in db.scalars(select(AgentRow).where(AgentRow.origin == "platform")):
             if not row.url:
@@ -288,8 +290,24 @@ def refresh_platform_cards(
                 card = fetch_card(client, row.url, agents_host)
                 _apply_card(row, read_card(card), card)
             except CardError as e:
+                missing += 1
                 log.info("card of %s not available: %s", row.id, e)
         db.commit()
+    return missing
+
+
+async def keep_platform_cards(
+    sessions: sessionmaker[Session],
+    client: httpx.Client,
+    agents_host: str | None = None,
+    every: float = 10.0,
+    tries: int = 30,
+) -> None:
+    """The agents may start after the Hub: read their cards again until all of them answered."""
+    for _ in range(tries):
+        if await asyncio.to_thread(refresh_platform_cards, sessions, client, agents_host) == 0:
+            return
+        await asyncio.sleep(every)
 
 
 def create_app(
@@ -358,9 +376,7 @@ def create_app(
         with sessions() as db:
             seed_platform_agents(db, config)
         task = (
-            asyncio.create_task(
-                asyncio.to_thread(refresh_platform_cards, sessions, cards, agents_host)
-            )
+            asyncio.create_task(keep_platform_cards(sessions, cards, agents_host))
             if sync_cards
             else None
         )
