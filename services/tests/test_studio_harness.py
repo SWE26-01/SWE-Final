@@ -83,21 +83,21 @@ def test_a_rendered_agent_passes_the_capability_lock():
         (lambda p: p["tools"].update(profile="full"), "tools must be exactly"),
         (lambda p: p["skills"].update(allowBundled=["*"]), "bundled OpenClaw skills"),
         (lambda p: p["agents"]["defaults"].update(workspace="/"), "workspace"),
-        (lambda p: p["plugins"]["load"]["paths"].append("/tmp/evil"), "only the ambient-a2a"),
+        (lambda p: p["plugins"]["load"]["paths"].append("/tmp/evil"), "only the home-a2a"),
         (lambda p: p["gateway"].update(port=22), "generated-agent port"),
         (
-            lambda p: p["plugins"]["entries"]["ambient-a2a"]["config"]["rules"][0][
-                "actions"
-            ].append({"device": "input_boolean.room2_ac", "command": "TURN_OFF"}),
+            lambda p: p["plugins"]["entries"]["home-a2a"]["config"]["rules"][0]["actions"].append(
+                {"device": "input_boolean.room2_ac", "command": "TURN_OFF"}
+            ),
             "only act on the devices it owns",
         ),
         (
-            lambda p: p["plugins"]["entries"]["ambient-a2a"]["config"].update(space="내 방"),
+            lambda p: p["plugins"]["entries"]["home-a2a"]["config"].update(space="내 방"),
             "must be ASCII",
         ),
         (lambda p: p.update(elevated={"enabled": True}), "forbidden capability"),
         (
-            lambda p: p["plugins"]["entries"]["ambient-a2a"]["config"].update(token="plain"),
+            lambda p: p["plugins"]["entries"]["home-a2a"]["config"].update(token="plain"),
             "token must come from the environment",
         ),
     ],

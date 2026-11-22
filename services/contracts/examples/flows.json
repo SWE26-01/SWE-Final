@@ -6,12 +6,12 @@
     "started_at": "2026-10-18T07:53:35.546000Z",
     "ended_at": "2026-10-18T07:53:35.605000Z",
     "agents": [
-      "orchestrator",
+      "root",
       "room1"
     ],
     "events": 5,
     "requester": "desktop",
-    "entry": "orchestrator",
+    "entry": "root",
     "action": {
       "device": "input_select.room1_light_mode",
       "command": "SET",
@@ -28,12 +28,12 @@
     "started_at": "2026-10-18T07:52:20.660000Z",
     "ended_at": "2026-10-18T07:52:20.711000Z",
     "agents": [
-      "orchestrator",
+      "root",
       "room1"
     ],
     "events": 5,
     "requester": "desktop",
-    "entry": "orchestrator",
+    "entry": "root",
     "action": {
       "device": "input_select.room1_light_mode",
       "command": "SET",
@@ -50,11 +50,11 @@
     "started_at": "2026-10-18T06:40:06.750000Z",
     "ended_at": "2026-10-18T06:40:06.750000Z",
     "agents": [
-      "orchestrator"
+      "root"
     ],
     "events": 1,
     "requester": "desktop",
-    "entry": "orchestrator",
+    "entry": "root",
     "action": {
       "device": "input_boolean.room2_ac",
       "command": "TURN_OFF",
@@ -71,12 +71,12 @@
     "started_at": "2026-10-18T06:39:48.494000Z",
     "ended_at": "2026-10-18T06:39:48.526000Z",
     "agents": [
-      "orchestrator",
+      "root",
       "room1"
     ],
     "events": 5,
     "requester": "desktop",
-    "entry": "orchestrator",
+    "entry": "root",
     "action": {
       "device": "input_select.room1_light_mode",
       "command": "SET",

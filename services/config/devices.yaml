@@ -7,12 +7,12 @@
 # them with the running Agent Cards).
 # The Gateway enforces this table itself, so a bug in one agent cannot move another room's device.
 # `kind` says what the device is; the built-in skills (skills.yaml) refer to kinds, not entity ids.
-spaces: [living_room, my_room, protected_room]
+spaces: [living_room, my_room, protected_room, kitchen]
 
 devices:
-  - {entity: input_boolean.living_light, space: living_room, owner: orchestrator, kind: light, name: 거실 조명}
-  - {entity: input_boolean.living_tv, space: living_room, owner: orchestrator, kind: tv, name: 거실 TV}
-  - {entity: input_boolean.living_tv_muted, space: living_room, owner: orchestrator, kind: tv_muted, name: 거실 TV 음소거}
+  - {entity: input_boolean.living_light, space: living_room, owner: root, kind: light, name: 거실 조명}
+  - {entity: input_boolean.living_tv, space: living_room, owner: root, kind: tv, name: 거실 TV}
+  - {entity: input_boolean.living_tv_muted, space: living_room, owner: root, kind: tv_muted, name: 거실 TV 음소거}
   - {entity: input_boolean.room1_light, space: my_room, owner: room1, kind: light, name: 내 방 조명}
   - {entity: input_select.room1_light_mode, space: my_room, owner: room1, kind: light_mode, name: 내 방 조명 모드, options: [normal, meeting, eco]}
   - {entity: input_boolean.room1_ac, space: my_room, owner: room1, kind: ac, name: 내 방 에어컨}
@@ -20,3 +20,6 @@ devices:
   - {entity: input_boolean.room2_light, space: protected_room, owner: room2, kind: light, name: 보호 방 조명}
   - {entity: input_boolean.room2_ac, space: protected_room, owner: room2, kind: ac, name: 보호 방 에어컨}
   - {entity: input_boolean.room2_sleep_mode, space: protected_room, owner: room2, kind: sleep_mode, name: 보호 방 수면 모드}
+  - {entity: input_boolean.kitchen_coffee_machine, space: kitchen, owner: kitchen, kind: coffee_machine, name: LG DUOBO 커피머신}
+  - {entity: input_boolean.kitchen_beans_low, space: kitchen, owner: kitchen, kind: beans_low, name: 원두 부족 센서}
+  - {entity: input_boolean.kitchen_light, space: kitchen, owner: kitchen, kind: light, name: 주방 조명}

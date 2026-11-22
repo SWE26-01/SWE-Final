@@ -27,9 +27,13 @@ class FakeAgents:
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         port = request.url.port
-        agent = {18800: "desktop", 18920: "smartphone", 19040: "orchestrator", 19160: "room1"}.get(
-            port, "room2"
-        )
+        agent = {
+            18800: "desktop",
+            18920: "smartphone",
+            19040: "root",
+            19160: "room1",
+            18680: "kitchen",
+        }.get(port, "room2")
         if agent in self.down:
             raise httpx.ConnectError("refused")
         if agent == "room1":
@@ -76,7 +80,14 @@ def client(tmp_path: Path):
 
 def test_agents_endpoint_and_snapshot(client):
     agents = wait_for_first_check(client)
-    assert [a["id"] for a in agents] == ["desktop", "smartphone", "orchestrator", "room1", "room2"]
+    assert [a["id"] for a in agents] == [
+        "desktop",
+        "smartphone",
+        "root",
+        "room1",
+        "room2",
+        "kitchen",
+    ]
     assert {a["id"]: a["online"] for a in agents}["room2"] is False
 
     event = {"ts": "2026-10-18T01:00:00Z", "agent": "room1", "dir": "exec", "accepted": True}
@@ -87,16 +98,18 @@ def test_agents_endpoint_and_snapshot(client):
     with client.websocket_connect("/ws?token=t-dashboard") as ws:
         snapshot = ws.receive_json()
         offline = [a["id"] for a in snapshot["agents"] if not a["online"]]
-        assert (len(snapshot["agents"]), offline) == (5, ["room2"])
+        assert (len(snapshot["agents"]), offline) == (6, ["room2"])
 
     assert client.get("/agents", headers=ROOM1).status_code == 403
 
 
 def test_agents_host_for_services_in_docker():
-    env = {**ENV, "AMBIENT_AGENTS_HOST": "host.docker.internal"}
+    env = {**ENV, "AGENTS_HOST": "host.docker.internal"}
     urls = {a.id: a.url for a in load_config(env=env).agents()}
-    assert urls["room1"] == "http://host.docker.internal:19160/plugins/ambient"
-    assert {a.id: a.url for a in load_config(env=ENV).agents()}["room1"].startswith("http://127.0.0.1")
+    assert urls["room1"] == "http://host.docker.internal:19160/plugins/a2a"
+    assert {a.id: a.url for a in load_config(env=ENV).agents()}["room1"].startswith(
+        "http://127.0.0.1"
+    )
 
 
 def test_tokens_are_hidden_in_server_logs():

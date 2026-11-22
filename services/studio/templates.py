@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-HOME_AGENT_ID = "orchestrator"  # the Home Agent (agents/shared.json5); it delegates room devices
+HOME_AGENT_ID = "root"  # the Home Agent (agents/shared.json5); it delegates room devices
 
 # Plain words for the user-facing summary and the offline filler.
 KIND_NAMES = {
@@ -18,8 +18,15 @@ KIND_NAMES = {
     "occupancy": "재실 센서",
     "sleep_mode": "수면 모드",
     "temperature": "온도 센서",
+    "coffee_machine": "커피머신",
+    "beans_low": "원두 부족 센서",
 }
-SPACE_NAMES = {"living_room": "거실", "my_room": "내 방", "protected_room": "보호 방"}
+SPACE_NAMES = {
+    "living_room": "거실",
+    "my_room": "내 방",
+    "protected_room": "보호 방",
+    "kitchen": "주방",
+}
 
 
 def _guide(name: str) -> str:
@@ -47,4 +54,33 @@ ROOM_AGENT = Template(
     agents_md=_guide("room_agent"),
 )
 
-TEMPLATES = {t.id: t for t in [ROOM_AGENT]}
+ASSISTANT_AGENT = Template(
+    id="assistant_agent",
+    name="Assistant agent",
+    description=(
+        "A conversational helper for anything that is not controlling this home's devices: "
+        "coaching, explaining, planning, studying, recipes, habits. People chat with it from the "
+        "Hub. It owns no device and has no shell, file or web tools; it answers from its own "
+        "knowledge, following the instructions written for it."
+    ),
+    role="external",
+    agents_md=_guide("assistant_agent"),
+)
+
+ROUTINE_AGENT = Template(
+    id="routine_agent",
+    name="Routine agent",
+    description=(
+        "Does something at a time of day, every day (e.g. brew coffee at 07:30). It owns no "
+        "device: at that time it asks the Root Agent, which passes the request to the device's "
+        "owner, whose policies decide. Choose the space, the device kinds, the command and the "
+        "time `at` (HH:MM)."
+    ),
+    role="external",
+    agents_md=_guide("routine_agent"),
+)
+
+TEMPLATES = {t.id: t for t in [ROOM_AGENT, ASSISTANT_AGENT, ROUTINE_AGENT]}
+# Run inside the launcher (scripts/launcher.mjs) instead of an OpenClaw gateway of their own: they
+# need no device plugin, only an LLM call (OpenRouter) and, for routines, a clock and one A2A call.
+LIGHT_TEMPLATES = {ASSISTANT_AGENT.id, ROUTINE_AGENT.id}

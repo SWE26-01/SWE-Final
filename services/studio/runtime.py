@@ -15,8 +15,11 @@ from typing import Protocol
 
 from homeconfig import HomeConfig
 from studio.compile import AgentSpec
-from studio.harness import PORT_RANGE, check_rendered
-from studio.render import render
+from studio.harness import PORT_RANGE, check_light, check_rendered
+from studio.render import render, render_light
+from studio.templates import LIGHT_TEMPLATES
+
+LAUNCHER_URL = "http://127.0.0.1:18700/agents"  # light agents' A2A base (scripts/launcher.mjs)
 
 
 class Runtime(Protocol):
@@ -42,11 +45,19 @@ class OpenClawRuntime:
         self._config = config
 
     def build(self, spec: AgentSpec, port: int, draft_id: str) -> tuple[dict[str, str], list[str]]:
+        if spec.template in LIGHT_TEMPLATES:  # no gateway of its own: the launcher runs it
+            light, files = render_light(spec, draft_id)
+            asked = [
+                p.removeprefix("request:") for p in spec.permissions if p.startswith("request:")
+            ]
+            return files, check_light(light, spec.agent_id, asked, files["AGENTS.md"])
         profile, files = render(spec, port, self._config, draft_id)
         return files, check_rendered(profile, spec.agent_id, spec.owned, files["AGENTS.md"])
 
     def url(self, spec: AgentSpec, port: int) -> str:
-        return f"http://127.0.0.1:{port}/plugins/ambient"
+        if spec.template in LIGHT_TEMPLATES:
+            return f"{LAUNCHER_URL}/{spec.agent_id}"
+        return f"http://127.0.0.1:{port}/plugins/a2a"
 
 
 RUNTIMES: dict[str, type[OpenClawRuntime]] = {OpenClawRuntime.name: OpenClawRuntime}

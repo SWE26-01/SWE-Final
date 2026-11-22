@@ -33,6 +33,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated, Literal
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
@@ -67,11 +68,12 @@ from homeconfig.models import Caller, EntityId, FieldName, Role
 log = logging.getLogger("agenthub")
 
 AgentId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*$", max_length=64)]
-# device:<entity> owns and commands a device; context:<agent>.<field> reads another agent's context.
+# device:<entity> owns and commands a device; request:<entity> may ask its owner (through the Root
+# Agent) to control it; context:<agent>.<field> reads another agent's context.
 Permission = Annotated[
     str,
     Field(
-        pattern=r"^(device:[a-z_]+\.[a-z0-9_]+|context:[a-z0-9][a-z0-9_-]*\.[a-z][a-z0-9_]*)$",
+        pattern=r"^((device|request):[a-z_]+\.[a-z0-9_]+|context:[a-z0-9][a-z0-9_-]*\.[a-z][a-z0-9_]*)$",
         max_length=140,
     ),
 ]
@@ -103,6 +105,19 @@ class ShareRequest(_In):
 
 class StarRequest(_In):
     starred: bool
+
+
+class ChatRequest(_In):
+    message: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+class ChatReply(BaseModel):
+    reply: str
+
+
+class RunResult(BaseModel):
+    request_id: str = Field(description="follow it in the Collector: GET /flows/{request_id}")
+    results: list[dict] = Field(description="what the Root Agent answered for each request")
 
 
 class AgentRegistration(_In):
@@ -245,7 +260,7 @@ def _problem(code: int, reason_code: str, message: str, **extra: object) -> HTTP
 
 
 def _token_env(agent_id: str) -> str:
-    return "AMBIENT_TOKEN_" + agent_id.upper().replace("-", "_")
+    return "AGENT_TOKEN_" + agent_id.upper().replace("-", "_")
 
 
 @dataclass
@@ -333,7 +348,19 @@ def _apply_card(row: AgentRow, info: CardInfo, card: dict) -> None:
 
 def seed_platform_agents(db: Session, config: HomeConfig) -> None:
     """Register the home's own agents once, connected with the devices devices.yaml gives them.
-    A platform agent the user later disconnected stays disconnected after a restart."""
+    A platform agent the user later disconnected stays disconnected after a restart. A platform
+    agent no longer in config/agents.yaml (renamed or dropped) is removed and its devices freed."""
+    configured = {c.id for c in config.agents()}
+    stale = select(AgentRow).where(AgentRow.origin == "platform", AgentRow.removed.is_(False))
+    for row in db.scalars(stale):
+        if row.id in configured:
+            continue
+        for conn in db.scalars(
+            select(ConnectionRow).where(ConnectionRow.agent_id == row.id, ConnectionRow.active)
+        ):
+            conn.active, conn.revoked_at, conn.revoked_by = False, now(), "platform"
+        row.removed, row.updated_at = True, now()
+        audit(db, "platform", "remove", row.id, detail="no longer in config/agents.yaml")
     for caller in config.agents():
         row = db.get(AgentRow, caller.id)
         if row is not None:
@@ -834,6 +861,59 @@ def create_app(
         db.commit()
         return _agent_out(row, active_connection(db, agent_id), view_of(db, who.id))
 
+    @app.post("/agents/{agent_id}/chat")
+    def chat_with_agent(agent_id: str, body: ChatRequest, db: DB, who: User) -> ChatReply:
+        """One chat turn with a connected agent of this home, as this person (their own session
+        with the agent). Goes through the launcher, which holds the agents' gateway token. The
+        message and the reply are not stored or logged here."""
+        row = seen_agent(db, agent_id, who)
+        if row.origin == "external":
+            raise _problem(422, "CHAT_UNAVAILABLE", "agents of other servers are reached over A2A")
+        if active_connection(db, agent_id) is None:
+            raise _problem(409, "NOT_CONNECTED", f"connect {agent_id} first")
+        port = urlparse(row.url or "").port
+        if launcher is None or port is None:
+            raise _problem(
+                503, "CHAT_UNAVAILABLE", "no launcher to reach the agent (HUB_LAUNCHER_URL)"
+            )
+        try:
+            r = launcher.post(
+                "/chat",
+                json={
+                    "id": row.id,
+                    "port": port,
+                    "session": f"hub-{who.id}",
+                    "message": body.message,
+                },
+                timeout=180,
+            )
+            r.raise_for_status()
+            return ChatReply(reply=str(r.json().get("reply") or ""))
+        except (httpx.HTTPError, ValueError) as e:
+            log.warning("chat with %s failed: %s", agent_id, e.__class__.__name__)
+            raise _problem(502, "AGENT_UNREACHABLE", f"{agent_id} did not answer") from e
+
+    @app.post("/agents/{agent_id}/run")
+    def run_agent(agent_id: str, db: DB, who: User) -> RunResult:
+        """Run a routine agent's routine now (as if its time had come). It asks the Root Agent with
+        its own token; the Root Agent and the device's owner decide, as at the scheduled time."""
+        row = seen_agent(db, agent_id, who)
+        if active_connection(db, agent_id) is None:
+            raise _problem(409, "NOT_CONNECTED", f"connect {agent_id} first")
+        if launcher is None or row.origin != "studio":
+            raise _problem(422, "NOT_A_ROUTINE", f"{agent_id} has no routine to run")
+        try:
+            r = launcher.post(f"/run/{row.id}", timeout=60)
+            if r.status_code == 404:
+                raise _problem(422, "NOT_A_ROUTINE", f"{agent_id} has no routine to run")
+            r.raise_for_status()
+            body = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            raise _problem(502, "AGENT_UNREACHABLE", f"{agent_id} did not run") from e
+        audit(db, who.id, "run", agent_id, detail=str(body.get("request_id", ""))[:80])
+        db.commit()
+        return RunResult(request_id=body["request_id"], results=body.get("results", []))
+
     def _revoke(conn: ConnectionRow, who: Caller) -> None:
         conn.active = False
         conn.revoked_at = now()
@@ -864,7 +944,8 @@ def create_app(
                 422, "NOT_REQUESTED", "the agent did not ask for these permissions", extra=extra
             )
         devices = [p.removeprefix("device:") for p in approved if p.startswith("device:")]
-        unknown = [d for d in devices if d not in config.devices]
+        asked = [p.removeprefix("request:") for p in approved if p.startswith("request:")]
+        unknown = [d for d in devices + asked if d not in config.devices]
         if unknown:
             raise _problem(422, "UNKNOWN_DEVICE", f"unknown devices: {', '.join(unknown)}")
         taken = {d: o for d, o in owners(db).items() if d in devices and o != row.id}

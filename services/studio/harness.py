@@ -7,7 +7,7 @@
 3. Output guard (`check_text`): the few free-text slots (name, description, question) are scanned
    like the input, and must be one plain line.
 4. Capability lock (`check_rendered`): the rendered OpenClaw profile must keep the fixed tool
-   allowlist (only the ambient-a2a plugin; no shell, file or web tools), the fixed workspace and
+   allowlist (only the home-a2a plugin; no shell, file or web tools), the fixed workspace and
    plugin paths, ASCII-only config, and devices limited to what the agent owns.
 5. The user approves the draft before anything is written or registered (studio/main.py).
 """
@@ -21,12 +21,12 @@ from typing import Any
 
 REQUEST_LIMIT = 500  # characters of one Studio request
 PORT_RANGE = range(19400, 25000)  # generated agents' OpenClaw gateway ports
-HOME_PLUGIN_PATH = "${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"
-TOOLS = {"profile": "minimal", "alsoAllow": ["ambient-a2a"], "toolSearch": False}
+HOME_PLUGIN_PATH = "${AGENT_HOME}/app/agents/home-a2a-plugin"
+TOOLS = {"profile": "minimal", "alsoAllow": ["home-a2a"], "toolSearch": False}
 SKILLS = {"allowBundled": []}
 # A generated agent's own token: issued by the Hub when the user connects it, handed to the
 # launcher, and exported by ../scripts/oc.sh from the agent's state directory. Never in the files.
-AGENT_TOKEN = "${AMBIENT_AGENT_TOKEN:-}"
+AGENT_TOKEN = "${AGENT_SELF_TOKEN:-}"
 
 
 @dataclass(frozen=True)
@@ -126,17 +126,17 @@ def check_rendered(
     if profile.get("skills") != SKILLS:
         problems.append("bundled OpenClaw skills must stay off")
     defaults = profile.get("agents", {}).get("defaults", {})
-    if defaults.get("workspace") != f"${{AMBIENT_HOME}}/state/{agent_id}/workspace":
+    if defaults.get("workspace") != f"${{AGENT_HOME}}/state/{agent_id}/workspace":
         problems.append("workspace must be the agent's own state directory")
     plugins = profile.get("plugins", {})
     if plugins.get("load") != {"paths": [HOME_PLUGIN_PATH]}:
-        problems.append("only the ambient-a2a plugin may be loaded")
-    if set(plugins.get("entries", {})) != {"ambient-a2a"}:
-        problems.append("only the ambient-a2a plugin entry is allowed")
+        problems.append("only the home-a2a plugin may be loaded")
+    if set(plugins.get("entries", {})) != {"home-a2a"}:
+        problems.append("only the home-a2a plugin entry is allowed")
     gateway = profile.get("gateway", {})
     if gateway.get("$include") != "../../gateway.json5" or gateway.get("port") not in PORT_RANGE:
         problems.append("gateway must include ../../gateway.json5 and use a generated-agent port")
-    config = plugins.get("entries", {}).get("ambient-a2a", {}).get("config", {})
+    config = plugins.get("entries", {}).get("home-a2a", {}).get("config", {})
     if config.get("agentId") != agent_id or config.get("$include") != "../../shared.json5":
         problems.append("plugin config must be this agent's and include ../../shared.json5")
     if config.get("token") != AGENT_TOKEN:
@@ -157,4 +157,45 @@ def check_rendered(
     for word in ("elevated", '"exec"', '"bash"', '"shell"', '"process"'):
         if word in text:
             problems.append(f"forbidden capability {word} in the profile")
+    return problems
+
+
+LIGHT_KEYS = {"id", "kind", "name", "description", "draft", "routine"}
+
+
+def check_light(
+    light: dict[str, Any], agent_id: str, asked: list[str], agents_md: str
+) -> list[str]:
+    """Capability lock for an agent the launcher runs itself: it has no tools at all (an LLM call
+    for chats, and for a routine one device.control request per device the user approved as
+    `request:<entity>`, sent to the Root Agent at the given time)."""
+    problems: list[str] = []
+    if set(light) - LIGHT_KEYS:
+        problems.append(f"agent.json may only have {sorted(LIGHT_KEYS)}")
+    if light.get("id") != agent_id or light.get("kind") not in ("assistant", "routine"):
+        problems.append("agent.json must name this agent and kind assistant or routine")
+    routine = light.get("routine")
+    if light.get("kind") == "routine":
+        if not isinstance(routine, dict) or not re.fullmatch(
+            r"([01]\d|2[0-3]):[0-5]\d", str(routine.get("at"))
+        ):
+            problems.append("a routine needs `at` as HH:MM")
+        else:
+            requests = routine.get("requests") or []
+            if set(routine) != {"at", "via", "requests"} or routine.get("via") != "root":
+                problems.append("a routine asks the Root Agent only")
+            devices = [r.get("device") for r in requests]
+            if not requests or sorted(devices) != sorted(asked):
+                problems.append("a routine may only ask for the devices it requests permission for")
+            if any(
+                r.get("command") not in ("TURN_ON", "TURN_OFF") or set(r) != {"device", "command"}
+                for r in requests
+            ):
+                problems.append("a routine may only ask to turn devices on or off")
+    elif routine is not None or asked:
+        problems.append("an assistant has no routine and asks for no device")
+    for path, value in _walk(light):
+        if isinstance(value, str):
+            problems += [f"agent.json{path}: {f.text()}" for f in scan(value)]
+    problems += [f"AGENTS.md: {f.text()}" for f in scan(agents_md)]
     return problems

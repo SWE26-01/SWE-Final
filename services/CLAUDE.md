@@ -2,7 +2,7 @@
 
 The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`.
 
-- Agent IDs (`desktop`, `smartphone`, `orchestrator`, `room1`, `room2`) and device IDs (Home Assistant
+- Agent IDs (`desktop`, `smartphone`, `root`, `room1`, `room2`) and device IDs (Home Assistant
   entity id format) follow `../agents`. A device change touches the agents' `owned` lists, their
   `AGENTS.md` tables and `config/devices.yaml` together.
 - Read config only through `homeconfig.load_config()`. Tokens are never written in `config/`; each
@@ -31,9 +31,17 @@ The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`
   failure never undoes the connection; it is reported in `launch`.
 - Studio (`studio/`): the LLM only fills the slot form (`studio/slots.py`, enums from the catalogs).
   It never writes rules, device ids, tools or paths: rules come from `config/skills.yaml` through
-  `studio/compile.py`, and the runtime's capability lock (`studio/runtime.py`; for OpenClaw
+  `studio/compile.py`. Requests that are not about this home's devices become an
+  `assistant_agent`: no device, no permission, and the LLM's one-line `instructions` (at most 10,
+  each through `harness.check_text`) go into its AGENTS.md. People talk to connected agents only
+  through Hub `POST /agents/{id}/chat` → the launcher (which alone holds the gateway token); chat
+  text is never stored or logged by the Hub. Requests with a time of day and a device become a
+  `routine_agent`: it owns nothing and gets only `request:<entity>` permissions; at its time it
+  asks the Root Agent. Assistant and routine agents are "light": Studio writes `agent.json` and
+  AGENTS.md only (`harness.check_light`), and the launcher runs them without an OpenClaw gateway
+  (OpenRouter for chats, one A2A call per approved device for routines). In every case the runtime's capability lock (`studio/runtime.py`; for OpenClaw
   `harness.check_rendered`) must pass before an agent is written or registered. Generated agents get
-  only the ambient-a2a plugin tools, and read their own token only from `${AMBIENT_AGENT_TOKEN:-}`. There is no Skill Marketplace: users pick a room, never skills.
+  only the home-a2a plugin tools, and read their own token only from `${AGENT_SELF_TOKEN:-}`. There is no Skill Marketplace: users pick a room, never skills.
   A new runtime (e.g. Python) is one class in `runtime.RUNTIMES`; AgentSpec and the Hub stay as
   they are. New dangerous patterns go in
   `harness._RULES` with a test in `tests/test_studio_harness.py`.

@@ -25,13 +25,13 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
 
 
 def received(**kw) -> dict:
-    """room1's log line (agents/ambient-a2a-plugin/src/agent.ts `log()`) for a request Home
+    """room1's log line (agents/home-a2a-plugin/src/agent.ts `log()`) for a request Home
     delegated on behalf of Desktop."""
     return {
         "ts": "2026-10-18T01:00:00.123Z",
         "agent": "room1",
         "dir": "in",
-        "from": "orchestrator",
+        "from": "root",
         "type": "device.control",
         "request_id": "scn-A1",
         "on_behalf_of": "desktop",
@@ -109,7 +109,7 @@ LINES = [
 
 @pytest.mark.parametrize("line", LINES)
 def test_every_kind_of_log_line(client, line):
-    body = {"ts": "2026-10-18T01:00:00Z", "agent": "orchestrator", **line}
+    body = {"ts": "2026-10-18T01:00:00Z", "agent": "root", **line}
     assert post(client, HOME, body).status_code == 201
 
 
@@ -172,7 +172,7 @@ def test_websocket_snapshot_then_live(client, monkeypatch):
         assert snap["type"] == "snapshot"
         assert [e["id"] for e in snap["events"]] == [2, 3]
 
-        post(client, HOME, {"ts": "2026-10-18T01:00:00Z", "agent": "orchestrator", "dir": "exec"})
+        post(client, HOME, {"ts": "2026-10-18T01:00:00Z", "agent": "root", "dir": "exec"})
         msg = ws.receive_json()
         assert msg["type"] == "event"
         assert (msg["event"]["id"], msg["event"]["dir"]) == (4, "exec")
@@ -205,34 +205,96 @@ def line(agent: str, dir: str, rid: str | None, at: int, **kw) -> dict:
     return body | ({"request_id": rid} if rid else {})
 
 
-TOKENS = {"orchestrator": HOME, "room1": ROOM1, "room2": bearer("t-room2")}
+TOKENS = {"root": HOME, "room1": ROOM1, "room2": bearer("t-room2")}
 LIGHT_MODE = {"device": "input_select.room1_light_mode", "command": "SET", "value": "meeting"}
 SAVE = {"command": "ENERGY_SAVING"}
 
-# What the agents log, in order, for three requests (agents/ambient-a2a-plugin/src/agent.ts):
+# What the agents log, in order, for three requests (agents/home-a2a-plugin/src/agent.ts):
 SCENARIO = [
     # Desktop asks Home for room1's light mode; Home delegates and room1 executes.
-    line("orchestrator", "out", "req-1", 1, to="room1", type="device.control", action=LIGHT_MODE),
+    line("root", "out", "req-1", 1, to="room1", type="device.control", action=LIGHT_MODE),
     line("room1", "exec", "req-1", 2, action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("room1", "in", "req-1", 2, **{"from": "orchestrator"}, type="device.control",
-         on_behalf_of="desktop", action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("orchestrator", "out-result", "req-1", 3, to="room1", type="device.control",
-         accepted=True, reason_code="OK"),
-    line("orchestrator", "in", "req-1", 3, **{"from": "desktop"}, type="device.control",
-         action=LIGHT_MODE, accepted=True, reason_code="OK"),
+    line(
+        "room1",
+        "in",
+        "req-1",
+        2,
+        **{"from": "root"},
+        type="device.control",
+        on_behalf_of="desktop",
+        action=LIGHT_MODE,
+        accepted=True,
+        reason_code="OK",
+    ),
+    line(
+        "root",
+        "out-result",
+        "req-1",
+        3,
+        to="room1",
+        type="device.control",
+        accepted=True,
+        reason_code="OK",
+    ),
+    line(
+        "root",
+        "in",
+        "req-1",
+        3,
+        **{"from": "desktop"},
+        type="device.control",
+        action=LIGHT_MODE,
+        accepted=True,
+        reason_code="OK",
+    ),
     # Context updates carry no request_id and belong to no flow.
     line("room1", "in", None, 4, **{"from": "desktop"}, type="context.update", accepted=True),
     # Energy saving: each room gets `<id>/<room>`; room2 keeps its AC on.
-    line("room2", "in", "req-2/room2", 5, **{"from": "orchestrator"}, type="device.control",
-         action=SAVE, accepted=False, reason_code="PARTIAL"),
-    line("room1", "in", "req-2/room1", 5, **{"from": "orchestrator"}, type="device.control",
-         action=SAVE, accepted=True, reason_code="OK"),
-    line("orchestrator", "in", "req-2", 6, **{"from": "desktop"}, type="device.control",
-         action=SAVE, accepted=False, reason_code="PARTIAL"),
+    line(
+        "room2",
+        "in",
+        "req-2/room2",
+        5,
+        **{"from": "root"},
+        type="device.control",
+        action=SAVE,
+        accepted=False,
+        reason_code="PARTIAL",
+    ),
+    line(
+        "room1",
+        "in",
+        "req-2/room1",
+        5,
+        **{"from": "root"},
+        type="device.control",
+        action=SAVE,
+        accepted=True,
+        reason_code="OK",
+    ),
+    line(
+        "root",
+        "in",
+        "req-2",
+        6,
+        **{"from": "desktop"},
+        type="device.control",
+        action=SAVE,
+        accepted=False,
+        reason_code="PARTIAL",
+    ),
     # A rule room1 fired by itself.
     line("room1", "exec", "r-3", 7, action=LIGHT_MODE, accepted=True, reason_code="OK"),
-    line("room1", "rule", "r-3", 7, rule="meeting_app_active=true", action=LIGHT_MODE,
-         accepted=True, reason_code="OK"),
+    line(
+        "room1",
+        "rule",
+        "r-3",
+        7,
+        rule="meeting_app_active=true",
+        action=LIGHT_MODE,
+        accepted=True,
+        reason_code="OK",
+    ),
 ]
 
 
@@ -247,14 +309,14 @@ def test_flows_follow_requests_across_agents(client):
     assert [f["flow"] for f in flows] == ["r-3", "req-2", "req-1"]  # most recent first
     rule, saving, delegated = flows
 
-    assert delegated["requester"] == "desktop" and delegated["entry"] == "orchestrator"
-    assert delegated["agents"] == ["orchestrator", "room1"]
+    assert delegated["requester"] == "desktop" and delegated["entry"] == "root"
+    assert delegated["agents"] == ["root", "room1"]
     assert (delegated["events"], delegated["accepted"], delegated["reason_code"]) == (5, True, "OK")
     assert delegated["action"]["device"] == "input_select.room1_light_mode"
     assert delegated["started_at"] == "2026-10-18T01:00:01Z"
 
-    assert (saving["requester"], saving["entry"]) == ("desktop", "orchestrator")
-    assert saving["agents"] == ["room2", "room1", "orchestrator"]
+    assert (saving["requester"], saving["entry"]) == ("desktop", "root")
+    assert saving["agents"] == ["room2", "room1", "root"]
     assert (saving["accepted"], saving["reason_code"]) == (False, "PARTIAL")
 
     assert (rule["requester"], rule["entry"], rule["accepted"]) == ("room1", "room1", True)
@@ -306,20 +368,20 @@ def test_flow_follows_event_time_not_arrival(client):
     detail = client.get("/flows/req-1", headers=DASHBOARD).json()
     order = [(e["agent"], e["dir"]) for e in detail["events"]]
     assert order == [
-        ("orchestrator", "out"),
+        ("root", "out"),
         ("room1", "exec"),
         ("room1", "in"),
-        ("orchestrator", "out-result"),
-        ("orchestrator", "in"),
+        ("root", "out-result"),
+        ("root", "in"),
     ]
     summary = detail["flow"]
-    assert (summary["requester"], summary["entry"]) == ("desktop", "orchestrator")
+    assert (summary["requester"], summary["entry"]) == ("desktop", "root")
     assert (summary["first_id"], summary["last_id"]) == (1, 5)
     assert summary["started_at"] == "2026-10-18T01:00:01Z"
 
 
 def test_collector_cors_only_for_configured_origins(tmp_path):
-    env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173"}
+    env = {**ENV, "CORS_ORIGINS": "http://localhost:5173"}
     app = create_app(load_config(env=env), str(tmp_path / "e.sqlite"), watch_agents=False)
     with TestClient(app) as c:
         r = c.get("/flows", headers={**DASHBOARD, "Origin": "http://localhost:5173"})

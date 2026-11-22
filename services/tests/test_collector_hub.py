@@ -13,12 +13,12 @@ from collector.main import create_app
 from common.hublink import HubLink
 from homeconfig import load_config
 
-MEETING_URL = "http://127.0.0.1:19400/plugins/ambient"
+MEETING_URL = "http://127.0.0.1:19400/plugins/a2a"
 
 
 class FakeHub:
     def __init__(self) -> None:
-        self.peers = {"room1": "http://127.0.0.1:19160/plugins/ambient", "meeting": MEETING_URL}
+        self.peers = {"room1": "http://127.0.0.1:19160/plugins/a2a", "meeting": MEETING_URL}
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if request.url.path == "/runtime/peers":
@@ -77,7 +77,7 @@ async def test_the_watcher_follows_hub_connections():
     assert await watcher.check_once() is True
     meeting = watcher.statuses["meeting"]
     assert meeting.online and meeting.owned_devices == ["input_select.room1_light_mode"]
-    assert "http://agents:19400/plugins/ambient/.well-known/agent-card.json" in seen
+    assert "http://agents:19400/plugins/a2a/.well-known/agent-card.json" in seen
 
     del hub.peers["meeting"]  # disconnected in the Hub
     assert await watcher.check_once() is True

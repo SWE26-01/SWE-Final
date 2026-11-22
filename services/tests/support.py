@@ -1,11 +1,12 @@
 """Shared test values: the environment the services would get from the root .env."""
 
 ENV = {
-    "AMBIENT_TOKEN_DESKTOP": "t-desktop",
-    "AMBIENT_TOKEN_SMARTPHONE": "t-smartphone",
-    "AMBIENT_TOKEN_ORCHESTRATOR": "t-orchestrator",
-    "AMBIENT_TOKEN_ROOM1": "t-room1",
-    "AMBIENT_TOKEN_ROOM2": "t-room2",
+    "AGENT_TOKEN_DESKTOP": "t-desktop",
+    "AGENT_TOKEN_SMARTPHONE": "t-smartphone",
+    "AGENT_TOKEN_ROOT": "t-root",
+    "AGENT_TOKEN_ROOM1": "t-room1",
+    "AGENT_TOKEN_ROOM2": "t-room2",
+    "AGENT_TOKEN_KITCHEN": "t-kitchen",
     "DASHBOARD_TOKEN": "t-dashboard",
     "HOME_USER_TOKEN": "t-user",
     "STUDIO_TOKEN": "t-studio",
@@ -19,7 +20,7 @@ def bearer(token: str) -> dict[str, str]:
 
 ROOM1 = bearer("t-room1")
 ROOM2 = bearer("t-room2")
-HOME = bearer("t-orchestrator")
+HOME = bearer("t-root")
 DESKTOP = bearer("t-desktop")
 DASHBOARD = bearer("t-dashboard")
 USER = bearer("t-user")

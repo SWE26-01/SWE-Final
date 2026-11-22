@@ -76,7 +76,7 @@ def create_app(
         on_change=lambda: hub.publish({"type": "agents", "agents": agents_message()}),
         transport=agent_transport,
         hub=hub_link_,
-        agents_host=os.environ.get("AMBIENT_AGENTS_HOST") or None,
+        agents_host=os.environ.get("AGENTS_HOST") or None,
     )
     auth = make_auth(config)
     agent = agent_auth(config, hub_link_)  # config agents, or agents connected in the Hub

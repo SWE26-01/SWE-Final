@@ -31,7 +31,7 @@ def problems(cfg_dir: Path, env: dict[str, str] = ENV) -> str:
 
 def test_repo_config_loads():
     cfg = load_config(env=ENV)
-    assert cfg.owner_of("input_boolean.living_tv_muted") == "orchestrator"
+    assert cfg.owner_of("input_boolean.living_tv_muted") == "root"
     assert cfg.owner_of("input_boolean.not_a_device") is None
     assert set(cfg.owned_by("room2")) == {
         "input_boolean.room2_light",
@@ -40,10 +40,10 @@ def test_repo_config_loads():
     }
     room1 = cfg.caller_by_token("t-room1")
     assert room1 is not None and room1.id == "room1" and room1.role is Role.AGENT
-    assert room1.url == "http://127.0.0.1:19160/plugins/ambient"
+    assert room1.url == "http://127.0.0.1:19160/plugins/a2a"
     assert cfg.caller_by_token("t-dashboard").role is Role.OPERATOR
     agents = [a.id for a in cfg.agents()]
-    assert agents == ["desktop", "smartphone", "orchestrator", "room1", "room2"]
+    assert agents == ["desktop", "smartphone", "root", "room1", "room2", "kitchen"]
 
 
 def test_every_owner_of_a_device_is_an_agent_with_a_url():
@@ -60,12 +60,12 @@ def test_devices_start_off_or_on_their_first_option():
 
 
 def test_missing_token_is_reported(cfg_dir):
-    env = {k: v for k, v in ENV.items() if k != "AMBIENT_TOKEN_ROOM2"}
-    assert "room2: environment variable AMBIENT_TOKEN_ROOM2 is not set" in problems(cfg_dir, env)
+    env = {k: v for k, v in ENV.items() if k != "AGENT_TOKEN_ROOM2"}
+    assert "room2: environment variable AGENT_TOKEN_ROOM2 is not set" in problems(cfg_dir, env)
 
 
 def test_shared_token_is_reported(cfg_dir):
-    env = {**ENV, "AMBIENT_TOKEN_ROOM2": "t-room1"}
+    env = {**ENV, "AGENT_TOKEN_ROOM2": "t-room1"}
     assert "room2: same token as 'room1'" in problems(cfg_dir, env)
 
 
@@ -138,9 +138,9 @@ def test_unknown_keys_rejected(cfg_dir):
 
 def test_cors_origins():
     assert load_config(env=ENV).cors_origins == []
-    env = {**ENV, "AMBIENT_CORS_ORIGINS": " http://localhost:5173, https://dash.example "}
+    env = {**ENV, "CORS_ORIGINS": " http://localhost:5173, https://dash.example "}
     assert load_config(env=env).cors_origins == ["http://localhost:5173", "https://dash.example"]
     with pytest.raises(ConfigError, match="not an origin"):
-        load_config(env={**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:5173/"})
+        load_config(env={**ENV, "CORS_ORIGINS": "http://localhost:5173/"})
     with pytest.raises(ConfigError, match="not an origin"):
-        load_config(env={**ENV, "AMBIENT_CORS_ORIGINS": "*"})
+        load_config(env={**ENV, "CORS_ORIGINS": "*"})

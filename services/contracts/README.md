@@ -20,4 +20,4 @@ events stored before 2026-10-19) and, when they carry a `request_id`, `flow` (it
 `id` is arrival order; `ts` is when the event happened. Agents post concurrently, so the two can
 differ: `GET /events` and the WebSocket follow `id`, while `/flows` orders each request by `ts`.
 `ts` comes from the agent's host clock; `received_at` is the Collector's. Agent-to-agent
-messages are `../spec/ambient-a2a.md`. Device and agent ids: `config/devices.yaml`.
+messages are `../spec/home-a2a.md`. Device and agent ids: `config/devices.yaml`.

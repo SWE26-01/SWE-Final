@@ -4,11 +4,12 @@
 # entry names the environment variable that holds it, so the services run with the root .env
 # (`--env-file ../.env`).
 agents:
-  desktop: {token_env: AMBIENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/ambient"}
-  smartphone: {token_env: AMBIENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/ambient"}
-  orchestrator: {token_env: AMBIENT_TOKEN_ORCHESTRATOR, url: "http://127.0.0.1:19040/plugins/ambient"}
-  room1: {token_env: AMBIENT_TOKEN_ROOM1, url: "http://127.0.0.1:19160/plugins/ambient"}
-  room2: {token_env: AMBIENT_TOKEN_ROOM2, url: "http://127.0.0.1:19280/plugins/ambient"}
+  desktop: {token_env: AGENT_TOKEN_DESKTOP, url: "http://127.0.0.1:18800/plugins/a2a"}
+  smartphone: {token_env: AGENT_TOKEN_SMARTPHONE, url: "http://127.0.0.1:18920/plugins/a2a"}
+  root: {token_env: AGENT_TOKEN_ROOT, url: "http://127.0.0.1:19040/plugins/a2a"}
+  room1: {token_env: AGENT_TOKEN_ROOM1, url: "http://127.0.0.1:19160/plugins/a2a"}
+  room2: {token_env: AGENT_TOKEN_ROOM2, url: "http://127.0.0.1:19280/plugins/a2a"}
+  kitchen: {token_env: AGENT_TOKEN_KITCHEN, url: "http://127.0.0.1:18680/plugins/a2a"}
 
 # Dashboards: read device states and events, command nothing.
 operators:

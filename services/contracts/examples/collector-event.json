@@ -3,7 +3,7 @@
   "event": {
     "id": 95,
     "ts": "2026-10-18T07:53:35.546000Z",
-    "agent": "orchestrator",
+    "agent": "root",
     "dir": "out",
     "to": "room1",
     "type": "device.control",

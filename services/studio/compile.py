@@ -1,8 +1,13 @@
 """Slots -> AgentSpec: the code half of "structure first, then fill in".
 
-The LLM chose a template, a space and built-in skills (config/skills.yaml). Here the skills' device
-kinds become the space's real devices, and their rules, policies and energy-saving actions become
-plugin config. Nothing the LLM wrote reaches the config except through these lookups."""
+For a room agent the LLM chose a template, a space and built-in skills (config/skills.yaml). Here
+the skills' device kinds become the space's real devices, and their rules, policies and
+energy-saving actions become plugin config. Nothing the LLM wrote reaches the config except
+through these lookups.
+
+An assistant agent (anything else people ask for: a coach, a tutor, a planner) owns no device and
+gets no rules. The LLM's one-line instructions go into its guide (AGENTS.md) after the harness
+checked every line; its tools stay locked like every generated agent's."""
 
 from __future__ import annotations
 
@@ -22,7 +27,7 @@ class AgentSpec(BaseModel):
     role: str
     display_name: str
     description: str
-    space: str
+    space: str | None
     skills: list[str]
     owned: list[str]
     subscribe_to: dict[str, list[str]]
@@ -31,6 +36,8 @@ class AgentSpec(BaseModel):
     energy_saving: list[dict]
     request_acl: dict[str, list[str]]
     permissions: list[str]
+    instructions: list[str] = []
+    routine: dict | None = None  # routine_agent: {"at": "HH:MM", "requests": [{device, command}]}
 
 
 def agent_id_for(slots: Slots, suffix: str) -> str:
@@ -38,10 +45,101 @@ def agent_id_for(slots: Slots, suffix: str) -> str:
     return f"{slots.space}-{first}-{suffix}".replace("_", "-")
 
 
+ASSISTANT = "assistant_agent"
+ROUTINE = "routine_agent"
+COMMAND_WORDS = {"TURN_ON": "켜기", "TURN_OFF": "끄기"}
+
+
+def compile_routine(
+    slots: Slots, config: HomeConfig, suffix: str
+) -> tuple[AgentSpec | None, list[str]]:
+    errors: list[str] = []
+    if slots.space not in config.spaces:
+        errors.append(f"space: choose one of {', '.join(config.spaces)}")
+    if not slots.at:
+        errors.append("at: the daily time, HH:MM")
+    if not slots.devices:
+        errors.append("devices: the device kinds to ask for")
+    if not slots.display_name:
+        errors.append("display_name: give the agent a short name")
+    errors += check_text("display_name", slots.display_name)
+    errors += check_text("description", slots.description)
+    if errors:
+        return None, errors
+    where = SPACE_NAMES.get(slots.space, slots.space)
+    targets = [d for d in config.devices_in(slots.space) if d.kind in slots.devices]
+    missing = [k for k in slots.devices if k not in {d.kind for d in targets}]
+    if missing:
+        names = ", ".join(f"{KIND_NAMES.get(k, k)} ({k})" for k in missing)
+        return None, [f"devices: {where} has no {names}"]
+    command = slots.command or "TURN_ON"
+    requests = [{"device": d.entity, "command": command} for d in targets]
+    kinds = ", ".join(dict.fromkeys(KIND_NAMES.get(d.kind or "", d.entity) for d in targets))
+    template = TEMPLATES[ROUTINE]
+    return AgentSpec(
+        agent_id=f"routine-{suffix}",
+        template=template.id,
+        role=template.role,
+        display_name=slots.display_name or "",
+        description=slots.description or "",
+        space=slots.space,
+        skills=[],
+        owned=[],
+        subscribe_to={},
+        rules=[],
+        policies=[],
+        energy_saving=[],
+        request_acl={},
+        permissions=[f"request:{r['device']}" for r in requests],
+        instructions=[
+            f"매일 {slots.at}에 Root Agent에게 {where} {kinds} {COMMAND_WORDS[command]}를 부탁한다",
+            "Root Agent가 기기 주인 에이전트에게 넘기고, 주인의 정책이 실행 여부를 정한다",
+        ],
+        routine={"at": slots.at, "requests": requests},
+    ), []
+
+
+def compile_assistant(slots: Slots, suffix: str) -> tuple[AgentSpec | None, list[str]]:
+    errors: list[str] = []
+    if not slots.display_name:
+        errors.append("display_name: give the agent a short name")
+    lines = [line.strip() for line in slots.instructions if line and line.strip()]
+    if len(lines) < 2:
+        errors.append("instructions: write 3-10 short lines on how the agent helps")
+    errors += check_text("display_name", slots.display_name)
+    errors += check_text("description", slots.description)
+    for i, line in enumerate(lines):
+        errors += check_text(f"instructions[{i}]", line)
+    if errors:
+        return None, errors
+    template = TEMPLATES[ASSISTANT]
+    return AgentSpec(
+        agent_id=f"assistant-{suffix}",
+        template=template.id,
+        role=template.role,
+        display_name=slots.display_name or "",
+        description=slots.description or "",
+        space=None,
+        skills=[],
+        owned=[],
+        subscribe_to={},
+        rules=[],
+        policies=[],
+        energy_saving=[],
+        request_acl={},
+        permissions=[],
+        instructions=lines,
+    ), []
+
+
 def compile_spec(
     slots: Slots, config: HomeConfig, suffix: str
 ) -> tuple[AgentSpec | None, list[str]]:
     """The spec, or the problems to send back to the LLM (and to show the user)."""
+    if slots.template == ASSISTANT:
+        return compile_assistant(slots, suffix)
+    if slots.template == ROUTINE:
+        return compile_routine(slots, config, suffix)
     errors: list[str] = []
     template = TEMPLATES.get(slots.template or "")
     if template is None:
@@ -144,6 +242,21 @@ def compile_spec(
 def summarize(spec: AgentSpec, config: HomeConfig) -> list[str]:
     """What the agent will do, in plain Korean, for the user's review. Written by code from the
     spec, so it always matches what will run."""
+    if spec.template == ROUTINE:
+        return [
+            *spec.instructions,
+            "기기를 직접 움직이지 않아요. 연결할 때 '주인에게 요청' 권한만 승인해요",
+            "Agent Cloud에서 '지금 실행'으로 바로 시험해 볼 수 있어요. 대화 탭에서 루틴을 "
+            "물어볼 수도 있어요",
+        ]
+    if spec.template == ASSISTANT:
+        return [
+            "대화형 에이전트예요. Agent Cloud에서 연결한 뒤 '대화' 탭에서 이야기해요",
+            *[f"지침: {line}" for line in spec.instructions],
+            "집의 기기는 맡지 않고, 다른 에이전트의 정보도 읽지 않아요",
+            "셸, 파일, 웹 도구는 없어요. 인터넷 검색 없이 알고 있는 지식으로 답하고, "
+            "확실하지 않으면 그렇다고 말해요",
+        ]
     where = SPACE_NAMES.get(spec.space, spec.space)
     kinds = [KIND_NAMES.get(config.devices[e].kind or "", e) for e in spec.owned]
     lines = [f"{where}의 기기 {len(spec.owned)}개를 맡아요: {', '.join(dict.fromkeys(kinds))}"]

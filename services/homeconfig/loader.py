@@ -47,7 +47,7 @@ class HomeConfig:
     devices: dict[str, Device]  # entity id -> device
     spaces: list[str]
     skills: dict[str, Skill]  # skill id -> built-in skill (config/skills.yaml, optional)
-    cors_origins: list[str]  # env AMBIENT_CORS_ORIGINS: browser origins allowed to read directly
+    cors_origins: list[str]  # env CORS_ORIGINS: browser origins allowed to read directly
     # Problems with optional callers (users, services). They never stop the Gateway or the
     # Collector; the Hub and Studio report them.
     optional_problems: list[str]
@@ -72,7 +72,7 @@ class HomeConfig:
 
 
 def _on_host(url: str | None, host: str | None) -> str | None:
-    """Point a loopback agent URL at `host` (env AMBIENT_AGENTS_HOST). A service in Docker reaches
+    """Point a loopback agent URL at `host` (env AGENTS_HOST). A service in Docker reaches
     agents running on the machine through e.g. host.docker.internal, not 127.0.0.1."""
     if not url or not host:
         return url
@@ -147,7 +147,7 @@ def load_config(
         if token in by_token:
             found.append(f"{caller_id}: same token as {by_token[token]!r}")
             continue
-        url = _on_host(entry.url, env.get("AMBIENT_AGENTS_HOST") or None)
+        url = _on_host(entry.url, env.get("AGENTS_HOST") or None)
         callers[caller_id] = Caller(
             id=caller_id, role=role, token=token, url=url, token_env=entry.token_env
         )
@@ -176,12 +176,10 @@ def load_config(
                 problems.append(f"skill {s.id!r}: subscribes to {peer!r}, which is not an agent")
         skills[s.id] = s
 
-    cors_origins = [o.strip() for o in env.get("AMBIENT_CORS_ORIGINS", "").split(",") if o.strip()]
+    cors_origins = [o.strip() for o in env.get("CORS_ORIGINS", "").split(",") if o.strip()]
     for origin in cors_origins:
         if not re.fullmatch(r"https?://[^/\s]+", origin):
-            problems.append(
-                f"AMBIENT_CORS_ORIGINS: {origin!r} is not an origin like http://localhost:5173"
-            )
+            problems.append(f"CORS_ORIGINS: {origin!r} is not an origin like http://localhost:5173")
 
     if problems:
         raise ConfigError(problems)

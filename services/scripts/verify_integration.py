@@ -60,8 +60,11 @@ def gateway(config: HomeConfig, url: str) -> None:
         for agent in config.agents():
             headers = {"Authorization": f"Bearer {agent.token}"}
             other = next(
-                (d for d in config.devices.values()
-                 if d.owner != agent.id and d.domain == "input_boolean"),
+                (
+                    d
+                    for d in config.devices.values()
+                    if d.owner != agent.id and d.domain == "input_boolean"
+                ),
                 None,
             )
             if other is not None:

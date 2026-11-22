@@ -7,7 +7,7 @@ from homeconfig import HomeConfig
 
 
 def allow_dashboards(app: FastAPI, config: HomeConfig) -> None:
-    """Allow GET from `config.cors_origins` (env AMBIENT_CORS_ORIGINS); nothing when it is empty.
+    """Allow GET from `config.cors_origins` (env CORS_ORIGINS); nothing when it is empty.
     WebSockets are not subject to CORS. Commands and event reports never come from a browser."""
     if config.cors_origins:
         app.add_middleware(

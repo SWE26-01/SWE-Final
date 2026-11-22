@@ -22,7 +22,7 @@ def meeting_agent(**kw) -> dict:
         "description": "회의 중에는 내 방을 조용하게 맞춰요",
         "role": "room",
         "space": "my_room",
-        "url": "http://127.0.0.1:19400/plugins/ambient",
+        "url": "http://127.0.0.1:19400/plugins/a2a",
         "skills": ["meeting_mode"],
         "owned_devices": owned,
         "permissions": [f"device:{e}" for e in owned] + ["context:desktop.meeting_app_active"],
@@ -32,9 +32,9 @@ def meeting_agent(**kw) -> dict:
 
 
 def card(name: str = "weather", version: str = "1.0", fields=("rain_expected",)) -> dict:
-    """A standard Agent Card shaped like ../agents/ambient-a2a-plugin/src/a2a.ts `agentCard`:
+    """A standard Agent Card shaped like ../agents/home-a2a-plugin/src/a2a.ts `agentCard`:
     no extensions; role and shared fields are skill tags."""
-    base = "http://ext.test/plugins/ambient"
+    base = "http://ext.test/plugins/a2a"
     return {
         "name": name,
         "description": "External weather agent",
@@ -80,7 +80,7 @@ def free_room1(hub: TestClient) -> None:
 
 def test_platform_agents_are_seeded_connected_with_their_devices(hub):
     agents = {a["id"]: a for a in hub.get("/agents", headers=USER).json()}
-    assert set(agents) == {"desktop", "smartphone", "orchestrator", "room1", "room2"}
+    assert set(agents) == {"desktop", "smartphone", "root", "room1", "room2", "kitchen"}
     room1 = agents["room1"]
     assert room1["origin"] == "platform" and room1["connected"] and room1["space"] == "my_room"
     assert LIGHT_MODE in room1["owned_devices"]
@@ -147,7 +147,7 @@ def test_each_device_keeps_one_owner(hub):
     assert r.status_code == 201
     conn = r.json()
     assert conn["token"] and not conn["platform"]
-    assert conn["token_env"] == "AMBIENT_TOKEN_MY_ROOM_MEETING_MODE_AB12"
+    assert conn["token_env"] == "AGENT_TOKEN_MY_ROOM_MEETING_MODE_AB12"
     assert hub.get("/ownership", headers=USER).json()[LIGHT_MODE] == "my-room-meeting-mode-ab12"
     assert hub.post("/connections", json=body, headers=USER).status_code == 409  # already
     back = hub.post("/connections", json={"agent_id": "room1"}, headers=USER)
@@ -199,7 +199,7 @@ def test_platform_agents_reconnect_with_their_env_token(hub):
     r = hub.post("/connections", json={"agent_id": "room1"}, headers=USER)
     assert r.status_code == 201
     assert r.json()["token"] is None and r.json()["platform"]
-    assert r.json()["token_env"] == "AMBIENT_TOKEN_ROOM1"
+    assert r.json()["token_env"] == "AGENT_TOKEN_ROOM1"
     assert hub.delete("/agents/room1", headers=USER).status_code == 400
 
 
@@ -221,26 +221,26 @@ def test_runtime_views_for_the_agents(hub):
     free_room1(hub)
     hub.post("/connections", json={"agent_id": "my-room-meeting-mode-ab12"}, headers=USER)
     peers = hub.get("/runtime/peers", headers=ROOM1).json()
-    assert peers["my-room-meeting-mode-ab12"] == "http://127.0.0.1:19400/plugins/ambient"
+    assert peers["my-room-meeting-mode-ab12"] == "http://127.0.0.1:19400/plugins/a2a"
     assert "room1" not in peers
     acl = hub.get("/runtime/acl/desktop", headers=ROOM1).json()
     assert acl == {"my-room-meeting-mode-ab12": ["meeting_app_active"]}
 
 
 def test_external_agents_sign_up_with_their_card():
-    url = "http://ext.test/plugins/ambient/.well-known/agent-card.json"
+    url = "http://ext.test/plugins/a2a/.well-known/agent-card.json"
     transport = serve(
         {url: card(), "http://old.test/.well-known/agent-card.json": card("old", "0.3")}
     )
     app = create_app(load_config(env=ENV), "sqlite://", sync_cards=False, card_transport=transport)
     with TestClient(app) as hub:
         r = hub.post(
-            "/agents/discover", json={"card_url": "http://ext.test/plugins/ambient"}, headers=USER
+            "/agents/discover", json={"card_url": "http://ext.test/plugins/a2a"}, headers=USER
         )
         assert r.status_code == 201
         agent = r.json()
         assert agent["id"] == "weather" and agent["origin"] == "external" and not agent["connected"]
-        assert agent["url"] == "http://ext.test/plugins/ambient"
+        assert agent["url"] == "http://ext.test/plugins/a2a"
         assert agent["provided_fields"] == ["rain_expected"] and agent["permissions"] == []
         old = hub.post("/agents/discover", json={"card_url": "http://old.test"}, headers=USER)
         assert old.status_code == 422 and "1.0" in old.json()["detail"]["message"]
@@ -252,9 +252,7 @@ def test_external_agents_sign_up_with_their_card():
 
 def test_platform_details_come_from_their_running_cards():
     desktop = card("desktop", fields=("meeting_app_active", "pc_state"))
-    transport = serve(
-        {"http://127.0.0.1:18800/plugins/ambient/.well-known/agent-card.json": desktop}
-    )
+    transport = serve({"http://127.0.0.1:18800/plugins/a2a/.well-known/agent-card.json": desktop})
     app = create_app(load_config(env=ENV), "sqlite://", sync_cards=False, card_transport=transport)
     with TestClient(app) as hub:
         r = hub.post("/agents/desktop/refresh", headers=USER)
@@ -271,12 +269,12 @@ def test_a_restart_keeps_what_the_user_decided(tmp_path: Path):
         room1 = hub.get("/agents/room1", headers=USER).json()
         assert not room1["connected"]
         actions = [a["action"] for a in hub.get("/audit", headers=USER).json()]
-        assert actions[0] == "disconnect" and actions.count("register") == 5
+        assert actions[0] == "disconnect" and actions.count("register") == 6
 
 
 FLOWS = [
-    {"flow": "scn-A1", "agents": ["desktop", "orchestrator", "room1"], "accepted": True},
-    {"flow": "scn-B1", "agents": ["smartphone", "orchestrator"], "accepted": True},
+    {"flow": "scn-A1", "agents": ["desktop", "root", "room1"], "accepted": True},
+    {"flow": "scn-B1", "agents": ["smartphone", "root"], "accepted": True},
     {"flow": "scn-C1", "agents": ["room1"], "accepted": False},
 ]
 
@@ -388,3 +386,46 @@ def test_connecting_a_studio_agent_starts_it_and_disconnecting_stops_it():
         launcher.down = False
         hub.delete("/agents/my-room-meeting-mode-ab12", headers=USER)
         assert launcher.calls[-1] == ("DELETE", "/launch/my-room-meeting-mode-ab12", None)
+
+
+class ChatLauncher(FakeLauncher):
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        super().__call__(request)
+        if request.url.path == "/chat":
+            return httpx.Response(200, json={"reply": "안녕하세요"})
+        return httpx.Response(200, json={"ok": True})
+
+
+def test_chat_goes_to_a_connected_agent_through_the_launcher():
+    launcher = ChatLauncher()
+    app = create_app(
+        load_config(env=ENV),
+        "sqlite://",
+        sync_cards=False,
+        launcher_url="http://agents:18700",
+        launcher_transport=httpx.MockTransport(launcher),
+    )
+    with TestClient(app) as hub:
+        hub.post("/agents", json=meeting_agent(), headers=STUDIO)
+        agent_id = meeting_agent()["id"]
+        r = hub.post(f"/agents/{agent_id}/chat", json={"message": "안녕"}, headers=USER)
+        assert r.status_code == 409 and r.json()["detail"]["reason_code"] == "NOT_CONNECTED"
+        free_room1(hub)
+        assert (
+            hub.post("/connections", json={"agent_id": agent_id}, headers=USER).status_code == 201
+        )
+        r = hub.post(f"/agents/{agent_id}/chat", json={"message": "안녕"}, headers=USER)
+        assert r.status_code == 200 and r.json() == {"reply": "안녕하세요"}
+        _, path, body = launcher.calls[-1]
+        assert path == "/chat"
+        assert body == {
+            "id": agent_id,
+            "port": 19400,
+            "session": "hub-home_user",
+            "message": "안녕",
+        }
+        launcher.down = True
+        r = hub.post(f"/agents/{agent_id}/chat", json={"message": "안녕"}, headers=USER)
+        assert r.status_code == 502 and r.json()["detail"]["reason_code"] == "AGENT_UNREACHABLE"
+        audit = hub.get("/audit", headers=USER).json()
+        assert all("안녕" not in a["detail"] for a in audit)  # chat is not recorded

@@ -4,7 +4,7 @@
     {
       "id": 89,
       "ts": "2026-10-18T06:40:06.750000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "in",
       "from": "desktop",
       "type": "device.control",
@@ -21,7 +21,7 @@
     {
       "id": 90,
       "ts": "2026-10-18T07:52:20.660000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "out",
       "to": "room1",
       "type": "device.control",
@@ -54,7 +54,7 @@
       "ts": "2026-10-18T07:52:20.705000Z",
       "agent": "room1",
       "dir": "in",
-      "from": "orchestrator",
+      "from": "root",
       "type": "device.control",
       "request_id": "order-1792309940",
       "on_behalf_of": "desktop",
@@ -71,7 +71,7 @@
     {
       "id": 93,
       "ts": "2026-10-18T07:52:20.711000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "in",
       "from": "desktop",
       "type": "device.control",
@@ -89,7 +89,7 @@
     {
       "id": 94,
       "ts": "2026-10-18T07:52:20.710000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "out-result",
       "to": "room1",
       "type": "device.control",

@@ -6,12 +6,12 @@
     "started_at": "2026-10-18T07:53:35.546000Z",
     "ended_at": "2026-10-18T07:53:35.605000Z",
     "agents": [
-      "orchestrator",
+      "root",
       "room1"
     ],
     "events": 5,
     "requester": "desktop",
-    "entry": "orchestrator",
+    "entry": "root",
     "action": {
       "device": "input_select.room1_light_mode",
       "command": "SET",
@@ -25,7 +25,7 @@
     {
       "id": 95,
       "ts": "2026-10-18T07:53:35.546000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "out",
       "to": "room1",
       "type": "device.control",
@@ -58,7 +58,7 @@
       "ts": "2026-10-18T07:53:35.598000Z",
       "agent": "room1",
       "dir": "in",
-      "from": "orchestrator",
+      "from": "root",
       "type": "device.control",
       "request_id": "demo-meeting",
       "on_behalf_of": "desktop",
@@ -75,7 +75,7 @@
     {
       "id": 97,
       "ts": "2026-10-18T07:53:35.604000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "out-result",
       "to": "room1",
       "type": "device.control",
@@ -87,7 +87,7 @@
     {
       "id": 98,
       "ts": "2026-10-18T07:53:35.605000Z",
-      "agent": "orchestrator",
+      "agent": "root",
       "dir": "in",
       "from": "desktop",
       "type": "device.control",

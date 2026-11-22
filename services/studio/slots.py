@@ -1,6 +1,7 @@
 """The form the LLM fills. Every choice is an enum built from the catalogs (templates, spaces,
 device kinds, built-in skills), so the LLM cannot name a device, a tool or a rule that does not
-exist. The only free text is a short name, a description and a question or reason."""
+exist. The free text is a short name, a description, a question or reason, and for an assistant
+agent a few one-line instructions; every line goes through the harness (studio/harness.py)."""
 
 from __future__ import annotations
 
@@ -52,6 +53,22 @@ def slot_model(config: HomeConfig) -> type[BaseModel]:
             list[kinds],
             Field(default_factory=list, max_length=10, description="device kinds the user named"),
         ),
+        instructions=(
+            list[Line],
+            Field(
+                default_factory=list,
+                max_length=10,
+                description="assistant_agent only: 3-10 short Korean lines on how the agent helps",
+            ),
+        ),
+        at=(
+            Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")] | None,
+            Field(default=None, description="routine_agent only: daily time, HH:MM (24h)"),
+        ),
+        command=(
+            Literal["TURN_ON", "TURN_OFF"] | None,
+            Field(default=None, description="routine_agent only: what to ask for the devices"),
+        ),
         question=(Line | None, Field(default=None, description="Korean question (clarify)")),
         reason=(Line | None, Field(default=None, description="Korean reason (unsupported)")),
     )
@@ -68,5 +85,8 @@ class Slots(BaseModel):
     space: str | None = None
     skills: list[str] = []
     devices: list[str] = []
+    instructions: list[str] = []
+    at: str | None = None
+    command: str | None = None
     question: str | None = None
     reason: str | None = None

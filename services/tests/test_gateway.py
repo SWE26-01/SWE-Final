@@ -30,7 +30,7 @@ def state_of(client: TestClient, entity: str) -> str:
 
 def test_devices_start_in_their_initial_state(client):
     listed = {d["entity"]: d for d in client.get("/devices", headers=ROOM1).json()}
-    assert len(listed) == 10
+    assert len(listed) == 13
     assert listed[LIGHT]["state"] == "off"
     assert listed[MODE]["state"] == "normal"
     assert listed[MODE]["attributes"] == {
@@ -63,7 +63,7 @@ def test_home_cannot_move_a_room_device(client):
 @pytest.mark.parametrize(
     ("service", "body", "code"),
     [
-        ("input_boolean/turn_off", {"entity_id": TV}, 403),  # orchestrator's TV
+        ("input_boolean/turn_off", {"entity_id": TV}, 403),  # root's TV
         ("input_boolean/turn_off", {"entity_id": f"{LIGHT}, {TV}"}, 403),
         ("input_boolean/turn_off", {"entity_id": [LIGHT, TV]}, 403),
         ("input_boolean/turn_off", {"entity_id": "all"}, 403),
@@ -128,7 +128,7 @@ def test_websocket_follows_the_devices(client):
         call(client, ROOM1, "input_boolean/turn_on", entity_id=LIGHT)
         assert ws.receive_json()["device"]["entity"] == LIGHT
 
-    assert client.get("/health").json() == {"ok": True, "devices": 10}
+    assert client.get("/health").json() == {"ok": True, "devices": 13}
 
 
 @pytest.mark.parametrize("query", ["", "?token=t-room1", "?token=nope"])
@@ -149,7 +149,7 @@ def preflight(client: TestClient, origin: str) -> httpx.Response:
 
 
 def test_cors_only_for_configured_origins():
-    env = {**ENV, "AMBIENT_CORS_ORIGINS": "http://localhost:3000"}
+    env = {**ENV, "CORS_ORIGINS": "http://localhost:3000"}
     with TestClient(create_app(load_config(env=env))) as c:
         ok = preflight(c, "http://localhost:3000")
         assert ok.headers["access-control-allow-origin"] == "http://localhost:3000"

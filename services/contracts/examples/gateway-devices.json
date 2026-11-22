@@ -2,7 +2,7 @@
   {
     "entity": "input_boolean.living_light",
     "space": "living_room",
-    "owner": "orchestrator",
+    "owner": "root",
     "state": "off",
     "attributes": {
       "friendly_name": "거실 조명"
@@ -12,7 +12,7 @@
   {
     "entity": "input_boolean.living_tv",
     "space": "living_room",
-    "owner": "orchestrator",
+    "owner": "root",
     "state": "off",
     "attributes": {
       "friendly_name": "거실 TV"
@@ -22,7 +22,7 @@
   {
     "entity": "input_boolean.living_tv_muted",
     "space": "living_room",
-    "owner": "orchestrator",
+    "owner": "root",
     "state": "on",
     "attributes": {
       "friendly_name": "거실 TV 음소거"
