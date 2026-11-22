@@ -84,7 +84,7 @@ The Coffee Agent made by Studio has a standard A2A Agent Card: name, description
 
 The **Agentic Hub (cloud)** receives Studio's requests through its API, saves them in the Agent Information Registry (RDS) and deploys the agents (Coffee, Training, Sleep …, each with its own SLM). Other users publish, search and install agents through **Share & Install**. A Hub agent sends tasks over A2A to the Root Agent of the user's home, which routes them to the coffee machine's owner, the Kitchen Agent. The Kitchen Agent checks its own policy and runs the LG DUOBO coffee machine. **Each room agent decides under its own policy.**
 
-In this repo: [services/agenthub](services/agenthub) (registry in PostgreSQL on Docker, register/search/connect by Agent Card, one owner per device) and [agent_hub_FE/](agent_hub_FE/) (Hub screen). Generated agents run on OpenClaw today, and `STUDIO_RUNTIME` can switch them to a Python runtime. Sharing and installing between users, cloud deployment and per-agent SLMs are still planned ([plan.md](plan.md#5-구현-범위)).
+In this repo: [services/agenthub](services/agenthub) (registry in PostgreSQL on Docker, register/search/connect by Agent Card, one owner per device) and [web/](web/) (the Agent Cloud screen and the smart home app). Generated agents run on OpenClaw today, and `STUDIO_RUNTIME` can switch them to a Python runtime. Sharing and installing between users, cloud deployment and per-agent SLMs are still planned ([plan.md](plan.md#5-구현-범위)).
 
 ### 11. Conclusion
 
@@ -144,7 +144,7 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: plain language → agent (LangChain + OpenRouter), harness, runtime (runtime.py)
 │   ├── config/               #   agents.yaml (callers), devices.yaml (virtual devices), skills.yaml (built-in skills)
 │   └── contracts/            #   message formats for screens (JSON Schema)
-├── agent_hub_FE/             # Agent Hub screen (Next.js): search, detail, connect, my agents, Studio, /home smart home app; tokens stay in its server-side proxy
+├── web/                      # the screens (shadcn/ui monorepo): apps/cloud = Agent Cloud (:3000), apps/home = smart home app (:3001), packages/ui and core; tokens stay in their server-side proxy
 ├── spec/                     # Home A2A extension spec
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO experiments (basis for per-agent SLMs)
@@ -191,8 +191,8 @@ docker compose up -d --build   # or scripts/run_all.sh (waits until everything i
 
 | Name | Address |
 |---|---|
-| Agent Hub screen | http://127.0.0.1:3000 |
-| Smart home app (spaces, devices, external connections) | http://127.0.0.1:3000/home |
+| Agent Cloud screen | http://127.0.0.1:3000 |
+| Smart home app (spaces, devices, external connections) | http://127.0.0.1:3001 |
 | Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
 | Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN`) |
 | Agents | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 |

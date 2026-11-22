@@ -1,0 +1,43 @@
+/* Agent Cloud's own motion: the coffee scenario's packets, pulses and steam. */
+
+.sc-line {
+  background: repeating-linear-gradient(90deg, color-mix(in oklch, var(--foreground) 14%, transparent) 0 6px, transparent 6px 11px);
+}
+.sc-fill { transform: scaleX(0); transform-origin: left; transition: transform .5s ease; }
+.sc-fill.is-on { transform: scaleX(1); }
+
+.sc-packet {
+  position: absolute; top: 50%; left: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 9999px;
+  box-shadow: 0 0 0 5px color-mix(in oklch, currentColor 0%, transparent), 0 0 18px color-mix(in oklch, var(--primary) 60%, transparent);
+  animation: sc-move-fwd linear forwards;
+}
+.sc-packet.is-back { left: 100%; animation-name: sc-move-back; }
+@keyframes sc-move-fwd { from { left: 0; } to { left: 100%; } }
+@keyframes sc-move-back { from { left: 100%; } to { left: 0; } }
+
+.sc-pulse { animation: sc-pulse 1s ease-out infinite; }
+@keyframes sc-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 35%, transparent); }
+  100% { box-shadow: 0 0 0 16px color-mix(in oklch, var(--primary) 0%, transparent); }
+}
+.sc-shake { animation: sc-shake .4s ease 1; }
+@keyframes sc-shake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.sc-steam { animation: sc-steam 1.2s ease-in-out infinite; }
+@keyframes sc-steam { 0% { opacity: 0; transform: translateY(6px) scaleY(.6); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) scaleY(1.1); } }
+.sc-rise { animation: sc-rise .3s ease; }
+@keyframes sc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Narrow screens: the path runs top to bottom. */
+@media (max-width: 1023px) {
+  .sc-line { background: repeating-linear-gradient(180deg, color-mix(in oklch, var(--foreground) 14%, transparent) 0 6px, transparent 6px 11px); }
+  .sc-fill { transform: scaleY(0); transform-origin: top; }
+  .sc-fill.is-on { transform: scaleY(1); }
+  .sc-packet { left: 50%; top: 0; animation-name: sc-move-down; }
+  .sc-packet.is-back { left: 50%; top: 100%; animation-name: sc-move-up; }
+}
+@keyframes sc-move-down { from { top: 0; } to { top: 100%; } }
+@keyframes sc-move-up { from { top: 100%; } to { top: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-packet, .sc-pulse, .sc-shake, .sc-steam, .sc-rise { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}

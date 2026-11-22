@@ -133,7 +133,7 @@ Hub의 에이전트는 집(My Home, local)의 **Root Agent**와 A2A로 작업을
 | 가상 스마트홈 기기 | `services/gateway`: Device Gateway가 가상 집의 기기 상태를 들고, 기기 주인을 다시 확인 | 구현 |
 | Agentic Studio | `services/studio`: 자연어 → 슬롯 폼(LangChain, OpenRouter) → 기본 Skill로 규칙 생성 → 권한 잠금 검사 → 사용자 승인 → Hub 등록 | 만들기 구현, 고치기·지우기는 Hub의 연결 해제/삭제로 대신 |
 | Agentic Hub | `services/agenthub`: Registry(PostgreSQL, Docker), Agent Card로 등록, 검색(`GET /agents`), 연결(설치)과 에이전트별 토큰, 기기 주인 한 명 규칙, 감사 로그 | 구현 (한 집 기준) |
-| Hub 화면 | `agent_hub_FE/` (Next.js): 로그인, 카탈로그(검색·별·설치 수), 상세(권한 승인·연결·해제·공유·활동), 내 에이전트, Studio, `/home` 스마트홈 앱. 서비스 토큰은 화면 서버에만 | 구현 |
+| Hub 화면 | `web/` (shadcn/ui 모노레포): Agent Cloud(`apps/cloud`: 로그인, 카탈로그, 에이전트 시트, 내 에이전트, Studio, 시나리오)와 스마트홈 앱(`apps/home`). 서비스 토큰은 화면 서버에만 | 구현 |
 | Running Agents | `services/studio/runtime.py`: 지금은 OpenClaw로 실행, `STUDIO_RUNTIME`으로 Python 실행기로 교체 가능. Hub에서 연결하면 `scripts/launcher.mjs`가 띄우고 해제하면 멈춘다 | OpenClaw 실행 구현 |
 | 에이전트별 SLM | Claude Haiku 호출로 대신한다(OpenRouter `anthropic/claude-haiku-5.5`). `training/` EXAONE SFT/DPO 실험은 기록으로 남김 ([docs/dpo-experiment.md](docs/dpo-experiment.md)) | Haiku로 대체 |
 | Share & Install | `services/agenthub`: 계정(회원가입·로그인), 공유(`POST /agents/{id}/share`), 카탈로그 검색(`GET /agents?shared=true`), 별, 설치(연결) | 구현 (사용자들이 한 집을 같이 씀) |

@@ -28,8 +28,8 @@ scripts/run_all.sh          # docker compose up -d --build 후 전부 뜰 때까
 
 | 이름 | 주소 | 내용 |
 |---|---|---|
-| hub-web | http://127.0.0.1:3000 | Agent Hub 화면 |
-| hub-web | http://127.0.0.1:3000/home | 스마트홈 앱(공간·기기·외부 연결, 폰 화면) |
+| cloud-web | http://127.0.0.1:3000 | Agent Cloud 화면 (`web/apps/cloud`) |
+| home-web | http://127.0.0.1:3001 | 스마트홈 앱 (`web/apps/home`). 로그인은 Agent Cloud와 같이 쓴다 |
 | hub | http://127.0.0.1:8400/docs | Agent Hub API |
 | studio | http://127.0.0.1:8500/docs | Agent Studio API |
 | gateway | http://127.0.0.1:8100/devices | 가상 집의 기기 상태 (`Authorization: Bearer $DASHBOARD_TOKEN`) |
@@ -119,7 +119,7 @@ root만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서 조명 
    5. **공유와 설치**: 만든 에이전트 상세에서 "Hub에 공유" → 로그아웃 → 다른 계정으로 가입 → 검색(카탈로그)에서
       `@만든사람` 카드를 찾아 별을 주고, 상세에서 연결(설치)한다. 공유하지 않은 에이전트는 다른 계정에 보이지 않는다.
    같은 흐름을 HTTP로만 확인하려면 `scripts/test_hub_studio.sh`.
-7. **스마트홈 앱** (http://127.0.0.1:3000/home, Hub 화면 옆에 띄운다): 공간별 기기 상태와 주인 에이전트가 실시간으로 바뀐다.
+7. **스마트홈 앱** (http://127.0.0.1:3001, Agent Cloud 옆에 띄운다): 공간별 기기 상태와 주인 에이전트가 실시간으로 바뀐다.
    기기를 누르면 주인과 "이 기기를 맡을 수 있는 에이전트"가 나오고, 거기서 바로 연결·해제한다(6의 2단계와 같은 동작).
    기기를 직접 켜고 끄는 버튼은 없다. 명령은 주인 에이전트만 보낸다.
 8. **아침 커피 시나리오** (상단 "시나리오" 탭): 처음이면 "Studio에서 만들기"로 "매일 아침 7시 반에 커피 내려 줘"를 만들고 승인한 뒤
@@ -139,7 +139,7 @@ root만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서 조명 
 | Studio가 `failed` | LLM 호출 실패. 키를 확인하거나 `.env`에 `STUDIO_LLM=rules` 후 `docker compose up -d studio` |
 | `verify_integration.py`에서 어떤 에이전트의 이벤트가 0개 | 그 에이전트가 아직 아무 요청도 처리하지 않았다. `scripts/scenario.sh`를 한 번 돌린 뒤 다시 확인한다 |
 | 에이전트 하나가 Offline이 되고 로그에 `Killed` | 메모리 부족. OpenClaw gateway가 하나에 약 1GB라 기본 6개에 6~6.5GB가 든다. Docker Desktop → Settings → Resources → Memory를 **10GB 이상**으로 올리고 `docker compose restart agents`. 대화형·루틴 에이전트는 실행기 안에서 돌아서 거의 메모리를 쓰지 않는다. 실행기 기록: `docker compose logs agents \| grep launcher` |
-| 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d hub-web` |
+| 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d cloud-web home-web` |
 | 화면이 계속 로그인 페이지로 돌아간다 | 세션이 끝났거나(7일) Hub가 다시 만들어졌다. 다시 로그인한다. Hub가 안 뜨면 `docker compose logs hub` |
 | 기기 명령이 모두 503 | Gateway가 Hub에 닿지 않는다(`docker compose logs hub`). Hub가 주인을 정하므로 Hub 없이 명령하지 않는다 |
 | 에이전트 상태를 초기화하고 싶음 | `docker compose down` 후 `docker volume rm swe-final_agents-state` |

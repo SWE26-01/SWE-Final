@@ -5,7 +5,8 @@
 #   collector  Event Collector: every agent's events and request flows
 #   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)
 #   studio     Agent Studio: makes agents from plain language (LangChain + OpenRouter)
-#   hub-web    Agent Hub screen (agent_hub_FE, Next.js)
+#   cloud-web  Agent Cloud screen (web/apps/cloud, Next.js + shadcn/ui)
+#   home-web   smart home app (web/apps/home), same image
 #   postgres   the databases of the Hub (with accounts), Studio and the Collector
 #
 # Tokens and keys come from the root .env (scripts/setup.sh writes it; add OPENROUTER_API_KEY).
@@ -101,16 +102,35 @@ services:
       hub: {condition: service_started}
     ports: ["127.0.0.1:8500:8500"]
 
-  hub-web:
-    build: ./agent_hub_FE
+  # The screens (web/: a shadcn/ui monorepo). One image, two servers; they share the login cookie.
+  cloud-web:
+    build: ./web
+    image: swe-final-web
+    command: ["node", "cloud/apps/cloud/server.js"]
     env_file: .env  # DASHBOARD_TOKEN, read on the server side only; people log in with accounts
     environment:
+      PORT: "3000"
       HUB_URL: http://hub:8400
       STUDIO_URL: http://studio:8500
       COLLECTOR_URL: http://collector:8200
       GATEWAY_URL: http://gateway:8100
     depends_on: [hub, studio, collector, gateway]
     ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+
+  home-web:
+    image: swe-final-web  # built by cloud-web
+    pull_policy: never
+    command: ["node", "home/apps/home/server.js"]
+    env_file: .env
+    environment:
+      PORT: "3001"
+      HUB_URL: http://hub:8400
+      STUDIO_URL: http://studio:8500
+      COLLECTOR_URL: http://collector:8200
+      GATEWAY_URL: http://gateway:8100
+    depends_on: [cloud-web, hub, studio, collector, gateway]
+    ports: ["127.0.0.1:3001:3001"]
     restart: unless-stopped
 
 volumes:

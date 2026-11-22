@@ -3,8 +3,8 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 # Rules for AI coding tools (Claude Code, Copilot, Cursor …)
 
 Monorepo: `agents/` (OpenClaw agents + the `home-a2a` plugin, TypeScript), `spec/` (Home A2A
-extension spec), `services/` (Device Gateway with the virtual home + Event Collector + Agent Hub +
-Studio, Python; its own rules are in `services/CLAUDE.md`), `agent_hub_FE/` (Agent Hub screen,
+message spec), `services/` (Device Gateway with the virtual home + Event Collector + Agent Hub +
+Studio, Python; its own rules are in `services/CLAUDE.md`), `web/` (the screens: a shadcn/ui monorepo with `apps/cloud` = Agent Cloud and `apps/home` = smart home app,
 Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docker-compose.yml`
 (runs everything). Plan: `plan.md` (from `docs/presentation/presentation.pdf`).
 
@@ -33,8 +33,10 @@ Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docke
 - Since 2026-10-18 SWE26-01/A2A-agents and SWE26-01/SWE-frontend are no longer developed; everything
   is edited here.
 - People log in with Hub accounts (`POST /auth/signup|login`). The browser holds only its own session,
-  in an httpOnly cookie set by `agent_hub_FE` (`app/api/auth/[action]`); never a service, OpenClaw or
-  agent token. `agent_hub_FE` calls the services only through its server-side proxy
-  (`app/api/[service]/[...path]`, allowlist in `lib/proxy.js`): the session goes to the Hub and Studio,
+  in an httpOnly cookie set by the screens (`web/packages/core/src/handlers.ts`); never a service, OpenClaw or
+  agent token. The screens call the services only through their server-side proxy
+  (`app/api/[service]/[...path]`, allowlist in `web/packages/core/src/proxy.ts`): the session goes to the Hub and Studio,
   the read-only dashboard token to the Collector and Gateway after the session is checked. Add a route
-  there only for a call the screen needs, and never device commands, `tokens/verify` or agent registration.
+  there only for a call a screen needs, and never device commands, `tokens/verify` or agent registration.
+- Screens are built from `web/packages/ui` (shadcn/ui, add components with `npx shadcn@latest add` in an
+  app) and share data code and agent widgets through `web/packages/core`.

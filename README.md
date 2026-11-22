@@ -86,7 +86,7 @@ Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설
 
 **Agentic Hub(Cloud)**는 Studio의 요청을 API로 받아 Agent Information Registry(RDS)에 저장하고, 에이전트를 배포해 실행한다(Coffee, Training, Sleep …, 각자 자기 SLM 사용). 다른 사용자는 **Share & Install**로 에이전트를 공개·검색·설치한다. Hub의 에이전트는 집(My Home)의 Root Agent에 A2A로 작업을 보내고, Root Agent는 커피 머신의 주인인 Kitchen Agent에게 넘긴다. Kitchen Agent가 자기 정책을 확인한 뒤 LG DUOBO 커피 머신을 작동한다. **각 방 에이전트는 자기 정책으로 결정한다.**
 
-레포에서는 [services/agenthub](services/agenthub)(Registry는 Docker의 PostgreSQL, Agent Card로 등록·검색·연결, 기기 주인 한 명 규칙)와 [agent_hub_FE/](agent_hub_FE/)(Hub 화면)가 이 부분이다. 생성된 에이전트는 지금 OpenClaw로 실행하고, `STUDIO_RUNTIME`으로 Python 실행기로 바꿀 수 있다. 다른 사용자와의 공유·설치, 클라우드 배포, 에이전트별 SLM은 아직 계획 단계다([plan.md](plan.md#5-구현-범위)).
+레포에서는 [services/agenthub](services/agenthub)(Registry는 Docker의 PostgreSQL, Agent Card로 등록·검색·연결, 기기 주인 한 명 규칙)와 [web/](web/)(Agent Cloud 화면과 스마트홈 앱)가 이 부분이다. 생성된 에이전트는 지금 OpenClaw로 실행하고, `STUDIO_RUNTIME`으로 Python 실행기로 바꿀 수 있다. 다른 사용자와의 공유·설치, 클라우드 배포, 에이전트별 SLM은 아직 계획 단계다([plan.md](plan.md#5-구현-범위)).
 
 ### 11. Conclusion
 
@@ -146,7 +146,7 @@ SWE-Final/
 │   ├── studio/               #   Agent Studio: 자연어 → 에이전트 (LangChain + OpenRouter), 하네스, 실행기 교체(runtime.py)
 │   ├── config/               #   agents.yaml(호출자), devices.yaml(가상 기기), skills.yaml(기본 스킬)
 │   └── contracts/            #   화면이 받는 메시지 형식 (JSON Schema)
-├── agent_hub_FE/             # Agent Hub 화면 (Next.js): 검색·상세·연결·내 에이전트·Studio, /home 스마트홈 앱. 토큰은 서버 쪽 프록시에만
+├── web/                      # 화면 (shadcn/ui 모노레포): apps/cloud = Agent Cloud(:3000), apps/home = 스마트홈 앱(:3001), packages/ui·core. 토큰은 서버 쪽 프록시에만
 ├── spec/                     # Home A2A 확장 명세
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO 실험 (에이전트별 SLM의 근거)
@@ -193,8 +193,8 @@ docker compose up -d --build   # 또는 scripts/run_all.sh (다 뜰 때까지 �
 
 | 이름 | 주소 |
 |---|---|
-| Agent Hub 화면 | http://127.0.0.1:3000 |
-| 스마트홈 앱 (공간·기기·외부 연결) | http://127.0.0.1:3000/home |
+| Agent Cloud 화면 | http://127.0.0.1:3000 |
+| 스마트홈 앱 (공간·기기·외부 연결) | http://127.0.0.1:3001 |
 | Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
 | Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN`) |
 | 에이전트 | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 |

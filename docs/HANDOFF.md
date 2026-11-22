@@ -30,7 +30,7 @@
 | --- | --- | --- | --- |
 | 루트 (`agents/`, `spec/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, root(=Root/Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `home-a2a`에 확장 규칙이 들어 있다 |
 | `services/` | a2a-agentic-home | jwsong05, sjounng, jenny | Device Gateway(가상 집, 주인 확인), Event Collector(통신 기록 모음), Agent Hub, Agent Studio |
-| `agent_hub_FE/` | — | lahee3423 | Agent Hub 화면(Next.js) |
+| `web/` | — | lahee3423 | 화면: shadcn/ui 모노레포 (Agent Cloud `apps/cloud`, 스마트홈 앱 `apps/home`) |
 
 `services/`는 처음에 Python(a2a-sdk) 에이전트를 만들다가, A2A-agents가 같은 시스템을 OpenClaw로 먼저 끝까지 구현해서
 에이전트를 그쪽으로 일원화하고 Gateway·Collector만 남겼다.
@@ -47,8 +47,10 @@
   (HA REST와 같은 모양), 기록을 Collector로 보낸다. 상태는 Gateway 메모리에 있고 다시 시작하면 처음 상태로 돌아간다.
 - **실행은 루트 `docker compose up -d --build` 하나로 한다.** 에이전트 5개는 한 컨테이너(`agents`)에서 돌아 서로 127.0.0.1로 부른다.
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
-- **화면은 `agent_hub_FE/`(Next.js, lahee3423/swe_AgentHub에서 들여옴)다(2026-11-21).** 모든 데이터는 Next 서버 쪽 프록시
-  (`app/api/[service]/[...path]`, 허용 목록 `lib/proxy.js`)를 거친다. 토큰은 화면 서버에만 있다. 병원 이송 시뮬레이터는 없앴다.
+- **화면은 `web/`(shadcn/ui 모노레포, Turborepo + npm workspaces)이다(2026-11-22, 처음은 lahee3423/swe_AgentHub의 `agent_hub_FE`).**
+  Agent Cloud는 `apps/cloud`(:3000), 스마트홈 앱은 `apps/home`(:3001)이고, 둘이 `packages/ui`(shadcn 컴포넌트)와 `packages/core`
+  (프록시·세션·API 훅·이름표·에이전트 시트)를 같이 쓴다. 모든 데이터는 Next 서버 쪽 프록시
+  (`app/api/[service]/[...path]`, 허용 목록 `web/packages/core/src/proxy.ts`)를 거친다. 토큰은 화면 서버에만 있다. 병원 이송 시뮬레이터는 없앴다.
 - **스마트홈 앱은 `/home`이다(2026-11-22).** 시연용 폰 화면(공간·기기·외부 연결). Hub 화면과 같은 프록시·데이터·검색(`GET /agents?q=`)을 쓰고 기기는 읽기만 한다.
   기기 주인은 에이전트 연결로 바꾼다(기기 시트 → "이 기기를 맡을 수 있는 에이전트"). 기본 에이전트의 한국어 이름은 앱 안의 `HOME_NAMES`.
 - **Hub 연결이 곧 실행이다(2026-11-21).** Studio 에이전트를 연결하면 실행기(`scripts/launcher.mjs`)가 띄우고, Gateway·Collector·플러그인은

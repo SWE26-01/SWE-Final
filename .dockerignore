@@ -7,6 +7,6 @@
 logs
 docs
 training
-agent_hub_FE
+web
 services
 agents/generated/*

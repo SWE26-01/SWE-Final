@@ -2,7 +2,7 @@
 
 Passwords are kept as salted scrypt hashes (standard library). A login gives a random session token;
 the Hub stores only its sha256 (store.token_hash), like the agents' tokens. The screen keeps the
-token in an httpOnly cookie on its own server (agent_hub_FE), never in page script."""
+token in an httpOnly cookie on its own server (web/packages/core), never in page script."""
 
 from __future__ import annotations
 

@@ -26,7 +26,7 @@ from the root `docker-compose.yml`.
 | Virtual smart-home devices, one owner per device | Device Gateway |
 | Communication and control-result log | Event Collector |
 | Agentic Studio: make agents in plain language | Agent Studio |
-| Agentic Hub: registry, search, connect (install) | Agent Hub (+ `agent_hub_FE/` screen) |
+| Agentic Hub: registry, search, connect (install) | Agent Hub (+ the `web/` screens: Agent Cloud and the smart home app) |
 
 ## 2. Device Gateway (`services/gateway/`)
 

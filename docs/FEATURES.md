@@ -7,7 +7,7 @@
 | 구분 | 주소 | 무엇 |
 |---|---|---|
 | Agent Cloud 화면 | http://127.0.0.1:3000 | 에이전트 찾기·설치·공유, 내 에이전트, Studio, 시나리오 |
-| 스마트홈 앱 | http://127.0.0.1:3000/home | 공간·기기·외부 연결, 기기의 주인 에이전트 (PC에서도 한 열짜리 앱 화면) |
+| 스마트홈 앱 | http://127.0.0.1:3001 | 공간·기기·외부 연결, 기기의 주인 에이전트 (별도 앱. 로그인 쿠키는 Agent Cloud와 함께 씀) |
 | 로그인 | http://127.0.0.1:3000/login | 회원가입·로그인 |
 | Agent Hub API | :8400 (`/docs`) | 계정, 에이전트 등록·검색·공유, 연결(설치), 기기 주인 |
 | Agent Studio API | :8500 (`/docs`) | 말로 에이전트 만들기, 안전 검사, 승인 |
@@ -83,7 +83,7 @@ Studio ──등록──> Hub ──연결하면──> 실행기(launcher) ─
 
 ---
 
-## 2. 스마트홈 앱 (`/home`)
+## 2. 스마트홈 앱 (:3001, `web/apps/home`)
 
 PC에서는 가운데 한 열, 폰에서는 화면 전체로 보인다(폰 모형 프레임은 없앴다). Agent Cloud 화면과 같은 데이터를 4초마다 새로 받는다.
 
@@ -158,7 +158,7 @@ PC에서는 가운데 한 열, 폰에서는 화면 전체로 보인다(폰 모�
 | POST | `/api/auth/signup` · `/api/auth/login` | Hub에서 세션을 받아 httpOnly 쿠키(`ah_session`)에 넣는다. 토큰은 페이지에 돌려주지 않는다 |
 | POST | `/api/auth/logout` | Hub 세션을 지우고 쿠키를 비운다 |
 | GET | `/api/auth/me` | 지금 로그인한 사람. 없으면 401 `LOGIN_REQUIRED` |
-| * | `/api/{hub\|studio\|collector\|gateway}/…` | 서버 쪽 프록시. 허용 목록(`lib/proxy.js`)에 있는 요청만 통과하고, 나머지는 404 `NOT_ALLOWED` |
+| * | `/api/{hub\|studio\|collector\|gateway}/…` | 서버 쪽 프록시. 허용 목록(`web/packages/core/src/proxy.ts`)에 있는 요청만 통과하고, 나머지는 404 `NOT_ALLOWED` |
 
 **프록시가 통과시키는 요청**
 - **hub**
