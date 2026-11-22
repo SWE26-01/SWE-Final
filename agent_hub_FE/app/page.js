@@ -1,20 +1,22 @@
 "use client";
 
-// Agent Hub screen: one page; the view comes from the URL (?tab=, ?view=search&q=, ?draft=) and an
+// Agent Cloud screen: one page; the view comes from the URL (?tab=, ?view=search&q=, ?draft=) and an
 // agent opens in a sheet on top of it (?agent=). All data is live, through the server-side proxy.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logout, useApi } from "../lib/api.js";
 import AgentSheet from "./components/AgentDetail.js";
-import HubNetwork from "./components/HubNetwork.js";
+import HubHome from "./components/HubHome.js";
 import MyAgents from "./components/MyAgents.js";
 import SearchResults from "./components/SearchResults.js";
+import Scenario from "./components/Scenario.js";
 import Studio from "./components/Studio.js";
 import { Icon, ToastProvider } from "./components/ui.js";
 
 const TABS = [
-  ["hub", "Agent Hub"],
+  ["hub", "홈"],
   ["my-agent", "내 에이전트"],
   ["agent-studio", "Studio"],
+  ["scenario", "시나리오"],
 ];
 
 function readRoute() {
@@ -26,6 +28,7 @@ function readRoute() {
     agentTab: params.get("panel"),
     search: tab === "hub" && params.get("view") === "search" ? params.get("q") ?? "" : null,
     draftId: params.get("draft"),
+    prompt: params.get("prompt"),
   };
 }
 
@@ -84,7 +87,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const me = useApi("auth/me"); // also sends a logged-out visitor to /login
   const agents = useApi("hub/agents", { interval: 5000 });
-  const shared = useApi("hub/agents?shared=true", { interval: 30000 });
+  const shared = useApi("hub/agents?shared=true&sort=stars", { interval: 30000 });
   const devices = useApi("gateway/devices", { interval: 5000 });
   const statuses = useApi("collector/agents", { interval: 5000 });
   const online = useMemo(() => Object.fromEntries((statuses.data ?? []).map((s) => [s.id, s.online])), [statuses.data]);
@@ -113,6 +116,7 @@ export default function Home() {
     view = (
       <Studio
         draftId={route.draftId}
+        initialPrompt={route.prompt}
         devices={devices.data}
         onDraftId={(id) => navigate({ tab: "agent-studio", draftId: id }, { replace: Boolean(route.draftId) && Boolean(id) })}
         onOpenAgent={(id, tab) => {
@@ -121,14 +125,18 @@ export default function Home() {
         }}
       />
     );
+  } else if (route.tab === "scenario") {
+    view = <Scenario agents={agents.data} devices={devices.data} onOpenAgent={(id, tab) => openAgent(id, tab)} onChanged={reload} />;
   } else if (route.tab === "my-agent") {
     view = <MyAgents agents={agents.data} error={agents.error} online={online} devices={devices.data} me={me.data} onSelect={openAgent} onChanged={reload} />;
   } else if (route.search !== null) {
     view = <SearchResults key={route.search} query={route.search} onQuery={(q) => navigate({ tab: "hub", search: q }, { replace: true })} onSelect={openAgent} />;
   } else {
     view = (
-      <HubNetwork
-        agents={agents.data?.filter((a) => a.connected || a.mine)}
+      <HubHome
+        agents={agents.data}
+        popular={shared.data}
+        onChanged={reload}
         error={agents.error}
         query={query}
         onQuery={setQuery}
@@ -150,7 +158,7 @@ export default function Home() {
         <header className="topbar">
           <a className="brand" href="/" onClick={(e) => { e.preventDefault(); navigate({ tab: "hub" }); }}>
             <span className="brand-mark"><Icon name="hub" size={20} /></span>
-            <span>Agent Hub</span>
+            <span>Agent Cloud</span>
           </a>
           <nav className="tabs" aria-label="Main navigation">
             {TABS.map(([id, label]) => (

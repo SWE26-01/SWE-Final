@@ -2,7 +2,7 @@ import "./home.css";
 
 export const metadata = {
   title: "스마트홈",
-  description: "Spaces, devices and the agents that run them, live from the Agent Hub.",
+  description: "Spaces, devices and the agents that run them, live from the Agent Cloud.",
 };
 
 export const viewport = { themeColor: "#8db8f4" };

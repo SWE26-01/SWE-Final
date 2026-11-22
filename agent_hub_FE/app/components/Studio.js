@@ -16,11 +16,17 @@ const STATUS = {
   unsupported: "지원하지 않는 요청",
   invalid: "규칙을 만들지 못함",
   ready: "승인 대기",
-  registered: "Hub에 등록됨",
+  registered: "Cloud에 등록됨",
 };
 const TONE = { ready: "is-blue", registered: "is-blue", clarify: "is-amber", blocked: "is-red", failed: "is-red", invalid: "is-red", unsupported: "is-red" };
-const EXAMPLES = ["회의할 때 내 방 조명을 회의 모드로 바꿔 줘", "외출하면 내 방 조명이랑 에어컨 꺼 줘", "아기 재울 때 보호 방 수면 모드 켜 줘"];
-const STEPS = ["입력 안전 검사", "LLM이 양식 채우기", "기본 스킬로 규칙 만들기", "도구 잠금 검사"];
+const EXAMPLES = [
+  "매일 아침 7시 반에 커피 내려 줘",
+  "회의할 때 내 방 조명을 회의 모드로 바꿔 줘",
+  "논문을 근거로 홈 트레이닝을 도와주는 코치 만들어 줘",
+  "아기 재울 때 보호 방 수면 모드 켜 줘",
+  "냉장고 재료로 저녁 메뉴를 추천해 주는 요리 도우미",
+];
+const STEPS = ["입력 안전 검사", "LLM이 양식 채우기", "규칙·지침 만들기", "도구 잠금 검사"];
 
 function Working() {
   const [step, setStep] = useState(0);
@@ -63,7 +69,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
   };
   const approve = async () => {
     const ok = await ask({
-      title: "이 에이전트를 Hub에 등록할까요?",
+      title: "이 에이전트를 Cloud에 등록할까요?",
       body: (
         <>
           <p>권한 {draft.permissions.length}개를 요청하는 에이전트예요. 등록하면 나만 보이고, 연결해야 동작해요.</p>
@@ -72,7 +78,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
       ),
       confirm: "승인하고 등록",
     });
-    if (ok && (await act(`studio/drafts/${draft.id}/approve`))) toast("Hub에 등록했어요");
+    if (ok && (await act(`studio/drafts/${draft.id}/approve`))) toast("Cloud에 등록했어요");
   };
 
   return (
@@ -104,7 +110,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
         <div className="callout is-red">
           <h3>{draft.reason || "이 요청으로는 에이전트를 만들 수 없어요"}</h3>
           {draft.errors.length > 0 && <ul className="bullets">{draft.errors.map((e) => <li key={e}>{e}</li>)}</ul>}
-          <p className="muted">기본 스킬(회의 모드, 수면 모드, 절전, 외출·귀가)과 집에 있는 기기로 표현해 보세요.</p>
+          <p className="muted">명령 실행, 파일, 결제·구매, 다른 집 제어처럼 에이전트에게 허용되지 않는 일이 들어 있는지 확인하고 다시 적어 보세요.</p>
         </div>
       )}
 
@@ -116,6 +122,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
           </div>
           <div className="draft-section">
             <h3>연결할 때 요청할 권한</h3>
+            {draft.permissions.length === 0 && <p className="muted">요청하는 권한이 없어요. 기기를 맡지 않는 대화형 에이전트예요.</p>}
             <ul className="list-card">
               {draft.permissions.map((p) => {
                 const perm = permission(p, devices);
@@ -147,7 +154,7 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
       <div className="panel-actions">
         {draft.status === "ready" && (
           <button type="button" className="primary-button" disabled={busy} onClick={approve}>
-            {busy ? "등록하는 중…" : "승인하고 Hub에 등록"} <Icon name="arrow" size={16} />
+            {busy ? "등록하는 중…" : "승인하고 Cloud에 등록"} <Icon name="arrow" size={16} />
           </button>
         )}
         {draft.status === "registered" && (
@@ -155,7 +162,10 @@ function DraftView({ draft, devices, onDraft, onOpenAgent, onNew }) {
             <button type="button" className="primary-button" onClick={() => onOpenAgent(draft.agent_id, "connect")}>
               우리 집에 연결하기 <Icon name="arrow" size={16} />
             </button>
-            <span className="muted">지금은 나만 보여요. 에이전트 화면에서 카탈로그에 공유할 수 있어요.</span>
+            <span className="muted">
+              {draft.permissions.length === 0 ? "연결하면 실행되고, 에이전트 화면의 '대화' 탭에서 이야기할 수 있어요. " : ""}
+              지금은 나만 보여요. 카탈로그에 공유할 수도 있어요.
+            </span>
           </>
         )}
       </div>
@@ -184,8 +194,8 @@ function RecentDrafts({ onPick, current }) {
   );
 }
 
-export default function Studio({ draftId, devices, onDraftId, onOpenAgent }) {
-  const [prompt, setPrompt] = useState("");
+export default function Studio({ draftId, initialPrompt, devices, onDraftId, onOpenAgent }) {
+  const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [space, setSpace] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -218,7 +228,7 @@ export default function Studio({ draftId, devices, onDraftId, onOpenAgent }) {
       <section className="page-hero">
         <span className="eyebrow">AGENT STUDIO</span>
         <h1>말로 만드는 에이전트</h1>
-        <p>원하는 동작을 평범한 말로 적으면, Studio가 안전한 기본 스킬로 에이전트를 만들어요.</p>
+        <p>원하는 것을 평범한 말로 적으세요. 집 기기 자동화는 기본 스킬로, 정해진 시각의 일은 루틴 에이전트로, 그 밖의 도움은 대화형 에이전트로 만들어요.</p>
       </section>
       <div className="studio-layout">
         <div className="studio-main">

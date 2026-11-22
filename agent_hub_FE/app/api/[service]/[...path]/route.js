@@ -35,7 +35,8 @@ async function forward(request, { params }) {
       headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) },
       body,
       cache: "no-store",
-      signal: AbortSignal.timeout(service === "studio" ? 90_000 : 15_000), // Studio waits for the LLM
+      // Studio and a chat turn wait for an LLM
+      signal: AbortSignal.timeout(path.endsWith("/chat") ? 180_000 : service === "studio" ? 90_000 : 15_000),
     });
     if (res.status === 401 && target.session) return loginRequired(); // the session ended
     return new Response(await res.text(), {

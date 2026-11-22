@@ -16,7 +16,7 @@ const POLL = 4000;
 const SEEN_KEY = "smarthome.seen-flow";
 
 // The home's own agents by the names people use for them; other agents keep their card name.
-const HOME_NAMES = { orchestrator: "집 에이전트", room1: "내 방 에이전트", room2: "보호 방 에이전트", desktop: "PC", smartphone: "스마트폰" };
+const HOME_NAMES = { root: "Root 에이전트", room1: "내 방 에이전트", room2: "보호 방 에이전트", kitchen: "주방 에이전트", desktop: "PC", smartphone: "스마트폰" };
 const nameOf = (id, agents) => HOME_NAMES[id] ?? agentName(id, agents);
 
 /** A device's state in words, by what it is. */
@@ -42,31 +42,6 @@ function writeSeen(value) {
   } catch {
     // private window: the badge just shows again
   }
-}
-
-function Clock() {
-  const [now, setNow] = useState("9:41");
-  useEffect(() => {
-    const tick = () => setNow(new Date().toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit", hour12: false }));
-    tick();
-    const t = window.setInterval(tick, 20000);
-    return () => window.clearInterval(t);
-  }, []);
-  return <span>{now}</span>;
-}
-
-function StatusBar() {
-  return (
-    <div className="sh-statusbar" aria-hidden="true">
-      <Clock />
-      <span className="sh-island" />
-      <span className="sh-signal">
-        <svg viewBox="0 0 18 12" width="18" height="12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V4H9zM13 11h2V1h-2z" fill="currentColor" /></svg>
-        <svg viewBox="0 0 16 12" width="16" height="12"><path d="M8 10.5 9.6 8.8a2.3 2.3 0 0 0-3.2 0L8 10.5ZM4.6 7a4.8 4.8 0 0 1 6.8 0l1.4-1.4a6.8 6.8 0 0 0-9.6 0L4.6 7ZM1.8 4.2a8.8 8.8 0 0 1 12.4 0l1.4-1.4a10.8 10.8 0 0 0-15.2 0l1.4 1.4Z" fill="currentColor" /></svg>
-        <i className="sh-battery" />
-      </span>
-    </div>
-  );
 }
 
 function Row({ icon, title, sub, right, onClick, tone }) {
@@ -204,7 +179,7 @@ function SearchResults({ home, query, open }) {
   ];
   return (
     <section className="sh-group" aria-label="검색 결과">
-      <h2>{!data && !error ? "Hub에서 찾는 중…" : `“${term}” 검색 결과 · ${results.length}`}</h2>
+      <h2>{!data && !error ? "Cloud에서 찾는 중…" : `“${term}” 검색 결과 · ${results.length}`}</h2>
       <Notice error={error} />
       <div className="sh-card">
         {data && results.length === 0 && <p className="sh-empty">맞는 에이전트가 없어요. Agent Studio에서 직접 만들거나 Agent Card URL로 추가할 수 있어요.</p>}
@@ -243,7 +218,7 @@ function ConnectTab({ home, open, query, onQuery }) {
       )}
       <div className="sh-actions">
         <a className="sh-cta" href="/?tab=agent-studio"><Icon name="sparkle" /> Agent Studio에서 새로 만들기</a>
-        <a className="sh-cta is-ghost" href="/?view=search"><Icon name="grid" /> Agent Hub 카탈로그 둘러보기</a>
+        <a className="sh-cta is-ghost" href="/?view=search"><Icon name="grid" /> Agent Cloud 카탈로그 둘러보기</a>
       </div>
     </>
   );
@@ -392,7 +367,7 @@ function AgentSheet({ home, agentId, onChanged, onClose }) {
               />
             </div>
           )}
-          <a className="sh-link" href={`/?agent=${encodeURIComponent(agent.id)}`}>Agent Hub에서 자세히 보기 →</a>
+          <a className="sh-link" href={`/?agent=${encodeURIComponent(agent.id)}`}>Agent Cloud에서 자세히 보기 →</a>
         </>
       )}
     </Sheet>
@@ -424,7 +399,7 @@ function ProfileScreen({ home, me, open }) {
       <section className="sh-group">
         <h2>내가 만든 에이전트</h2>
         <div className="sh-card">
-          {made.length === 0 && <p className="sh-empty">아직 없어요. Agent Studio에서 만들고 Hub에 공유해 보세요.</p>}
+          {made.length === 0 && <p className="sh-empty">아직 없어요. Agent Studio에서 만들고 Cloud에 공유해 보세요.</p>}
           {made.map((a) => (
             <AgentRow
               key={a.id}
@@ -438,7 +413,7 @@ function ProfileScreen({ home, me, open }) {
       </section>
       <div className="sh-actions">
         <a className="sh-cta" href="/?tab=agent-studio"><Icon name="sparkle" /> Agent Studio에서 만들기</a>
-        <a className="sh-cta is-ghost" href="/?view=search"><Icon name="grid" /> Agent Hub 카탈로그</a>
+        <a className="sh-cta is-ghost" href="/?view=search"><Icon name="grid" /> Agent Cloud 카탈로그</a>
         <button type="button" className="sh-cta is-ghost is-quiet" onClick={logout}>로그아웃</button>
       </div>
     </>
@@ -557,13 +532,12 @@ export default function SmartHome() {
     <ToastProvider>
     <div className="sh-stage">
       <div className="sh-phone">
-        <StatusBar />
         <main className={`sh-screen ${screen === "home" && !spaceId ? "is-home" : ""}`}>{body}</main>
         <div className="sh-tabbar" role="navigation" aria-label="앱 메뉴">
           <button type="button" className={screen === "home" ? "active" : ""} onClick={() => { setScreen("home"); setSpaceId(null); }} aria-label="홈">
             <Icon name="home" size={26} />
           </button>
-          <a href="/?view=search" aria-label="Agent Hub 카탈로그"><Icon name="grid" size={26} /></a>
+          <a href="/?view=search" aria-label="Agent Cloud 카탈로그"><Icon name="grid" size={26} /></a>
           <button type="button" className={screen === "profile" ? "active" : ""} onClick={() => { setScreen("profile"); setSpaceId(null); }} aria-label="내 정보">
             <Icon name="user" size={26} />
           </button>
@@ -571,11 +545,6 @@ export default function SmartHome() {
         {sheet?.agent && <AgentSheet key={sheet.agent} home={home} agentId={sheet.agent} onChanged={reloadAll} onClose={() => setSheet(null)} />}
         {sheet?.device && <DeviceSheet home={home} entity={sheet.device} open={open} onClose={() => setSheet(null)} />}
       </div>
-      <aside className="sh-caption">
-        <strong>Smart Home</strong>
-        <span>Agent Hub와 같은 집, 같은 에이전트. 기기 상태와 주인은 실시간이에요.</span>
-        <a href="/">Agent Hub 열기 →</a>
-      </aside>
     </div>
     </ToastProvider>
   );

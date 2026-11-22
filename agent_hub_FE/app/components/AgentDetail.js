@@ -3,12 +3,13 @@
 // One agent, in a sheet over whatever the person was looking at: overview (devices, shared state,
 // who made it), connection (approve permissions, connect, hand devices over, disconnect) and
 // activity (Hub record + request flows from the Event Collector).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, useApi } from "../../lib/api.js";
 import {
-  FIELDS, ORIGINS, ROLES, SKILLS, actionLine, actionText, agentName, codeText, countText, dateText, deviceName, kindOf, makerText,
+  FIELDS, ORIGINS, ROLES, SKILLS, actionLine, actionText, agentName, agentNote, codeText, countText, dateText, deviceName, kindOf, makerText,
   permission, spaceName, stateText, timeAgo,
 } from "../../lib/labels.js";
+import Markdown from "./Markdown.js";
 import { StarButton } from "./SearchResults.js";
 import { AgentAvatar, Icon, Modal, Notice, Segmented, Sheet, Status, useConfirm, useToast } from "./ui.js";
 
@@ -18,7 +19,7 @@ function TokenModal({ result, agent, onClose }) {
     <Modal title={`${agent.name} 연결됨`} onClose={onClose} actions={<button type="button" className="primary-button" onClick={onClose}>확인</button>}>
       {result.token ? (
         <>
-          <p>이 에이전트의 토큰이에요. <strong>지금 한 번만</strong> 보여 드려요. Hub에는 해시만 남아요.</p>
+          <p>이 에이전트의 토큰이에요. <strong>지금 한 번만</strong> 보여 드려요. Cloud에는 해시만 남아요.</p>
           <code className="token-box">{result.token}</code>
           <p className="muted">
             {studio
@@ -44,7 +45,9 @@ export function ConnectPanel({ agent, devices, agents, onChanged }) {
   const [dialog, ask] = useConfirm();
   const toast = useToast();
   const permsKey = agent.permissions.join("|");
-  useEffect(() => setPicked(new Set(agent.permissions)), [agent.id, permsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setPicked(new Set(agent.permissions));
+  }, [agent.id, permsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const step = async (fn) => {
     setBusy(true);
@@ -107,7 +110,7 @@ export function ConnectPanel({ agent, devices, agents, onChanged }) {
   const remove = () => step(async () => {
     const ok = await ask({
       title: `${agent.name}을(를) 삭제할까요?`,
-      body: "Hub와 카탈로그에서 사라지고, 연결도 함께 끊겨요. 되돌릴 수 없어요.",
+      body: "Agent Cloud와 카탈로그에서 사라지고, 연결도 함께 끊겨요. 되돌릴 수 없어요.",
       confirm: "삭제",
       danger: true,
     });
@@ -141,7 +144,7 @@ export function ConnectPanel({ agent, devices, agents, onChanged }) {
             <li key={p}>
               <label>
                 <input type="checkbox" checked={agent.connected || picked.has(p)} disabled={agent.connected || busy} onChange={() => toggle(p)} />
-                <span className="perm-icon"><Icon name={perm.kind === "device" ? kindOf(perm.id) : "link"} size={18} /></span>
+                <span className="perm-icon"><Icon name={perm.kind === "context" ? "link" : kindOf(perm.id)} size={18} /></span>
                 <span><strong>{perm.label}</strong><small>{perm.detail}</small></span>
               </label>
             </li>
@@ -195,12 +198,46 @@ export function ShareToggle({ agent, onChanged }) {
   );
 }
 
+/** A routine agent (asks the Root Agent at a time of day): run it now. */
+function RoutineRun({ agent, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  if (!agent.permissions.some((p) => p.startsWith("request:"))) return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      const { results } = await api(`hub/agents/${agent.id}/run`, { method: "POST" });
+      const r = results[0] ?? {};
+      toast(r.accepted ? `실행했어요${r.delegated_to ? ` · ${r.delegated_to}에게 위임됨` : ""}` : `거절됐어요: ${r.message || codeText(r.reason_code)}`, r.accepted ? "info" : "error");
+      onChanged();
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="share-row">
+      <span className="share-icon"><Icon name="clock" size={18} /></span>
+      <p>
+        <strong>정해진 시각에 Root Agent에게 부탁해요</strong>
+        <small>{agent.description}</small>
+      </p>
+      <button type="button" className="primary-button small" disabled={busy || !agent.connected} onClick={run}>
+        {busy ? "실행 중…" : "지금 실행"}
+      </button>
+      {!agent.connected && <small className="muted">연결해야 실행할 수 있어요.</small>}
+    </div>
+  );
+}
+
 function Overview({ agent, devices, onChanged }) {
   const owned = agent.owned_devices.map((d) => ({ id: d, dev: devices?.find((x) => x.entity === d) }));
   const reads = agent.permissions.filter((p) => p.startsWith("context:")).map((p) => permission(p, devices));
   return (
     <>
       {agent.description && <p className="sheet-lead">{agent.description}</p>}
+      <RoutineRun agent={agent} onChanged={onChanged} />
       <ShareToggle agent={agent} onChanged={onChanged} />
       {owned.length > 0 && (
         <section className="sheet-section">
@@ -267,7 +304,7 @@ function Activity({ agentId, agents, devices }) {
         </ol>
       </section>
       <section className="sheet-section">
-        <h3>Hub 기록</h3>
+        <h3>Cloud 기록</h3>
         <ol className="audit-list">
           {(data?.hub ?? []).map((a, i) => (
             <li key={`${a.ts}-${i}`}><span>{actionText(a.action)}</span><small>@{a.actor} · {timeAgo(a.ts)}</small></li>
@@ -278,8 +315,91 @@ function Activity({ agentId, agents, devices }) {
   );
 }
 
+const KEEP = 40; // messages kept per agent in this browser
+
+function loadChat(agentId) {
+  try {
+    return JSON.parse(window.localStorage.getItem(`chat:${agentId}`) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveChat(agentId, messages) {
+  try {
+    window.localStorage.setItem(`chat:${agentId}`, JSON.stringify(messages.slice(-KEEP)));
+  } catch {
+    // private window: the conversation just isn't kept
+  }
+}
+
+/** Talk with a connected agent (Hub POST /agents/{id}/chat). Kept only in this browser. */
+function Chat({ agent }) {
+  const [messages, setMessages] = useState(() => loadChat(agent.id));
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const end = useRef(null);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [messages, busy]);
+
+  const update = (next) => {
+    setMessages(next);
+    saveChat(agent.id, next);
+  };
+  const send = async (e) => {
+    e?.preventDefault();
+    const message = text.trim();
+    if (!message || busy) return;
+    const mine = [...messages, { from: "me", text: message }];
+    update(mine);
+    setText("");
+    setBusy(true);
+    setError(null);
+    try {
+      const { reply } = await api(`hub/agents/${agent.id}/chat`, { method: "POST", body: { message } });
+      update([...mine, { from: "agent", text: reply || "(빈 답)" }]);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!agent.connected) {
+    return <div className="empty"><Icon name="lock" size={24} /><p>우리 집에 연결하면 대화할 수 있어요. 연결 탭에서 연결하세요.</p></div>;
+  }
+  return (
+    <section className="chat" aria-label={`${agent.name}와 대화`}>
+      <div className="chat-log">
+        {messages.length === 0 && <p className="muted chat-hint">{agent.name}에게 무엇이든 물어보세요. 대화는 이 브라우저에만 남아요.</p>}
+        {messages.map((m, i) => (
+          <div key={i} className={`bubble ${m.from === "me" ? "is-me" : ""}`}>{m.from === "me" ? m.text : <Markdown text={m.text} />}</div>
+        ))}
+        {busy && <div className="bubble is-typing"><span /><span /><span /></div>}
+        <div ref={end} />
+      </div>
+      <Notice error={error} />
+      <form className="chat-input" onSubmit={send}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }}
+          placeholder="메시지 보내기 (Enter 전송, Shift+Enter 줄바꿈)"
+          rows={2}
+          maxLength={2000}
+        />
+        <button type="submit" className="primary-button small" disabled={busy || !text.trim()}>보내기</button>
+      </form>
+      {messages.length > 0 && <button type="button" className="text-button" onClick={() => update([])}>대화 지우기</button>}
+    </section>
+  );
+}
+
 const TABS = [
   ["overview", "개요"],
+  ["chat", "대화"],
   ["connect", "연결"],
   ["activity", "활동"],
 ];
@@ -287,6 +407,7 @@ const TABS = [
 export default function AgentSheet({ agentId, agents, devices, online, initialTab = "overview", onClose, onChanged }) {
   const { data: agent, error, reload } = useApi(`hub/agents/${agentId}`, { interval: 5000 });
   const [tab, setTab] = useState(initialTab);
+  const tabs = agent?.origin === "external" ? TABS.filter(([id]) => id !== "chat") : TABS;
   const changed = () => {
     reload();
     onChanged();
@@ -310,15 +431,16 @@ export default function AgentSheet({ agentId, agents, devices, online, initialTa
           <div className="sheet-status">
             <span className={`badge ${agent.connected ? "is-on" : ""}`}>{agent.removed ? "삭제됨" : agent.connected ? "우리 집에 연결됨" : "미연결"}</span>
             {agent.connected && <Status online={online} />}
-            {agent.role && <span className="badge">{[agent.space && spaceName(agent.space), ROLES[agent.role]].filter(Boolean).join(" · ")}</span>}
+            {agentNote(agent) && <span className="badge">{agentNote(agent)}</span>}
             <span className="spacer" />
             <StarButton agent={agent} onChanged={changed} />
           </div>
-          <Segmented items={TABS} value={tab} onChange={setTab} label="에이전트 정보" />
+          <Segmented items={tabs} value={tab} onChange={setTab} label="에이전트 정보" />
           <div className="sheet-tab">
             {tab === "overview" && <Overview agent={agent} devices={devices} onChanged={changed} />}
             {tab === "connect" && (agent.removed ? <p className="muted">삭제된 에이전트예요.</p> : <ConnectPanel agent={agent} devices={devices} agents={agents} onChanged={changed} />)}
             {tab === "activity" && <Activity agentId={agent.id} agents={agents} devices={devices} />}
+            {tab === "chat" && <Chat agent={agent} />}
           </div>
         </>
       )}

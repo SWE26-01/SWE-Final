@@ -25,6 +25,11 @@ const PATHS = {
   occupancy: "M12 11a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4ZM5.5 19.5a6.5 6.5 0 0 1 13 0",
   sleep_mode: "M17.5 14.8A7 7 0 0 1 9.2 6.5a7 7 0 1 0 8.3 8.3Z",
   device: "M6 5h12v14H6zM10 16h4",
+  coffee_machine: "M7 4h10v4H7zM8 8v3a4 4 0 0 0 8 0V8M10 15v2M14 15v2M6 20h12M17 9h1.5a1.5 1.5 0 0 1 0 3H16",
+  beans_low: "M12 4.5c3 0 5 3.2 5 7.5s-2 7.5-5 7.5-5-3.2-5-7.5 2-7.5 5-7.5ZM12 5c-1.5 3-1.5 11 0 14",
+  clock: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM12 8v4l2.5 2.5",
+  play: "M8 5.5v13l10-6.5-10-6.5Z",
+  kitchen: "M5 4h14v16H5zM5 10h14M9 7h.01M9 14v3",
   // external agents
   monitor: "M4 5.5h16v10.5H4zM9 19.5h6M12 16v3.5",
   phone: "M8 3.5h8a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1ZM11 17.5h2",
@@ -49,10 +54,11 @@ export function Icon({ name, size = 22, className }) {
   );
 }
 
-export const SPACE_ICONS = { living_room: "sofa", my_room: "desk", protected_room: "crib" };
+export const SPACE_ICONS = { living_room: "sofa", my_room: "desk", protected_room: "crib", kitchen: "kitchen" };
 
 /** An icon for an external agent, from what it shares. */
 export function agentIcon(agent) {
+  if (agent.origin === "studio" && agent.permissions?.some((p) => p.startsWith("request:"))) return "clock";
   if (agent.origin === "studio") return "sparkle";
   if (agent.provided_fields?.includes("presence")) return "phone";
   if (agent.provided_fields?.includes("pc_state")) return "monitor";

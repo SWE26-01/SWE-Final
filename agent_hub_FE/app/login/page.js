@@ -55,7 +55,7 @@ export default function Login() {
       <section className="login-card" aria-label={signup ? "회원가입" : "로그인"}>
         <span className="hub-mark"><Icon name="hub" size={26} /></span>
         <span className="eyebrow">AGENT HUB</span>
-        <h1>{signup ? "Join the Hub" : "Welcome back"}</h1>
+        <h1>{signup ? "Join Agent Cloud" : "Welcome back"}</h1>
         <p className="login-lead">{signup ? "계정을 만들면 에이전트를 만들고, 공유하고, 다른 사람의 에이전트를 설치할 수 있어요." : "에이전트를 찾고, 만들고, 우리 집에 연결해요."}</p>
         <div className="login-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={!signup} className={signup ? "" : "active"} onClick={() => { setMode("login"); setError(null); }}>로그인</button>
@@ -69,7 +69,7 @@ export default function Login() {
           {signup && (
             <label>
               <span>이름</span>
-              <input value={form.name} onChange={set("name")} autoComplete="name" placeholder="Hub에 보일 이름" maxLength={40} required />
+              <input value={form.name} onChange={set("name")} autoComplete="name" placeholder="Cloud에 보일 이름" maxLength={40} required />
             </label>
           )}
           <label>

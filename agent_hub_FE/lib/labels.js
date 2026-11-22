@@ -1,7 +1,7 @@
 // Plain-language names for what the services return as ids and codes.
 // Device names come live from the Gateway (devices.yaml `name`); these are the rest.
 
-export const SPACES = { living_room: "거실", my_room: "내 방", protected_room: "보호 방" };
+export const SPACES = { living_room: "거실", my_room: "내 방", protected_room: "보호 방", kitchen: "주방" };
 
 export const FIELDS = {
   meeting_app_active: "회의 중인지",
@@ -38,7 +38,7 @@ const REASONS = {
   NOT_READY: "아직 승인할 수 있는 상태가 아니에요",
   NOT_ASKING: "Studio가 질문하고 있지 않아요",
   HARNESS: "안전 검사를 통과하지 못했어요",
-  HUB: "Agent Hub에 등록하지 못했어요",
+  HUB: "Agent Cloud에 등록하지 못했어요",
   UNKNOWN_SPACE: "그런 공간이 없어요",
   EMPTY: "만들고 싶은 에이전트를 적어 주세요",
   SERVICE_DOWN: "서비스에 연결할 수 없어요",
@@ -49,6 +49,10 @@ const REASONS = {
   USERNAME_TAKEN: "이미 쓰고 있는 아이디예요",
   NOT_CREATOR: "만든 사람만 바꿀 수 있어요",
   ACCOUNT_ONLY: "계정으로 로그인해야 별을 줄 수 있어요",
+  NOT_CONNECTED: "먼저 우리 집에 연결해야 해요",
+  NOT_A_ROUTINE: "실행할 루틴이 없는 에이전트예요",
+  CHAT_UNAVAILABLE: "이 에이전트와는 화면에서 대화할 수 없어요",
+  AGENT_UNREACHABLE: "에이전트가 답하지 않아요. 막 연결했다면 잠시 뒤 다시 보내 보세요",
 };
 
 export const agentName = (id, agents) => agents?.find((a) => a.id === id)?.name ?? id;
@@ -67,6 +71,10 @@ export function reasonText(detail) {
 
 /** "device:input_boolean.room1_light" -> {kind: "device", id, label}; "context:desktop.presence" too. */
 export function permission(p, devices) {
+  if (p.startsWith("request:")) {
+    const id = p.slice(8);
+    return { kind: "request", id, label: deviceName(id, devices), detail: "주인 에이전트에게 제어 요청 (Root 경유)" };
+  }
   if (p.startsWith("device:")) {
     const id = p.slice(7);
     return { kind: "device", id, label: deviceName(id, devices), detail: "기기 제어" };
@@ -78,7 +86,7 @@ export function permission(p, devices) {
 /** The device kind from its entity id (icons): input_boolean.room1_light -> light. */
 export function kindOf(entity = "") {
   const name = entity.split(".").pop();
-  for (const kind of ["light_mode", "tv_muted", "sleep_mode", "light", "tv"]) if (name.endsWith(kind)) return kind;
+  for (const kind of ["light_mode", "tv_muted", "sleep_mode", "coffee_machine", "beans_low", "light", "tv"]) if (name.endsWith(kind)) return kind;
   if (name.endsWith("_ac")) return "ac";
   if (name.endsWith("occupied")) return "occupancy";
   return "device";
@@ -96,12 +104,14 @@ export const spaceName = (id) => SPACES[id] ?? id ?? "";
 
 /** Short note under an agent's name: where it works and what it is. */
 export function agentNote(a) {
+  if (a.origin === "studio" && a.permissions?.some((p) => p.startsWith("request:"))) return `${a.space ? `${spaceName(a.space)} · ` : ""}루틴 에이전트`;
+  if (a.origin === "studio" && a.role === "external" && !a.owned_devices?.length) return "대화형 에이전트";
   return [a.space ? spaceName(a.space) : null, ROLES[a.role] ?? (a.origin === "external" ? "External" : null)].filter(Boolean).join(" · ");
 }
 
 const ACTIONS = {
   register: "등록됨", connect: "연결됨", disconnect: "연결 해제", remove: "삭제됨", discover: "Agent Card로 등록",
-  refresh: "카드 새로 읽음", share: "Hub에 공유", unshare: "공유 중지", signup: "가입",
+  refresh: "카드 새로 읽음", share: "Cloud에 공유", unshare: "공유 중지", signup: "가입",
 };
 
 /** "@alice" or the maker's name, for an agent's card. */

@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Agent Hub",
+  title: "Agent Cloud",
   description: "Discover agents made for the way you live and work.",
 };
 
