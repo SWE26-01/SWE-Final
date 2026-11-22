@@ -50,7 +50,7 @@ A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전�
 
 **분산에 대한 답.** Kitchen Agent(냉장고·오븐·후드), Elderly Room Agent(낙상 감지·수면 모니터링), Living Room Agent(TV·조명·에어컨)처럼 방마다 에이전트를 둔다. **각 방 에이전트는 자기 기기만 제어하고, 에이전트끼리는 A2A로 직접 대화한다.** 사용자의 입구인 Root Agent는 요청을 기기 주인에게 넘길 뿐이고, 새 방이나 다른 Root Agent도 Agent Card만 있으면 합류한다. 집이 커지면 더 큰 허브가 아니라 에이전트를 더한다.
 
-레포에서는 `agents/`의 orchestrator(Root)와 room1·room2(방), [spec/ambient-a2a.md](spec/ambient-a2a.md)의 소유권·정책 규칙, 그리고 기기 주인을 한 번 더 확인하는 Device Gateway(`services/gateway`)가 이 부분이다.
+레포에서는 `agents/`의 root(Root)와 room1·room2·kitchen(방), [spec/home-a2a.md](spec/home-a2a.md)의 소유권·정책 규칙, 그리고 기기 주인을 한 번 더 확인하는 Device Gateway(`services/gateway`)가 이 부분이다.
 
 ### 6. Solution: External extension — 기존 에이전트
 
@@ -106,7 +106,7 @@ Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설
 
 | 영역 | 기술 |
 |---|---|
-| 에이전트 통신 | A2A v1.0, Ambient-A2A 확장 ([spec/ambient-a2a.md](spec/ambient-a2a.md)) |
+| 에이전트 통신 | A2A v1.0, Home A2A 확장 ([spec/home-a2a.md](spec/home-a2a.md)) |
 | 에이전트 | OpenClaw + TypeScript 플러그인 (`STUDIO_RUNTIME`으로 Python 실행기로 교체 가능) |
 | 백엔드 | Python, FastAPI, Pydantic v2 |
 | 에이전트 생성 (Studio) | LangChain structured output, OpenRouter |
@@ -133,10 +133,10 @@ Agentic Hub를 AWS에 올리는 배포 계획이다. 지금 레포는 같은 서
 SWE-Final/
 ├── docker-compose.yml        # 전체 실행: docker compose up -d --build
 ├── plan.md                   # 기획서 (발표 자료 기준)
-├── agents/                   # OpenClaw 에이전트 5개 + Ambient-A2A 플러그인 (TypeScript)
-│   ├── ambient-a2a-plugin/   #   ACL·소유권·정책(core.ts), 수신·위임·규칙(agent.ts), Gateway 클라이언트(devices.ts)
+├── agents/                   # OpenClaw 에이전트 5개 + Home A2A 플러그인 (TypeScript)
+│   ├── home-a2a-plugin/   #   ACL·소유권·정책(core.ts), 수신·위임·규칙(agent.ts), Gateway 클라이언트(devices.ts)
 │   ├── externel/             #   desktop, smartphone (집 밖 에이전트)
-│   ├── internel/             #   orchestrator(Root), room1, room2 (집 안 에이전트)
+│   ├── internel/             #   root(Root), room1, room2, kitchen (집 안 에이전트)
 │   ├── generated/            #   Studio가 만든 에이전트 (git에 올리지 않음)
 │   └── Dockerfile            #   다섯 에이전트 + Studio 에이전트 실행기(scripts/launcher.mjs)를 한 컨테이너에서 실행
 ├── services/                 # Python (FastAPI)
@@ -147,7 +147,7 @@ SWE-Final/
 │   ├── config/               #   agents.yaml(호출자), devices.yaml(가상 기기), skills.yaml(기본 스킬)
 │   └── contracts/            #   화면이 받는 메시지 형식 (JSON Schema)
 ├── agent_hub_FE/             # Agent Hub 화면 (Next.js): 검색·상세·연결·내 에이전트·Studio, /home 스마트홈 앱. 토큰은 서버 쪽 프록시에만
-├── spec/                     # Ambient-A2A 확장 명세
+├── spec/                     # Home A2A 확장 명세
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO 실험 (에이전트별 SLM의 근거)
 └── docs/                     # 발표 자료, 실행 가이드, 인수인계, 아키텍처, 검증·성능 기록
@@ -166,23 +166,23 @@ SWE26-01의 A2A-agents(루트), a2a-agentic-home(`services/`)를 커밋 기록�
 
 ## 에이전트
 
-OpenClaw 에이전트 5개가 A2A v1.0에 **Ambient-A2A 확장**([spec/ambient-a2a.md](spec/ambient-a2a.md))을 얹어 서로 소통한다. 확장은 상태 공유·구독, 공간별 소유권, 정책 기반 협업을 정의한다.
+OpenClaw 에이전트 5개가 A2A v1.0에 **Home A2A 확장**([spec/home-a2a.md](spec/home-a2a.md))을 얹어 서로 소통한다. 확장은 상태 공유·구독, 공간별 소유권, 정책 기반 협업을 정의한다.
 
 | Agent | 발표의 역할 | 포트 | 공개 정보 / 소유 기기 |
 |---|---|---|---|
 | `externel/desktop` | External: Desktop Agent | 18800 | `meeting_app_active`, `pc_state` |
 | `externel/smartphone` | External: 휴대폰 | 18920 | `presence` |
-| `internel/orchestrator` | Root Agent (사용자 입구) | 19040 | 거실 조명, TV, TV 음소거 |
+| `internel/root` | Root Agent (사용자 입구) | 19040 | 거실 조명, TV, TV 음소거 |
 | `internel/room1` | Internal: 방 에이전트 (My Room) | 19160 | 내 방 조명, 조명 모드, 에어컨, 재실 |
 | `internel/room2` | Internal: 방 에이전트 (수면 정책 방) | 19280 | 보호 방 조명, 에어컨, 수면 모드 |
 
 ```
-desktop ──"회의 시작"──▶ orchestrator ──(요청자 ACL 확인)──▶ room1 (자기 규칙으로 승인/거절) ──▶ Device Gateway (주인 재확인)
+desktop ──"회의 시작"──▶ root ──(요청자 ACL 확인)──▶ room1 (자기 규칙으로 승인/거절) ──▶ Device Gateway (주인 재확인)
    ▲                         │
    └──── context.query ──────┘   (Root가 external 정보를 조회. 허용된 필드만 반환)
 ```
 
-LLM(OpenClaw)은 사용자 의도를 해석해 `ambient_*` tool을 호출하는 역할만 한다. 정책, 소유권, 만료 판단은 플러그인 코드가 결정적으로 처리하고, 기기는 Device Gateway가 주인을 한 번 더 확인한 뒤에만 움직인다. 실제 기기는 없고 Gateway가 가상 집(`services/config/devices.yaml`)을 들고 있다.
+LLM(OpenClaw)은 사용자 의도를 해석해 `a2a_*` tool을 호출하는 역할만 한다. 정책, 소유권, 만료 판단은 플러그인 코드가 결정적으로 처리하고, 기기는 Device Gateway가 주인을 한 번 더 확인한 뒤에만 움직인다. 실제 기기는 없고 Gateway가 가상 집(`services/config/devices.yaml`)을 들고 있다.
 
 ## 실행
 
@@ -226,6 +226,6 @@ docker compose down                              # 종료
 - 토큰은 에이전트당 하나이고 피어끼리 공유한다. 상호 신뢰하지 않는 환경이라면 쌍별 토큰이나 mTLS로 바꿔야 한다.
 - 가상 집의 기기 상태는 Gateway 메모리에 있어서 Gateway를 다시 시작하면 처음 상태로 돌아간다.
 - 구독 정보는 publisher 메모리에만 있다. external을 재시작하면 구독하던 쪽도 재시작해야 한다.
-- OpenClaw gateway 하나가 메모리를 약 1GB 쓴다. Studio 에이전트를 여러 개 연결하려면 Docker 메모리를 늘려야 한다.
+- OpenClaw gateway 하나가 메모리를 약 1GB 쓴다(LLM은 OpenRouter라 상관없다). 기본 에이전트 6개를 띄우려면 Docker Desktop 메모리를 10GB 이상으로 둔다. 대화형·루틴 에이전트는 OpenClaw 없이 실행기 안에서 돈다.
 - 기본 에이전트 5개의 토큰과 주소는 여전히 `.env`·`agents/shared.json5`에 있다. Hub는 그 위에서 연결·주인을 정한다.
 - 계정은 여럿이지만 집은 하나다. 다른 계정이 설치(연결)한 에이전트도 같은 가상 집의 기기를 움직인다. 회원가입은 약관·이메일 확인이 없는 데모 수준이다.

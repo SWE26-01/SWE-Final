@@ -1,6 +1,6 @@
-# Ambient-A2A Extension v1
+# Home A2A Extension v1
 
-URI: `https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1`
+URI: `https://github.com/nsu102/A2A-agents/spec/home-a2a/v1`
 
 이 문서는 A2A v1.0 위에 스마트홈용 상태 공유, 구독, 소유권, 정책 협업 규약을 정의하는 확장 스펙이다. A2A 표준 구조(Agent Card, `SendMessage`, Task, DataPart)는 바꾸지 않고, 추가 정보는 확장 `params`와 DataPart 스키마로만 정의한다.
 
@@ -9,7 +9,7 @@ URI: `https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1`
 ```json
 "capabilities": {
   "extensions": [{
-    "uri": "https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1",
+    "uri": "https://github.com/nsu102/A2A-agents/spec/home-a2a/v1",
     "required": true,
     "params": {
       "role": "external | home | room",
@@ -22,7 +22,7 @@ URI: `https://github.com/nsu102/A2A-agents/spec/ambient-a2a/v1`
 }
 ```
 
-- Card는 `<base>/.well-known/agent-card.json`에서 제공하고, JSON-RPC 엔드포인트는 `<base>/a2a/v1`이다. 이 구현의 `<base>`는 `http://host:port/plugins/ambient`다.
+- Card는 `<base>/.well-known/agent-card.json`에서 제공하고, JSON-RPC 엔드포인트는 `<base>/a2a/v1`이다. 이 구현의 `<base>`는 `http://host:port/plugins/a2a`다.
 - Home Agent는 room Card의 `owned_devices`로 기기 소유권 맵을 구성한다(Agent Discovery).
 
 ## 2. 전송

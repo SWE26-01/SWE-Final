@@ -21,12 +21,12 @@
 에이전트를 호스트에서 직접 돌릴 때(`scripts/oc.sh`)는 루트 `.env`의 주소를 쓴다.
 
 ```bash
-AMBIENT_GATEWAY_URL=http://127.0.0.1:8100    # 기기. 비워 두면 이 기본값
-AMBIENT_COLLECTOR_URL=http://127.0.0.1:8200  # 이벤트 로그 (비우면 끔. 실패해도 에이전트는 계속 동작)
+DEVICE_GATEWAY_URL=http://127.0.0.1:8100    # 기기. 비워 두면 이 기본값
+EVENT_COLLECTOR_URL=http://127.0.0.1:8200  # 이벤트 로그 (비우면 끔. 실패해도 에이전트는 계속 동작)
 DASHBOARD_TOKEN=...                          # 화면이 Gateway·Collector를 읽는 토큰 (setup.sh가 채움)
 ```
 
-- 코드: `agents/shared.json5`(`gatewayUrl`, `collectorUrl`), `agents/ambient-a2a-plugin/src/agent.ts`(`createAgent`, `log()`),
+- 코드: `agents/shared.json5`(`gatewayUrl`, `collectorUrl`), `agents/home-a2a-plugin/src/agent.ts`(`createAgent`, `log()`),
   `src/devices.ts`(Gateway 클라이언트), 테스트 `src/services.test.ts`.
 - 에이전트 정책이 새 기기를 보게 되면 `devices.yaml`에도 추가해야 한다. Gateway에 없는 기기는 읽을 수도 없다.
 
@@ -52,12 +52,12 @@ python services/scripts/verify_integration.py --env-file .env
   `GET /events?after_id=&limit=`로 페이지 조회도 된다. 형식은 `services/contracts/collector/event.schema.json`.
 - Collector `GET /flows?limit=`: 요청 하나를 에이전트를 넘나들며 묶은 요약(누가 요청, 누가 받음, 어떤 기기, 최종 수락·거절과 사유), 최근 것부터.
   `GET /flows/{flow}`는 그 요청의 이벤트 전체. 형식은 `services/contracts/collector/flow.schema.json`.
-  에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지 이어 주기 때문에 가능하다(`spec/ambient-a2a.md`).
-- 브라우저에서 프록시 없이 직접 읽으려면 루트 `.env`에 `AMBIENT_CORS_ORIGINS=http://localhost:3000`(쉼표로 여러 개)을 넣는다.
+  에이전트가 `request_id`를 위임·실행·절전(`<id>/<room>`)·자동화 규칙까지 이어 주기 때문에 가능하다(`spec/home-a2a.md`).
+- 브라우저에서 프록시 없이 직접 읽으려면 루트 `.env`에 `CORS_ORIGINS=http://localhost:3000`(쉼표로 여러 개)을 넣는다.
   GET만 허용하고, 비워 두면 허용하지 않는다.
 
 ## ID
 
-에이전트 ID(`desktop`, `smartphone`, `orchestrator`, `room1`, `room2`)와 기기 ID(HA 엔티티 ID 형식)는 세 곳이 같아야 한다:
+에이전트 ID(`desktop`, `smartphone`, `root`, `room1`, `room2`)와 기기 ID(HA 엔티티 ID 형식)는 세 곳이 같아야 한다:
 `services/config/devices.yaml`, 각 에이전트의 `owned`(`agents/**/openclaw.json5`), 각 에이전트 `AGENTS.md`의 기기 표.
 어긋나면 `verify_integration.py` 1번이 실패한다.

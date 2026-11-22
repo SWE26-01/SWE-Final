@@ -15,7 +15,7 @@
 scripts/setup.sh            # .env를 만들고 토큰을 랜덤 값으로 채운다. 다시 실행해도 안전(빠진 키만 추가)
 ```
 그다음 `.env`에 **`OPENROUTER_API_KEY`** 만 직접 넣는다.
-- 에이전트 모델은 `AMBIENT_MODEL`(기본 `openrouter/anthropic/claude-haiku-5.5`). tool calling을 지원하는 모델이어야 하고 `openrouter/auto`는 피한다.
+- 에이전트 모델은 `AGENT_MODEL`(기본 `openrouter/anthropic/claude-haiku-5.5`). tool calling을 지원하는 모델이어야 하고 `openrouter/auto`는 피한다.
 - Studio 모델은 `STUDIO_MODEL`. 키 없이 돌리려면 `STUDIO_LLM=rules`.
 
 시나리오 검증까지 하려면 `scripts/setup.sh --local`: a2a-sdk probe용 `.venv`와, 에이전트를 호스트에서 직접 돌릴 때 필요한 Node 24·OpenClaw·플러그인 의존성을 설치한다.
@@ -34,7 +34,7 @@ scripts/run_all.sh          # docker compose up -d --build 후 전부 뜰 때까
 | studio | http://127.0.0.1:8500/docs | Agent Studio API |
 | gateway | http://127.0.0.1:8100/devices | 가상 집의 기기 상태 (`Authorization: Bearer $DASHBOARD_TOKEN`) |
 | collector | http://127.0.0.1:8200/flows | 에이전트 통신 기록 (같은 토큰) |
-| agents | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 | desktop / smartphone / orchestrator(Root) / room1 / room2 |
+| agents | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 | desktop / smartphone / root(Root) / room1 / room2 |
 
 모든 포트는 127.0.0.1에만 열린다. 이벤트 로그는 `scripts/logs.sh`(다른 터미널), 에이전트 출력은 `docker compose logs -f agents`, 에이전트별 로그는 `logs/<id>.log`.
 
@@ -52,7 +52,7 @@ scripts/scenario.sh
 
 | 단계 | 내용 | 기대 결과 |
 |---|---|---|
-| 8 | 5개 Agent Card 조회 | 모두 `ambient=yes` |
+| 8 | 에이전트 Agent Card 조회 | 모두 `extensions=0`(표준 카드), 역할·공간·기기는 skill tags |
 | A | desktop → home: 내 방 조명을 회의 모드로 | `OK`, `delegated_to: room1`. 조명 모드가 `meeting` |
 | A | desktop → home: 거실 TV 음소거 | `OK` |
 | 1-1 | desktop → home: room2 에어컨 끄기 | `UNAUTHORIZED`. 로그에 room2로 가는 요청이 **없어야** 정상 |
@@ -78,7 +78,7 @@ Hub·Studio 확인: `scripts/test_hub_studio.sh` (26단계).
 
 ```bash
 scripts/say.sh desktop "나 회의 시작할게"
-scripts/say.sh orchestrator "지금 집 전체 절전해도 될까?"
+scripts/say.sh root "지금 집 전체 절전해도 될까?"
 SAY_SESSION=scene2 scripts/say.sh smartphone "나 나간다"   # 장면마다 새 세션을 써서 프롬프트가 쌓이지 않게
 ```
 
@@ -96,7 +96,7 @@ SAY_SESSION=scene2 scripts/say.sh smartphone "나 나간다"   # 장면마다 �
 scripts/scenario.sh --kill-home
 ```
 
-orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서 조명 모드를 `meeting`으로 바꾸면 정상이다. 끝나면 `docker compose restart agents`.
+root만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서 조명 모드를 `meeting`으로 바꾸면 정상이다. 끝나면 `docker compose restart agents`.
 
 ### 4.4 다시 실행할 때
 
@@ -122,6 +122,10 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 7. **스마트홈 앱** (http://127.0.0.1:3000/home, Hub 화면 옆에 띄운다): 공간별 기기 상태와 주인 에이전트가 실시간으로 바뀐다.
    기기를 누르면 주인과 "이 기기를 맡을 수 있는 에이전트"가 나오고, 거기서 바로 연결·해제한다(6의 2단계와 같은 동작).
    기기를 직접 켜고 끄는 버튼은 없다. 명령은 주인 에이전트만 보낸다.
+8. **아침 커피 시나리오** (상단 "시나리오" 탭): 처음이면 "Studio에서 만들기"로 "매일 아침 7시 반에 커피 내려 줘"를 만들고 승인한 뒤
+   연결한다(권한은 "커피머신: 주인 에이전트에게 제어 요청" 하나). "지금 7:30으로 실행"을 누르면 Coffee Agent → Root → Kitchen →
+   LG DUOBO로 요청이 지나가고 커피머신이 켜진다. "원두 부족으로 표시해 줘"를 누른 뒤 다시 실행하면 Kitchen이 정책으로 거절한다.
+   끝나면 "원두 채웠어", "커피머신 꺼 줘"로 되돌린다.
 
 ## 6. 문제 해결
 
@@ -130,11 +134,11 @@ orchestrator만 끈 뒤 desktop 상태를 room1에 보낸다. room1이 혼자서
 | `run_all.sh`에서 `NOT UP` | 출력된 `docker compose logs <이름>`을 확인한다. 에이전트는 `logs/<agent>.log` |
 | `Bind for 127.0.0.1:8100 failed: port is already allocated` | 예전 방식으로 띄운 컨테이너나 호스트 에이전트가 남아 있다. `docker ps`로 찾아 끄거나 `pkill -f openclaw-gateway` |
 | 상태 업데이트가 계속 `STALE` | 받는 쪽이 더 큰 sequence를 이미 받은 상태다. `docker compose restart agents` |
-| 자연어 요청에 말로만 답하고 기기 변화가 없음 | 모델이 tool calling을 지원하지 않는다. `AMBIENT_MODEL`을 바꾼다 |
+| 자연어 요청에 말로만 답하고 기기 변화가 없음 | 모델이 tool calling을 지원하지 않는다. `AGENT_MODEL`을 바꾼다 |
 | 에이전트가 응답하지 않음 / OpenRouter 타임아웃 | `OPENROUTER_API_KEY`와 네트워크를 확인한다 |
 | Studio가 `failed` | LLM 호출 실패. 키를 확인하거나 `.env`에 `STUDIO_LLM=rules` 후 `docker compose up -d studio` |
 | `verify_integration.py`에서 어떤 에이전트의 이벤트가 0개 | 그 에이전트가 아직 아무 요청도 처리하지 않았다. `scripts/scenario.sh`를 한 번 돌린 뒤 다시 확인한다 |
-| Studio 에이전트가 Online이 안 되거나 다른 에이전트가 갑자기 꺼짐 | OpenClaw gateway 하나가 약 1GB를 쓴다. `docker stats`로 agents 메모리를 보고 Docker Desktop 메모리를 늘린다. 실행기 기록: `docker compose logs agents \| grep launcher` |
+| 에이전트 하나가 Offline이 되고 로그에 `Killed` | 메모리 부족. OpenClaw gateway가 하나에 약 1GB라 기본 6개에 6~6.5GB가 든다. Docker Desktop → Settings → Resources → Memory를 **10GB 이상**으로 올리고 `docker compose restart agents`. 대화형·루틴 에이전트는 실행기 안에서 돌아서 거의 메모리를 쓰지 않는다. 실행기 기록: `docker compose logs agents \| grep launcher` |
 | 화면에 `화면 서버에 토큰이 설정되지 않았어요` | `.env`에 `DASHBOARD_TOKEN`이 없다. `scripts/setup.sh` 후 `docker compose up -d hub-web` |
 | 화면이 계속 로그인 페이지로 돌아간다 | 세션이 끝났거나(7일) Hub가 다시 만들어졌다. 다시 로그인한다. Hub가 안 뜨면 `docker compose logs hub` |
 | 기기 명령이 모두 503 | Gateway가 Hub에 닿지 않는다(`docker compose logs hub`). Hub가 주인을 정하므로 Hub 없이 명령하지 않는다 |
@@ -149,6 +153,6 @@ scripts/oc.sh <agent> gateway                           # 호스트에서 직접
 set -a; . ./.env; set +a                                # probe 전에 토큰 로드
 .venv/bin/python scripts/a2a_probe.py cards             # Agent Card 조회
 .venv/bin/python scripts/a2a_probe.py send <대상> <보내는쪽> '<DataPart JSON>'
-cd agents/ambient-a2a-plugin && pnpm test               # 플러그인 단위 테스트
+cd agents/home-a2a-plugin && pnpm test               # 플러그인 단위 테스트
 cd services && pip install -e ".[dev]" && ruff check . && pytest   # services 검사 (CI와 같음)
 ```

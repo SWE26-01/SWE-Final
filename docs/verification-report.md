@@ -29,7 +29,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 에이전트 | OpenClaw 2026.10.4, 5개 프로세스: desktop, smartphone, orchestrator(Home), room1(My Room), room2(수면 정책 방) |
+| 에이전트 | OpenClaw 2026.10.4, 5개 프로세스: desktop, smartphone, root(Home), room1(My Room), room2(수면 정책 방) |
 | LLM | OpenRouter `anthropic/claude-sonnet-5-5`. 에이전트마다 별도 컨텍스트 |
 | 기기 | Home Assistant 2026.10.2(Docker), 가상 엔티티 10개 (실제 기기 없음) |
 | Device Gateway·Event Collector | `services/`, Docker. `scripts/run_all.sh`가 함께 띄우고, 에이전트는 Gateway를 거쳐 HA를 쓰고 Collector에 기록을 보냄 |
@@ -46,7 +46,7 @@
 3. **사람 말로 시작한 흐름 (LLM)**
    - Desktop에 "나 회의 시작할게"를 보냈다.
    - Home에 "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."를 보냈다.
-4. **Home 중단**: orchestrator 프로세스를 끈 뒤 room1에 Desktop의 회의 신호를 보냈다.
+4. **Home 중단**: root 프로세스를 끈 뒤 room1에 Desktop의 회의 신호를 보냈다.
 5. **연동 확인** (`services/scripts/verify_integration.py`)
    - 에이전트 카드의 소유 기기와 `services/config/devices.yaml`이 같은지
    - Gateway가 남의 기기 명령을 막는지
@@ -95,7 +95,7 @@
 - **근거**: `scenario.txt` 6단계
 
 ### 3.6 Home 중단 시 독립 동작 — 통과
-- **방법**: orchestrator 프로세스를 종료(카드 요청에 응답 없음 확인)한 뒤, room1 조명을 normal로 되돌렸다. 그리고 Desktop의 회의 신호(`context.update`, `scripts/scenario.sh --kill-home`처럼 Desktop 신원으로 표준 클라이언트가 보냄)를 room1에 보냈다.
+- **방법**: root 프로세스를 종료(카드 요청에 응답 없음 확인)한 뒤, room1 조명을 normal로 되돌렸다. 그리고 Desktop의 회의 신호(`context.update`, `scripts/scenario.sh --kill-home`처럼 Desktop 신원으로 표준 클라이언트가 보냄)를 room1에 보냈다.
 - **결과**: room1이 `OK`로 받고 규칙대로 조명을 `meeting`으로 바꿨다. Home 없이도 방이 외부 에이전트의 상태를 받아 스스로 동작했다.
 - **근거**: `kill-home.txt`
 
@@ -111,7 +111,7 @@
 ### 3.8 신규 Agent 연결 — 부분 통과
 - **확인한 것**
   - Home은 방 소유 기기를 설정에 적어 두지 않는다. 각 방의 Agent Card(`owned_devices`)를 읽어 스스로 알아내고, 그걸로 위임했다(3.4).
-  - 표준 a2a-sdk 클라이언트가 다섯 에이전트의 카드와 Ambient-A2A 확장을 모두 인식했다.
+  - 표준 a2a-sdk 클라이언트가 다섯 에이전트의 카드와 Home A2A 확장을 모두 인식했다.
   - 카드의 소유 기기가 `services/config/devices.yaml`과 같았다(`verify.txt` 1번).
 - **한계**
   - 새 에이전트를 붙이려면 주소와 토큰을 `agents/shared.json5`(`peers`, `tokens`)와 `services/config/agents.yaml`에 추가해야 한다.
@@ -130,13 +130,13 @@
 - **해석**: 지금 구조에서 LLM은 사람 말을 해석해 도구를 부르고, 공유받은 상태를 근거로 판단한다. 수락·거절·안전 판단은 에이전트 코드와 Gateway가 한다. LLM 응답은 실행마다 달라질 수 있어서 항목 판정에는 쓰지 않았다.
 
 ### 4.2 기록과 요청 추적
-- 이번 실행의 기록은 71건이다(desktop 13, smartphone 3, orchestrator 29, room1 23, room2 3). 모두 Collector에 저장됐고 거부된 기록은 없었다.
+- 이번 실행의 기록은 71건이다(desktop 13, smartphone 3, root 29, room1 23, room2 3). 모두 Collector에 저장됐고 거부된 기록은 없었다.
 - 요청 하나에 붙은 ID가 위임·실행·절전·규칙까지 이어져서, Collector가 요청별로 묶었다.
 
   | 요청 | 흐름 | 결과 |
   |---|---|---|
-  | `scn-A1` | desktop → orchestrator → room1, 기록 5개 | `OK` |
-  | `scn-A3` | desktop → orchestrator | `UNAUTHORIZED` |
+  | `scn-A1` | desktop → root → room1, 기록 5개 | `OK` |
+  | `scn-A3` | desktop → root | `UNAUTHORIZED` |
   | `scn-6` | 에이전트 3개, 기록 13개 | `PARTIAL` |
 
 ### 4.3 개인정보
@@ -163,7 +163,7 @@ scripts/setup.sh                       # 처음 한 번 (.env, Home Assistant)
 scripts/run_all.sh                     # HA + Gateway·Collector + 에이전트 5개
 scripts/scenario.sh                    # 결정적 시나리오 (1~5, 7, 8)
 scripts/oc.sh desktop agent --agent main --message "나 회의 시작할게"
-scripts/oc.sh orchestrator agent --agent main --message "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."
+scripts/oc.sh root agent --agent main --message "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."
 scripts/scenario.sh --kill-home        # Home 중단 시 독립 동작 (6)
 python services/scripts/verify_integration.py --env-file .env
 curl -H "Authorization: Bearer $DASHBOARD_TOKEN" http://127.0.0.1:8200/flows

@@ -27,7 +27,7 @@ scenarios.py(54개 질의) → 에이전트(OpenClaw, Haiku) → proxy.py(요청
 ```
 
 - **원본 그대로**: 학습 데이터는 OpenClaw가 모델에 실제로 보낸 요청이다. 시스템 프롬프트, tool 정의 6~8개, 대화가 모두 들어 있다. 따로 만든 대화가 아니라서 학습한 모델이 실제 에이전트에서 받을 입력과 같다.
-- **연습 질의 54개**: 에이전트마다 실제 역할에 맞게 만들었다. desktop 25, smartphone 10, orchestrator 12, room1 4, room2 3이다. 회의 시작·종료, 외출·귀가, 권한 없는 요청, 목록에 없는 기기, 개인정보 공유 요청, "판단만 해 줘", 수면 정책 같은 경우를 담았다.
+- **연습 질의 54개**: 에이전트마다 실제 역할에 맞게 만들었다. desktop 25, smartphone 10, root 12, room1 4, room2 3이다. 회의 시작·종료, 외출·귀가, 권한 없는 요청, 목록에 없는 기기, 개인정보 공유 요청, "판단만 해 줘", 수면 정책 같은 경우를 담았다.
 - **평가용 6개는 학습에서 뺐다**: `HELDOUT`의 6개 질의는 원래 검증 시나리오다. 학습 데이터에는 표현을 바꾼 질의만 들어간다.
 - **정답(Haiku) 수집은 3번 했다**:
 
@@ -80,7 +80,7 @@ Haiku 응답 하나마다 같은 요청을 기본 EXAONE에 다시 보냈다.
 
 ## 3. 학습
 
-- **장소**: Google Colab T4. 터미널의 [Colab CLI](https://github.com/googlecolab/google-colab-cli)로 돌렸다. [training/train_colab.py](../training/train_colab.py)는 [ambient_dpo.ipynb](../training/ambient_dpo.ipynb)와 같은 코드다.
+- **장소**: Google Colab T4. 터미널의 [Colab CLI](https://github.com/googlecolab/google-colab-cli)로 돌렸다. [training/train_colab.py](../training/train_colab.py)는 [a2a_dpo.ipynb](../training/a2a_dpo.ipynb)와 같은 코드다.
 - **라이브러리**: TRL 1.16, PEFT 0.21, transformers 5.20, torch 2.11.
   - LLaMA-Factory에는 EXAONE 4.0의 tool 호출 형식에 맞는 템플릿이 없어서 TRL로 직접 했다.
 - **텍스트 만들기**: 모델 자신의 chat template(tool 포함)으로 대화를 문자열로 바꿨다. llama.cpp로 서빙할 때와 같은 형식이다.
@@ -120,7 +120,7 @@ Haiku 응답 하나마다 같은 요청을 기본 EXAONE에 다시 보냈다.
 | 문제 | 해결 |
 |---|---|
 | llama.cpp가 EXAONE 공식 템플릿의 `{% continue %}`를 처리하지 못해 tool 정의와 시스템 프롬프트가 조용히 사라짐 | 같은 의미로 고친 템플릿(`training/exaone4-chat_template.jinja`) 사용 |
-| 상태를 한 번 물어보면 그 에이전트가 이후 상태 공유를 못 함 (OpenClaw가 tool 결과를 얼리는데 내부 상태가 딸려 나감) | `ambient_status`가 복사본을 돌려주게 고침(`5840ae3`). **데모에도 영향이 있던 버그** |
+| 상태를 한 번 물어보면 그 에이전트가 이후 상태 공유를 못 함 (OpenClaw가 tool 결과를 얼리는데 내부 상태가 딸려 나감) | `a2a_status`가 복사본을 돌려주게 고침(`5840ae3`). **데모에도 영향이 있던 버그** |
 | Colab의 torchao 0.10을 새 PEFT가 거부 | torchao 제거 (쓰지 않음) |
 | T4에서 6천 토큰 예제가 메모리 부족 (12GiB 이상) | transformers가 SDPA에 `enable_gqa`를 넘기면, FlashAttention이 없는 T4는 전체 어텐션 행렬을 만드는 커널을 쓴다. 이 옵션을 끄자 1.5GiB가 됐다 |
 | `colab exec`로 긴 학습을 돌리면 응답 대기 시간이 끝나면서 실행도 멈춤 | 학습을 커널 안에서 돌리고, 로그는 파일로, 상태는 별도 shell(`console`)로 확인 |

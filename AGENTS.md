@@ -2,7 +2,7 @@ Read `docs/HANDOFF.md` first for project context and decisions.
 
 # Rules for AI coding tools (Claude Code, Copilot, Cursor …)
 
-Monorepo: `agents/` (OpenClaw agents + the `ambient-a2a` plugin, TypeScript), `spec/` (Ambient-A2A
+Monorepo: `agents/` (OpenClaw agents + the `home-a2a` plugin, TypeScript), `spec/` (Home A2A
 extension spec), `services/` (Device Gateway with the virtual home + Event Collector + Agent Hub +
 Studio, Python; its own rules are in `services/CLAUDE.md`), `agent_hub_FE/` (Agent Hub screen,
 Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docker-compose.yml`
@@ -12,10 +12,12 @@ Next.js), `scripts/` (setup, run, checks), `training/` (SLM experiments), `docke
   - methods are `SendMessage`, `GetTask` … (not `message/send`, `tasks/get`)
   - enums are `TASK_STATE_COMPLETED`, `ROLE_USER` … (not `completed`, `user`)
   - a `Part` holds exactly one of `text` / `raw` / `url` / `data`; there is no `kind` field
-- Ambient-A2A payloads are one DataPart whose `data.type` is a message in `spec/ambient-a2a.md`.
+- Home A2A payloads are one DataPart whose `data.type` is a message in `spec/home-a2a.md`.
   Change the spec first, then the plugin, never ad-hoc JSON shapes.
 - Each device has exactly one owning agent. Other agents ask the owner with `device.control`;
-  Home delegates room devices with `on_behalf_of`. Safety policies apply to every requester.
+  Home (agent id `root`) delegates room devices with `on_behalf_of`. A Hub-connected agent may ask
+  only for the devices the user approved as `request:<entity>`. Safety policies apply to every
+  requester.
 - Never send raw personal data (calendar titles, GPS coordinates) between agents or into logs.
   Agents publish only their `provides` fields, filtered by the requester's ACL.
 - There is no Home Assistant. The Device Gateway keeps the virtual devices (`services/gateway/home.py`)

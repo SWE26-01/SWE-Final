@@ -45,18 +45,18 @@ LLM 실행 시간과 비용은 CLI 경로에서만 보고된다. 첫 회차 비�
   - 코딩 도구(ls/read/edit/exec)
   - 내장 스킬 목록(약 7천 자)
   - 첫 실행용 문서(SOUL/IDENTITY/USER/BOOTSTRAP)
-- `ambient_publish`의 인자가 `{fields:{...}}`로 한 단계 중첩돼 있었다. 모델이 평평한 형태로 먼저 불렀다가 실패하고 재시도한 기록이 3번 있었다.
+- `a2a_publish`의 인자가 `{fields:{...}}`로 한 단계 중첩돼 있었다. 모델이 평평한 형태로 먼저 불렀다가 실패하고 재시도한 기록이 3번 있었다.
 
 ## 바꾼 것
 
 | 위치 | 설정 | 효과 |
 |---|---|---|
-| `agents/**/openclaw.json5` | `tools.toolSearch: false` | `ambient_*` tool을 모델에 바로 보여 준다 |
-| 〃 | `tools.profile: "minimal"`, `alsoAllow: ["ambient-a2a"]` | Ambient-A2A tool만 남긴다 |
+| `agents/**/openclaw.json5` | `tools.toolSearch: false` | `a2a_*` tool을 모델에 바로 보여 준다 |
+| 〃 | `tools.profile: "minimal"`, `alsoAllow: ["home-a2a"]` | Home A2A tool만 남긴다 |
 | 〃 | `skills.allowBundled: []` | 내장 스킬 목록을 프롬프트에서 뺀다 |
-| 〃 | `agents.defaults.skipBootstrap: true` | 첫 실행용 문서를 만들지 않는다(이미 만들어진 `~/.ambient-a2a/state/*/workspace`의 SOUL/IDENTITY/USER/BOOTSTRAP.md는 지운다) |
+| 〃 | `agents.defaults.skipBootstrap: true` | 첫 실행용 문서를 만들지 않는다(이미 만들어진 `~/.home-a2a/state/*/workspace`의 SOUL/IDENTITY/USER/BOOTSTRAP.md는 지운다) |
 | 〃 | `agents.defaults.thinkingDefault: "off"` | 정해진 tool을 고르는 작업이라 긴 추론을 끈다 |
-| `agents/ambient-a2a-plugin/index.ts` | `ambient_publish` 인자 평탄화 | `meeting_app_active` 등 공개 필드를 바로 받는다 |
+| `agents/home-a2a-plugin/index.ts` | `a2a_publish` 인자 평탄화 | `meeting_app_active` 등 공개 필드를 바로 받는다 |
 | `agents/gateway.json5` | `http.endpoints.chatCompletions.enabled` | 게이트웨이 HTTP API를 연다(loopback, 게이트웨이 토큰 필요) |
 | `scripts/say.sh` | 새 스크립트 | HTTP API로 한 턴을 보낸다. CLI 기동 시간이 들지 않는다 |
 
@@ -82,16 +82,16 @@ LLM 실행 시간과 비용은 CLI 경로에서만 보고된다. 첫 회차 비�
 | 흐름 | 결과 |
 |---|---|
 | desktop "나 회의 시작할게" (3회) | 3회 모두 TV 음소거 on, 조명 meeting |
-| orchestrator "절전해도 될까? 판단만" | desktop·smartphone에 `context.query`를 보내고 실행 없이 판단(회의 중이라 보류) |
+| root "절전해도 될까? 판단만" | desktop·smartphone에 `context.query`를 보내고 실행 없이 판단(회의 중이라 보류) |
 | smartphone "나 나간다" (room2 수면 중) | room1 절전, room2 에어컨은 `SAFETY_POLICY`로 유지, home이 `PARTIAL`로 취합 |
-| desktop "보호 방 에어컨 꺼줘" | orchestrator를 거쳐 `UNAUTHORIZED`로 거절되고, 그 사실을 그대로 보고 |
+| desktop "보호 방 에어컨 꺼줘" | root를 거쳐 `UNAUTHORIZED`로 거절되고, 그 사실을 그대로 보고 |
 | desktop "아기방 에어컨 끄고 거실 불도 꺼줘" | 목록에 없는 기기는 없다고 말하고, 거실 불은 `UNAUTHORIZED`를 보고 |
 
 처음에는 권한 없는 요청에서 Haiku가 영어로 답했고, 없는 기기 ID(`climate.room2_ac`)를 지어냈으며, room2에 직접 요청했다. 그래서 `agents/**/AGENTS.md`에 다음 규칙을 넣은 뒤 다시 시험했다.
 - 한국어로 답한다.
 - 결과를 tool 응답 그대로 보고한다.
-- 기기 요청은 orchestrator로 보낸다.
+- 기기 요청은 root로 보낸다.
 - 정해진 기기 ID 표만 쓴다.
 
-남은 약점: 같은 세션에서 보내지 않은 요청을 "앞서 거절됐다"고 말한 적이 한 번 있었다. 기기 상태와 권한 판단은 플러그인 코드가 하므로 안전에는 영향이 없지만, 설명이 틀릴 수 있다. 데모 품질이 더 중요하면 `AMBIENT_MODEL`만 Sonnet으로 바꾸면 된다.
+남은 약점: 같은 세션에서 보내지 않은 요청을 "앞서 거절됐다"고 말한 적이 한 번 있었다. 기기 상태와 권한 판단은 플러그인 코드가 하므로 안전에는 영향이 없지만, 설명이 틀릴 수 있다. 데모 품질이 더 중요하면 `AGENT_MODEL`만 Sonnet으로 바꾸면 된다.
 

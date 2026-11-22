@@ -48,7 +48,7 @@ The two problems again before the solution. The following slides answer them wit
 
 **The answer to decentralization.** Each room gets its own agent: a Kitchen Agent (fridge, oven, range hood), an Elderly Room Agent (fall detection, sleep monitoring), a Living Room Agent (TV, lights, air conditioner). **Each room agent controls only its own devices, and agents talk to each other directly over A2A.** The Root Agent, the user's entry point, only routes a request to the device's owner, and a new room or another Root Agent joins with just its Agent Card. A bigger home means more agents, not a bigger hub.
 
-In this repo: the orchestrator (Root) and room1/room2 agents in `agents/`, the ownership and policy rules in [spec/ambient-a2a.md](spec/ambient-a2a.md), and the Device Gateway (`services/gateway`), which checks the device owner once more.
+In this repo: the root (Root) and room1/room2 agents in `agents/`, the ownership and policy rules in [spec/home-a2a.md](spec/home-a2a.md), and the Device Gateway (`services/gateway`), which checks the device owner once more.
 
 ### 6. Solution: External Extension — Existing Agents
 
@@ -104,7 +104,7 @@ Whoever sends a request, **room policies keep control**. The result is an extens
 
 | Area | Technology |
 |---|---|
-| Agent communication | A2A v1.0, Ambient-A2A extension ([spec/ambient-a2a.md](spec/ambient-a2a.md)) |
+| Agent communication | A2A v1.0, Home A2A extension ([spec/home-a2a.md](spec/home-a2a.md)) |
 | Agents | OpenClaw + TypeScript plugin (swappable for a Python runtime with `STUDIO_RUNTIME`) |
 | Backend | Python, FastAPI, Pydantic v2 |
 | Agent creation (Studio) | LangChain structured output, OpenRouter |
@@ -131,10 +131,10 @@ The planned deployment of the Agentic Hub on AWS. Today the repo runs the same s
 SWE-Final/
 ├── docker-compose.yml        # run everything: docker compose up -d --build
 ├── plan.md                   # plan (from the presentation, Korean)
-├── agents/                   # five OpenClaw agents + the Ambient-A2A plugin (TypeScript)
-│   ├── ambient-a2a-plugin/   #   ACL, ownership, policy (core.ts); inbound, delegation, rules (agent.ts); Gateway client (devices.ts)
+├── agents/                   # five OpenClaw agents + the Home A2A plugin (TypeScript)
+│   ├── home-a2a-plugin/   #   ACL, ownership, policy (core.ts); inbound, delegation, rules (agent.ts); Gateway client (devices.ts)
 │   ├── externel/             #   desktop, smartphone (agents outside the home)
-│   ├── internel/             #   orchestrator (Root), room1, room2 (agents inside the home)
+│   ├── internel/             #   root (Root), room1, room2, kitchen (agents inside the home)
 │   ├── generated/            #   agents made in Studio (not in git)
 │   └── Dockerfile            #   runs the five agents and the Studio agent launcher (scripts/launcher.mjs) in one container
 ├── services/                 # Python (FastAPI)
@@ -145,7 +145,7 @@ SWE-Final/
 │   ├── config/               #   agents.yaml (callers), devices.yaml (virtual devices), skills.yaml (built-in skills)
 │   └── contracts/            #   message formats for screens (JSON Schema)
 ├── agent_hub_FE/             # Agent Hub screen (Next.js): search, detail, connect, my agents, Studio, /home smart home app; tokens stay in its server-side proxy
-├── spec/                     # Ambient-A2A extension spec
+├── spec/                     # Home A2A extension spec
 ├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
 ├── training/                 # EXAONE SFT/DPO experiments (basis for per-agent SLMs)
 └── docs/                     # presentation, run guide, handoff, architecture, verification and performance records
@@ -164,23 +164,23 @@ This repo merges SWE26-01's A2A-agents (root) and a2a-agentic-home (`services/`)
 
 ## Agents
 
-Five OpenClaw agents talk to each other over A2A v1.0 with the **Ambient-A2A extension** ([spec/ambient-a2a.md](spec/ambient-a2a.md)), which adds context sharing and subscription, per-space ownership and policy-aware collaboration.
+Five OpenClaw agents talk to each other over A2A v1.0 with the **Home A2A extension** ([spec/home-a2a.md](spec/home-a2a.md)), which adds context sharing and subscription, per-space ownership and policy-aware collaboration.
 
 | Agent | Role in the presentation | Port | Shared context / owned devices |
 |---|---|---|---|
 | `externel/desktop` | External: Desktop Agent | 18800 | `meeting_app_active`, `pc_state` |
 | `externel/smartphone` | External: phone | 18920 | `presence` |
-| `internel/orchestrator` | Root Agent (user's entry point) | 19040 | living-room light, TV, TV mute |
+| `internel/root` | Root Agent (user's entry point) | 19040 | living-room light, TV, TV mute |
 | `internel/room1` | Internal: room agent (My Room) | 19160 | my-room light, light mode, air conditioner, occupancy |
 | `internel/room2` | Internal: room agent (sleep-policy room) | 19280 | protected-room light, air conditioner, sleep mode |
 
 ```
-desktop ──"meeting starts"──▶ orchestrator ──(checks requester ACL)──▶ room1 (accepts/refuses by its own rules) ──▶ Device Gateway (re-checks owner)
+desktop ──"meeting starts"──▶ root ──(checks requester ACL)──▶ room1 (accepts/refuses by its own rules) ──▶ Device Gateway (re-checks owner)
    ▲                              │
    └────── context.query ─────────┘   (Root reads external context; only allowed fields come back)
 ```
 
-The LLM (OpenClaw) only interprets the user's intent and calls `ambient_*` tools. Policy, ownership and freshness are decided deterministically by the plugin code, and a device moves only after the Device Gateway checks its owner once more. There is no real hardware: the Gateway holds the virtual home (`services/config/devices.yaml`).
+The LLM (OpenClaw) only interprets the user's intent and calls `a2a_*` tools. Policy, ownership and freshness are decided deterministically by the plugin code, and a device moves only after the Device Gateway checks its owner once more. There is no real hardware: the Gateway holds the virtual home (`services/config/devices.yaml`).
 
 ## Run
 
@@ -224,6 +224,6 @@ Step-by-step instructions and troubleshooting: [docs/RUN.md](docs/RUN.md) (Korea
 - Each agent has one token, shared with its peers. For mutually untrusted agents, switch to per-pair tokens or mTLS.
 - The virtual home's device states live in the Gateway's memory; restarting the Gateway resets them.
 - Subscriptions live only in the publisher's memory. When an external agent restarts, its subscribers must restart too.
-- One OpenClaw gateway uses about 1 GB of memory; connecting several Studio agents needs more Docker memory.
+- One OpenClaw gateway uses about 1 GB of memory (the LLM is OpenRouter, not local). The six platform agents need Docker Desktop memory set to 10 GB or more. Assistant and routine agents run inside the launcher without OpenClaw.
 - The five platform agents still take their tokens and addresses from `.env` and `agents/shared.json5`; the Hub decides connections and owners on top.
 - There are many accounts but one home: an agent another account installs (connects) moves the same virtual home's devices. Sign-up is demo-grade (no terms, no e-mail check).

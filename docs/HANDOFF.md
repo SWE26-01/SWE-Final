@@ -28,7 +28,7 @@
 
 | 폴더 | 원래 레포 | 담당 | 내용 |
 | --- | --- | --- | --- |
-| 루트 (`agents/`, `spec/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, orchestrator(=Root/Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `ambient-a2a`에 확장 규칙이 들어 있다 |
+| 루트 (`agents/`, `spec/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, root(=Root/Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `home-a2a`에 확장 규칙이 들어 있다 |
 | `services/` | a2a-agentic-home | jwsong05, sjounng, jenny | Device Gateway(가상 집, 주인 확인), Event Collector(통신 기록 모음), Agent Hub, Agent Studio |
 | `agent_hub_FE/` | — | lahee3423 | Agent Hub 화면(Next.js) |
 
@@ -39,7 +39,7 @@
 
 - **예측 모델은 만들지 않는다.** 외부 기기의 현재 상태와 공간별 정책으로 판단한다.
 - **LLM**: 모든 에이전트가 LLM을 쓰고, 에이전트마다 다른 컨텍스트(역할 지침 `AGENTS.md`, 자기 상태)를 가진다.
-  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter의 `anthropic/claude-haiku-5.5`(`AMBIENT_MODEL`, 2026-10-19에 Sonnet 5.5에서 바꿈. 비교는 `docs/performance.md`)이고 에이전트별로 바꿀 수 있다.
+  로컬인지 클라우드인지는 고정하지 않는다. 지금은 OpenRouter의 `anthropic/claude-haiku-5.5`(`AGENT_MODEL`, 2026-10-19에 Sonnet 5.5에서 바꿈. 비교는 `docs/performance.md`)이고 에이전트별로 바꿀 수 있다.
 - **분산 제어**: 각 기기는 담당 에이전트가 하나다. Home도 방 기기는 주인 에이전트에게 넘기기만 한다(`on_behalf_of`).
 - **원본 개인 데이터(일정 제목, GPS)는 에이전트 밖으로 보내지 않는다.** 에이전트는 `provides` 항목만 요청자 ACL에 맞춰 공개하고,
   Collector는 정해진 필드만 저장한다.
@@ -81,7 +81,7 @@
 
 ## 현재 상태
 
-- 에이전트 5개, Ambient-A2A 확장 1~4, 가상 집(Gateway), 검증 시나리오: 동작한다(`scripts/scenario.sh`).
+- 에이전트 5개, Home A2A 확장 1~4, 가상 집(Gateway), 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트, 아키텍처 문서 `docs/architecture-services.md`(영문),
   검증 결과 보고서 `docs/verification-report.md`(2026-10-18 HA 시절 기록).
 - 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다. 측정과 바꾼 설정은 `docs/performance.md`.

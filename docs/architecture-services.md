@@ -1,14 +1,14 @@
 # Architecture: services
 
-The `services/` part of the architecture. The agents and the Ambient-A2A extension are described in
-`spec/ambient-a2a.md` and `plan.md`; this part covers the four services next to them. Everything runs
+The `services/` part of the architecture. The agents and the Home A2A extension are described in
+`spec/home-a2a.md` and `plan.md`; this part covers the four services next to them. Everything runs
 from the root `docker-compose.yml`.
 
 ## 1. Role in the system
 
 ```
-                 A2A + Ambient-A2A (spec/ambient-a2a.md)
- desktop, smartphone  <──────────────────────────────>  orchestrator (Root), room1, room2
+                 A2A + Home A2A (spec/home-a2a.md)
+ desktop, smartphone  <──────────────────────────────>  root (Root), room1, room2
                                                           │ device commands          │ event log
                                                           │ (own agent token)        │ (own agent token)
                                                           ▼                          ▼
@@ -90,7 +90,7 @@ connection that would give a device a second owner.
 
 ## 5. Security and privacy
 
-- **Identities.** Every caller has its own bearer token (the agents' `AMBIENT_TOKEN_*`, the dashboard's
+- **Identities.** Every caller has its own bearer token (the agents' `AGENT_TOKEN_*`, the dashboard's
   `DASHBOARD_TOKEN`, the home user's `HOME_USER_TOKEN`, Studio's `STUDIO_TOKEN`). Tokens live only in
   the root `.env`; `config/agents.yaml` names the variables.
 - **Least privilege.** Only agents command devices, and only their own. Operators read; the home user
@@ -107,7 +107,7 @@ connection that would give a device a second owner.
   must match the agents' `owned` lists; `verify_integration.py` checks it against the running Agent Cards.
 - `docker-compose.yml` (repo root) runs the agents, the four services, PostgreSQL and the Hub screen.
   Inside Docker the agents reach the services as `gateway`/`collector`, and the services reach the
-  agents' cards as `agents` (`AMBIENT_AGENTS_HOST`, `HUB_AGENTS_HOST`).
+  agents' cards as `agents` (`AGENTS_HOST`, `HUB_AGENTS_HOST`).
 
 | Failure | Behaviour |
 | --- | --- |
