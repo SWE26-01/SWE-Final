@@ -3,31 +3,31 @@
   gateway: { $include: "../../gateway.json5", port: 18920 },
   agents: {
     defaults: {
-      workspace: "${AMBIENT_HOME}/state/smartphone/workspace",
-      model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
+      workspace: "${AGENT_HOME}/state/smartphone/workspace",
+      model: { primary: "${AGENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
       thinkingDefault: "off", // tool routing needs no extended reasoning
       skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
     },
   },
-  // Lean prompt: only the ambient-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
-  tools: { profile: "minimal", alsoAllow: ["ambient-a2a"], toolSearch: false },
+  // Lean prompt: only the home-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
+  tools: { profile: "minimal", alsoAllow: ["home-a2a"], toolSearch: false },
   skills: { allowBundled: [] },
   plugins: {
-    load: { paths: ["${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"] },
+    load: { paths: ["${AGENT_HOME}/app/agents/home-a2a-plugin"] },
     entries: {
-      "ambient-a2a": {
+      "home-a2a": {
         enabled: true,
         config: {
           $include: "../../shared.json5",
           agentId: "smartphone",
-          publicUrl: "http://127.0.0.1:18920/plugins/ambient",
+          publicUrl: "http://127.0.0.1:18920/plugins/a2a",
           role: "external",
           subject: "user1",
           // HOME/AWAY only — never GPS coordinates or location history.
           provides: ["presence"],
           fieldAcl: {
             room1: ["presence"],
-            orchestrator: ["presence"],
+            root: ["presence"],
           },
         },
       },

@@ -1,6 +1,6 @@
 # Everything in one go:  docker compose up -d --build   (scripts/run_all.sh does that and waits)
 #
-#   agents     the five OpenClaw agents (Root = orchestrator, rooms, desktop, smartphone)
+#   agents     the five OpenClaw agents (Root = root, rooms, desktop, smartphone)
 #   gateway    Device Gateway: the virtual home's devices; checks who may move which device
 #   collector  Event Collector: every agent's events and request flows
 #   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)
@@ -20,9 +20,9 @@ services:
     build: {context: ., dockerfile: agents/Dockerfile}
     env_file: .env
     environment:
-      AMBIENT_GATEWAY_URL: http://gateway:8100
-      AMBIENT_COLLECTOR_URL: http://collector:8200
-      AMBIENT_HUB_URL: http://hub:8400  # agents connected in the Hub (made in Studio)
+      DEVICE_GATEWAY_URL: http://gateway:8100
+      EVENT_COLLECTOR_URL: http://collector:8200
+      AGENT_HUB_URL: http://hub:8400  # agents connected in the Hub (made in Studio)
     # scripts/launcher.mjs listens on 18700 inside the Compose network only (the Hub starts and
     # stops Studio agents through it); their ports (19400+) are not published either.
     volumes:
@@ -30,9 +30,10 @@ services:
       - ./logs:/repo/logs  # events.jsonl for scripts/logs.sh, one log per agent
       - ./agents/generated:/repo/agents/generated  # agents approved in Studio
     ports:
+      - 127.0.0.1:18680:18680  # kitchen
       - 127.0.0.1:18800:18800  # desktop
       - 127.0.0.1:18920:18920  # smartphone
-      - 127.0.0.1:19040:19040  # orchestrator (Root Agent)
+      - 127.0.0.1:19040:19040  # root (Root Agent)
       - 127.0.0.1:19160:19160  # room1
       - 127.0.0.1:19280:19280  # room2
     depends_on: [gateway, collector]
@@ -51,7 +52,7 @@ services:
     environment:
       POSTGRES_HOST: postgres  # database `collector` (made at startup if missing)
       COLLECTOR_DB: /data/collector.sqlite  # the log before PostgreSQL: copied in once, then unused
-      AMBIENT_AGENTS_HOST: agents  # read the agents' cards
+      AGENTS_HOST: agents  # read the agents' cards
       COLLECTOR_HUB_URL: http://hub:8400  # events and status of agents connected in the Hub
     volumes: ["collector-data:/data"]
     depends_on:

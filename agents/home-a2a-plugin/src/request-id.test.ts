@@ -6,13 +6,13 @@ import { readData, taskResult } from "./a2a.ts";
 
 const LIGHT = "input_boolean.room1_light";
 const quiet = { info() {}, warn() {} };
-const peers = { orchestrator: "http://orch", room1: "http://room1" };
-const tokens = { orchestrator: "t-o", room1: "t-1", desktop: "t-d" };
+const peers = { root: "http://orch", room1: "http://room1" };
+const tokens = { root: "t-o", room1: "t-1", desktop: "t-d" };
 const common = { peers, tokens, gatewayUrl: "http://gateway", collectorUrl: "http://collector", logFile: undefined };
 const agents = {
-  orchestrator: createAgent({ ...common, agentId: "orchestrator", role: "home", publicUrl: peers.orchestrator, owned: [], requestAcl: { desktop: ["*"] } } as Config, quiet),
+  root: createAgent({ ...common, agentId: "root", role: "home", publicUrl: peers.root, owned: [], requestAcl: { desktop: ["*"] } } as Config, quiet),
   room1: createAgent({
-    ...common, agentId: "room1", role: "room", publicUrl: peers.room1, owned: [LIGHT], requestAcl: { orchestrator: ["*"] },
+    ...common, agentId: "room1", role: "room", publicUrl: peers.room1, owned: [LIGHT], requestAcl: { root: ["*"] },
     energySaving: [{ device: LIGHT, command: "TURN_OFF" }],
     rules: [{ field: "meeting_app_active", equals: true, actions: [{ device: LIGHT, command: "TURN_ON" }] }],
   } as Config, quiet),
@@ -23,7 +23,7 @@ vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
   const reply = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
   if (url.startsWith("http://collector")) return logged.push(JSON.parse(String(init!.body))), reply({});
   if (url.startsWith("http://gateway")) return reply(url.includes("/states/") ? { state: "on" } : []);
-  const id = url.startsWith(peers.room1) ? "room1" : "orchestrator";
+  const id = url.startsWith(peers.room1) ? "room1" : "root";
   if (url.endsWith("agent-card.json")) return reply(agents[id].card);
   const rpc = JSON.parse(String(init!.body));
   const token = String((init!.headers as any).authorization).replace("Bearer ", "");
@@ -36,19 +36,19 @@ const steps = (flow: string) =>
 
 describe("request ids", () => {
   it("a delegated request keeps its id down to the room's execution", async () => {
-    await agents.orchestrator.inbound("t-d", { type: "device.control", request_id: "req-1", action: { device: LIGHT, command: "TURN_OFF" } });
+    await agents.root.inbound("t-d", { type: "device.control", request_id: "req-1", action: { device: LIGHT, command: "TURN_OFF" } });
     expect(steps("req-1")).toEqual([
-      "orchestrator out req-1",
+      "root out req-1",
       "room1 exec req-1",
       "room1 in req-1",
-      "orchestrator out-result req-1",
-      "orchestrator in req-1",
+      "root out-result req-1",
+      "root in req-1",
     ]);
   });
 
   it("energy saving gives each room a child id", async () => {
-    await agents.orchestrator.inbound("t-d", { type: "device.control", request_id: "req-2", action: { command: "ENERGY_SAVING" } });
-    expect(steps("req-2")).toEqual(expect.arrayContaining(["room1 exec req-2/room1", "room1 in req-2/room1", "orchestrator in req-2"]));
+    await agents.root.inbound("t-d", { type: "device.control", request_id: "req-2", action: { command: "ENERGY_SAVING" } });
+    expect(steps("req-2")).toEqual(expect.arrayContaining(["room1 exec req-2/room1", "room1 in req-2/room1", "root in req-2"]));
   });
 
   it("a rule and the actions it triggers share one id", async () => {

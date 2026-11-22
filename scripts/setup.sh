@@ -11,6 +11,24 @@ say() { printf '\033[1;36m▸ %s\033[0m\n' "$*"; }
 say ".env"
 ENV=$ROOT/.env
 [ -f "$ENV" ] || cp "$ROOT/.env.example" "$ENV"
+# Names changed on 2026-11-22 (AMBIENT_* -> AGENT_*, orchestrator -> root): keep the old values.
+while read -r old new; do
+  if grep -q "^$old=" "$ENV" && ! grep -q "^$new=" "$ENV"; then
+    O=$old N=$new perl -pi -e 's/^\Q$ENV{O}\E=/$ENV{N}=/' "$ENV"
+  fi
+done <<'RENAMES'
+AMBIENT_TOKEN_ORCHESTRATOR AGENT_TOKEN_ROOT
+AMBIENT_TOKEN_DESKTOP AGENT_TOKEN_DESKTOP
+AMBIENT_TOKEN_SMARTPHONE AGENT_TOKEN_SMARTPHONE
+AMBIENT_TOKEN_ROOM1 AGENT_TOKEN_ROOM1
+AMBIENT_TOKEN_ROOM2 AGENT_TOKEN_ROOM2
+AMBIENT_MODEL AGENT_MODEL
+AMBIENT_GATEWAY_URL DEVICE_GATEWAY_URL
+AMBIENT_COLLECTOR_URL EVENT_COLLECTOR_URL
+AMBIENT_CORS_ORIGINS CORS_ORIGINS
+AMBIENT_HOME AGENT_HOME
+AMBIENT_TOKEN_PROBE AGENT_TOKEN_PROBE
+RENAMES
 # Keys added to .env.example after this .env was made.
 grep -E '^[A-Z0-9_]+=' "$ROOT/.env.example" | while IFS= read -r line; do
   grep -q "^${line%%=*}=" "$ENV" || echo "$line" >> "$ENV"
@@ -32,7 +50,7 @@ if [ "${1:-}" = --local ]; then
   command -v pnpm >/dev/null || npm i -g pnpm
 
   say "plugin dependencies"
-  (cd "$ROOT/agents/ambient-a2a-plugin" && pnpm install --frozen-lockfile --silent)
+  (cd "$ROOT/agents/home-a2a-plugin" && pnpm install --frozen-lockfile --silent)
 
   say "python venv for the a2a-sdk probe"
   [ -x "$ROOT/.venv/bin/python" ] || python3 -m venv "$ROOT/.venv"

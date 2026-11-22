@@ -1,0 +1,45 @@
+// OpenClaw profile "kitchen" — run via scripts/oc.sh kitchen ...
+{
+  gateway: { $include: "../../gateway.json5", port: 18680 },
+  agents: {
+    defaults: {
+      workspace: "${AGENT_HOME}/state/kitchen/workspace",
+      model: { primary: "${AGENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
+      thinkingDefault: "off", // tool routing needs no extended reasoning
+      skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
+    },
+  },
+  // Lean prompt: only the home-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
+  tools: { profile: "minimal", alsoAllow: ["home-a2a"], toolSearch: false },
+  skills: { allowBundled: [] },
+  plugins: {
+    load: { paths: ["${AGENT_HOME}/app/agents/home-a2a-plugin"] },
+    entries: {
+      "home-a2a": {
+        enabled: true,
+        config: {
+          $include: "../../shared.json5",
+          agentId: "kitchen",
+          publicUrl: "http://127.0.0.1:18680/plugins/a2a",
+          role: "room",
+          space: "kitchen",
+          owned: ["input_boolean.kitchen_coffee_machine", "input_boolean.kitchen_beans_low", "input_boolean.kitchen_light"],
+          // Root delegates kitchen devices here (also for agents the user connected in the Hub, e.g. a Coffee Agent).
+          requestAcl: { root: ["*"] },
+          // No brewing without beans: whoever asks, the kitchen refuses while the bean sensor says low.
+          policies: [
+            {
+              when: { entity: "input_boolean.kitchen_beans_low", state: "on" },
+              deny: { devices: ["input_boolean.kitchen_coffee_machine"], commands: ["TURN_ON"] },
+              reason_code: "SAFETY_POLICY",
+              message: "원두가 부족해서 커피를 내릴 수 없어요",
+            },
+          ],
+          energySaving: [
+            { device: "input_boolean.kitchen_light", command: "TURN_OFF" },
+          ],
+        },
+      },
+    },
+  },
+}

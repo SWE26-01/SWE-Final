@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Live Ambient-A2A event log: time agent direction peer type verdict reason message
+# Live Home A2A event log: time agent direction peer type verdict reason message
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 touch "$ROOT/logs/events.jsonl"
 tail -n "${1:-30}" -F "$ROOT/logs/events.jsonl" | jq -r --unbuffered '

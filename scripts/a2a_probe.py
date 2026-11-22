@@ -3,7 +3,7 @@
   python scripts/a2a_probe.py cards
   python scripts/a2a_probe.py send <target> <as-agent|bad> '<json DataPart>'
 
-<as-agent> picks AMBIENT_TOKEN_<AS> from the environment (scripts/oc.sh-style .env); "bad" sends a bogus token.
+<as-agent> picks AGENT_TOKEN_<AS> from the environment (scripts/oc.sh-style .env); "bad" sends a bogus token.
 """
 
 import asyncio
@@ -18,8 +18,8 @@ from a2a.client.card_resolver import A2ACardResolver
 from a2a.types import Message, Part, Role, SendMessageRequest
 from google.protobuf.json_format import MessageToDict, ParseDict
 
-PORTS = {"desktop": 18800, "smartphone": 18920, "orchestrator": 19040, "room1": 19160, "room2": 19280}
-url = lambda agent: f"http://127.0.0.1:{PORTS[agent]}/plugins/ambient"
+PORTS = {"desktop": 18800, "smartphone": 18920, "root": 19040, "room1": 19160, "room2": 19280, "kitchen": 18680}
+url = lambda agent: f"http://127.0.0.1:{PORTS[agent]}/plugins/a2a"
 
 
 async def cards():
@@ -37,7 +37,7 @@ async def cards():
 
 
 async def send(target: str, as_agent: str, data: dict):
-    token = "bad-token" if as_agent == "bad" else os.environ[f"AMBIENT_TOKEN_{as_agent.upper()}"]
+    token = "bad-token" if as_agent == "bad" else os.environ[f"AGENT_TOKEN_{as_agent.upper()}"]
     data.setdefault("requester", as_agent)
     async with httpx.AsyncClient(headers={"Authorization": f"Bearer {token}"}, timeout=30) as http:
         client = await create_client(url(target), client_config=ClientConfig(streaming=False, httpx_client=http))

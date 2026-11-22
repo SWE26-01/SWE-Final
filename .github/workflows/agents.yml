@@ -1,13 +1,13 @@
 name: agents
 on:
   pull_request:
-    paths: ["agents/ambient-a2a-plugin/**", ".github/workflows/agents.yml"]
+    paths: ["agents/home-a2a-plugin/**", ".github/workflows/agents.yml"]
   push:
     branches: [main]
-    paths: ["agents/ambient-a2a-plugin/**", ".github/workflows/agents.yml"]
+    paths: ["agents/home-a2a-plugin/**", ".github/workflows/agents.yml"]
 defaults:
   run:
-    working-directory: agents/ambient-a2a-plugin
+    working-directory: agents/home-a2a-plugin
 jobs:
   test:
     runs-on: ubuntu-latest

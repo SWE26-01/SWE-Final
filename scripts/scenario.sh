@@ -2,7 +2,7 @@
 # plan.md 5.3 checks against running agents (scripts/run_all.sh). Watch scripts/logs.sh alongside.
 #   scripts/scenario.sh              deterministic checks via the standard a2a-sdk client
 #   scripts/scenario.sh --llm        + natural-language flows through OpenClaw (needs a model key)
-#   scripts/scenario.sh --kill-home  + stop the orchestrator and show room1 keeps working
+#   scripts/scenario.sh --kill-home  + stop the root and show room1 keeps working
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 set -a; . "${ENV_FILE:-$ROOT/.env}"; set +a
@@ -23,14 +23,14 @@ step "8. interop: a2a-sdk resolves every standard Agent Card (no extensions)"
 probe cards
 
 step "A. desktop → home → room1: light meeting mode (home checks ACL, delegates; room1 decides)"
-probe send orchestrator desktop '{"type":"device.control","request_id":"scn-A1","action":{"device":"input_select.room1_light_mode","command":"SET","value":"meeting"}}'
+probe send root desktop '{"type":"device.control","request_id":"scn-A1","action":{"device":"input_select.room1_light_mode","command":"SET","value":"meeting"}}'
 step "A. desktop → home: mute living-room TV (home-owned)"
-probe send orchestrator desktop '{"type":"device.control","request_id":"scn-A2","action":{"device":"input_boolean.living_tv_muted","command":"TURN_ON"}}'
+probe send root desktop '{"type":"device.control","request_id":"scn-A2","action":{"device":"input_boolean.living_tv_muted","command":"TURN_ON"}}'
 step "1-1. home rejects an unauthorized request before it reaches room2"
-probe send orchestrator desktop '{"type":"device.control","request_id":"scn-A3","action":{"device":"input_boolean.room2_ac","command":"TURN_OFF"}}' || true
+probe send root desktop '{"type":"device.control","request_id":"scn-A3","action":{"device":"input_boolean.room2_ac","command":"TURN_OFF"}}' || true
 
 step "B. home queries desktop context — pc_state is not shared with home"
-probe send desktop orchestrator '{"type":"context.query","subject":"user1","fields":["meeting_app_active","pc_state"]}'
+probe send desktop root '{"type":"context.query","subject":"user1","fields":["meeting_app_active","pc_state"]}'
 step "3. unknown bearer token is rejected"
 probe send desktop bad '{"type":"context.query","fields":["pc_state"]}' || true
 
@@ -40,29 +40,29 @@ probe send room1 desktop "$(update $((SEQ - 1)) 1 true)" || true
 probe send room1 desktop "$(update $((SEQ + 1)) -1 true)" || true
 
 step "5. ownership: room1 refuses a device it does not own"
-probe send room1 orchestrator '{"type":"device.control","request_id":"scn-5","action":{"device":"input_boolean.living_tv","command":"TURN_OFF"}}' || true
+probe send room1 root '{"type":"device.control","request_id":"scn-5","action":{"device":"input_boolean.living_tv","command":"TURN_OFF"}}' || true
 
 step "6. energy saving with room2 asleep: room1 complies, room2 keeps AC on (SAFETY_POLICY), home aggregates"
-device "$AMBIENT_TOKEN_ROOM2" room2_sleep_mode turn_on; device "$AMBIENT_TOKEN_ROOM2" room2_ac turn_on
-device "$AMBIENT_TOKEN_ROOM1" room1_light turn_on; device "$AMBIENT_TOKEN_ROOM1" room1_ac turn_on
-probe send orchestrator smartphone '{"type":"device.control","request_id":"scn-6","action":{"command":"ENERGY_SAVING"},"reason_code":"ENERGY_SAVING"}'
+device "$AGENT_TOKEN_ROOM2" room2_sleep_mode turn_on; device "$AGENT_TOKEN_ROOM2" room2_ac turn_on
+device "$AGENT_TOKEN_ROOM1" room1_light turn_on; device "$AGENT_TOKEN_ROOM1" room1_ac turn_on
+probe send root smartphone '{"type":"device.control","request_id":"scn-6","action":{"command":"ENERGY_SAVING"},"reason_code":"ENERGY_SAVING"}'
 echo "room1_ac=$(state input_boolean.room1_ac) room2_ac=$(state input_boolean.room2_ac)"
 
 for arg in "$@"; do case $arg in
   --llm)
     step "LLM A. desktop: \"나 회의 시작할게\""
     "$ROOT/scripts/oc.sh" desktop agent --agent main --message "나 회의 시작할게"
-    step "LLM B. orchestrator: checks external context before whole-home energy saving"
-    "$ROOT/scripts/oc.sh" orchestrator agent --agent main --message "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."
+    step "LLM B. root: checks external context before whole-home energy saving"
+    "$ROOT/scripts/oc.sh" root agent --agent main --message "지금 집 전체 절전해도 될까? 데스크탑과 폰 상태를 먼저 확인하고 판단해줘."
     ;;
   --kill-home)
-    step "7. orchestrator down → room1 still reacts to desktop context on its own"
+    step "7. root down → room1 still reacts to desktop context on its own"
     if (cd "$ROOT" && docker compose ps --status running agents 2>/dev/null | grep -q agents); then
-      (cd "$ROOT" && docker compose exec -T agents sh -c 'kill "$(cat /state/state/orchestrator/gateway.pid)"')
+      (cd "$ROOT" && docker compose exec -T agents sh -c 'kill "$(cat /state/state/root/gateway.pid)"')
       restart="docker compose restart agents"
     else
       lsof -ti tcp:19040 | xargs kill 2>/dev/null || true
-      restart="scripts/oc.sh orchestrator gateway"
+      restart="scripts/oc.sh root gateway"
     fi
     sleep 1
     probe send room1 desktop "$(update $((SEQ + 2)) 1 true)"

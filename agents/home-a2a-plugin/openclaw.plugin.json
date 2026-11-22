@@ -1,10 +1,10 @@
 {
-  "id": "ambient-a2a",
-  "name": "Ambient A2A",
+  "id": "home-a2a",
+  "name": "Home A2A",
   "description": "Smart-home agents over standard A2A v1.0 (context sharing, subscription, ownership, policy)",
   "categories": ["agent-orchestration"],
   "contracts": {
-    "tools": ["ambient_status", "ambient_request", "ambient_publish", "ambient_control", "ambient_query", "ambient_home_energy_saving"]
+    "tools": ["a2a_status", "a2a_request", "a2a_publish", "a2a_control", "a2a_query", "a2a_home_energy_saving"]
   },
   "activation": { "onStartup": true },
   "configSchema": {

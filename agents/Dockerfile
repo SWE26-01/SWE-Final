@@ -5,9 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-c
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g openclaw@2026.10.4 pnpm@10 && npm cache clean --force
 WORKDIR /repo
-COPY agents/ambient-a2a-plugin/package.json agents/ambient-a2a-plugin/pnpm-lock.yaml agents/ambient-a2a-plugin/
-RUN cd agents/ambient-a2a-plugin && pnpm install --frozen-lockfile --prod
+COPY agents/home-a2a-plugin/package.json agents/home-a2a-plugin/pnpm-lock.yaml agents/home-a2a-plugin/
+RUN cd agents/home-a2a-plugin && pnpm install --frozen-lockfile --prod
 COPY agents agents
 COPY scripts/oc.sh scripts/run_agents.sh scripts/launcher.mjs scripts/
-ENV AMBIENT_HOME=/state OPENCLAW_BIND=lan LAUNCHER_HOST=0.0.0.0
+ENV AGENT_HOME=/state OPENCLAW_BIND=lan LAUNCHER_HOST=0.0.0.0
 CMD ["scripts/run_agents.sh"]

@@ -54,7 +54,7 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
 
   const log = (e: Record<string, unknown>) => {
     const line = { ts: new Date().toISOString(), agent: cfg.agentId, ...e };
-    logger.info(`[ambient] ${JSON.stringify(line)}`);
+    logger.info(`[a2a] ${JSON.stringify(line)}`);
     if (collectorUrl)
       void fetch(`${collectorUrl}/events`, {
         method: "POST",
@@ -67,11 +67,12 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
       mkdirSync(dirname(cfg.logFile), { recursive: true });
       appendFileSync(cfg.logFile, JSON.stringify(line) + "\n");
     } catch (err) {
-      logger.warn(`[ambient] log write failed: ${err}`);
+      logger.warn(`[a2a] log write failed: ${err}`);
     }
   };
 
   /** Connected peers from the Hub ({} when there is no Hub or it is down). */
+  const hubRequests = new Map<string, string[]>(); // Hub-connected agent -> devices it may ask about
   const hubPeers = async (): Promise<Record<string, string>> => (hub ? hub.peers().catch(() => ({})) : {});
 
   /** The Hub's context ACL for this agent, merged into the static `fieldAcl`. */
@@ -211,7 +212,10 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
       }
       case "device.control": {
         const action = data.action as Action;
-        const acl = checkRequester(requester, action, cfg.requestAcl ?? {});
+        // The static ACL, plus what the user approved in the Hub for a connected agent (request:<device>).
+        const granted = hubRequests.get(requester) ?? [];
+        const allowedFor = { ...(cfg.requestAcl ?? {}), [requester]: [...(cfg.requestAcl?.[requester] ?? []), ...granted] };
+        const acl = checkRequester(requester, action, allowedFor);
         if (acl) return { request_id: data.request_id, ...acl };
         return { request_id: data.request_id, ...(await control(action, requester, data.request_id)) };
       }
@@ -223,7 +227,11 @@ export function createAgent(cfg: Config, logger: { info(m: string): void; warn(m
   /** Who sent this: a peer from `tokens`, else an agent the user connected in the Hub. */
   async function identify(token: string | undefined): Promise<string | undefined> {
     if (!token) return undefined;
-    return byToken.get(token) ?? (hub ? await hub.verify(token).catch(() => undefined) : undefined);
+    const known = byToken.get(token);
+    if (known || !hub) return known;
+    const id = await hub.verify(token).catch(() => undefined);
+    if (id) hubRequests.set(id, await hub.requests(token).catch(() => []));
+    return id;
   }
 
   async function inbound(token: string | undefined, data: Record<string, any>): Promise<Result> {

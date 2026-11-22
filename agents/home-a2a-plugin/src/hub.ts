@@ -1,5 +1,6 @@
 // Agent Hub client (services/agenthub): the connections the user approved, as the agents need them.
-// - verify: who a Hub-issued bearer token belongs to (agents made in Studio call with one)
+// - verify: who a Hub-issued bearer token belongs to (agents made in Studio call with one), and
+//   which devices the user let it ask their owner to control (`request:<entity>` permissions)
 // - peers: A2A base URL of every connected agent
 // - acl: which connected agents may read which of this agent's context fields
 // - ownership: device -> the agent connected as its owner now
@@ -29,13 +30,19 @@ export function hubClient(url: string, token: string, ttlMs = 5000) {
     return res.json();
   }
 
+  const grant = (bearer: string) =>
+    cached(`verify:${bearer}`, async () => {
+      const r = await req("/tokens/verify", { token: bearer });
+      if (!r?.active) return undefined;
+      const perms: string[] = r.permissions ?? [];
+      return { agentId: r.agent_id as string, requests: perms.filter((p) => p.startsWith("request:")).map((p) => p.slice(8)) };
+    });
+
   return {
     /** Agent id of an active Hub-issued token, else undefined. */
-    verify: (bearer: string) =>
-      cached(`verify:${bearer}`, async () => {
-        const r = await req("/tokens/verify", { token: bearer });
-        return r?.active ? (r.agent_id as string) : undefined;
-      }),
+    verify: async (bearer: string) => (await grant(bearer))?.agentId,
+    /** Devices the token's agent may ask their owner to control (`request:` permissions). */
+    requests: async (bearer: string) => (await grant(bearer))?.requests ?? [],
     peers: () => cached("peers", () => req("/runtime/peers") as Promise<Record<string, string>>),
     acl: (agentId: string) => cached(`acl:${agentId}`, () => req(`/runtime/acl/${encodeURIComponent(agentId)}`) as Promise<Record<string, string[]>>),
     ownership: () => cached("ownership", () => req("/ownership") as Promise<Record<string, string | null>>),

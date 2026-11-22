@@ -8,7 +8,7 @@ export type CardInfo = {
   agentId: string;
   role: Role;
   space?: string;
-  publicUrl: string; // e.g. http://127.0.0.1:19160/plugins/ambient
+  publicUrl: string; // e.g. http://127.0.0.1:19160/plugins/a2a
   owned: string[];
   provides: string[];
 };
@@ -76,7 +76,7 @@ export function taskResult(rpcId: unknown, contextId: string | undefined, result
         id: randomUUID(),
         contextId: contextId ?? randomUUID(),
         status: { state: accepted ? "TASK_STATE_COMPLETED" : "TASK_STATE_REJECTED", timestamp: new Date().toISOString() },
-        artifacts: [{ artifactId: randomUUID(), name: "ambient-result", parts: [{ data: result }] }],
+        artifacts: [{ artifactId: randomUUID(), name: "a2a-result", parts: [{ data: result }] }],
       },
     },
   };

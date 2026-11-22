@@ -3,28 +3,28 @@
   gateway: { $include: "../../gateway.json5", port: 19160 },
   agents: {
     defaults: {
-      workspace: "${AMBIENT_HOME}/state/room1/workspace",
-      model: { primary: "${AMBIENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
+      workspace: "${AGENT_HOME}/state/room1/workspace",
+      model: { primary: "${AGENT_MODEL:-openrouter/anthropic/claude-haiku-5.5}" },
       thinkingDefault: "off", // tool routing needs no extended reasoning
       skipBootstrap: true, // no first-run SOUL/IDENTITY/BOOTSTRAP files in the prompt
     },
   },
-  // Lean prompt: only the ambient-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
-  tools: { profile: "minimal", alsoAllow: ["ambient-a2a"], toolSearch: false },
+  // Lean prompt: only the home-a2a plugin tools, exposed directly (no tool_search indirection), no bundled skills.
+  tools: { profile: "minimal", alsoAllow: ["home-a2a"], toolSearch: false },
   skills: { allowBundled: [] },
   plugins: {
-    load: { paths: ["${AMBIENT_HOME}/app/agents/ambient-a2a-plugin"] },
+    load: { paths: ["${AGENT_HOME}/app/agents/home-a2a-plugin"] },
     entries: {
-      "ambient-a2a": {
+      "home-a2a": {
         enabled: true,
         config: {
           $include: "../../shared.json5",
           agentId: "room1",
-          publicUrl: "http://127.0.0.1:19160/plugins/ambient",
+          publicUrl: "http://127.0.0.1:19160/plugins/a2a",
           role: "room",
           space: "my_room",
           owned: ["input_boolean.room1_light", "input_select.room1_light_mode", "input_boolean.room1_ac", "input_boolean.room1_occupied"],
-          requestAcl: { orchestrator: ["*"] },
+          requestAcl: { root: ["*"] },
           subscribeTo: { desktop: ["meeting_app_active", "pc_state"], smartphone: ["presence"] },
           rules: [
             { field: "meeting_app_active", equals: true, actions: [{ device: "input_select.room1_light_mode", command: "SET", value: "meeting" }] },

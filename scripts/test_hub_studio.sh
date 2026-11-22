@@ -20,8 +20,8 @@ pids=() tmp="" agent="" agent_conn="" room1_freed=""
 if [ "${1:-}" = --local ]; then
   tmp=$(mktemp -d)
   # load_config() needs every token agents.yaml names; make up the missing ones for this run.
-  for k in AMBIENT_TOKEN_DESKTOP AMBIENT_TOKEN_SMARTPHONE AMBIENT_TOKEN_ORCHESTRATOR \
-           AMBIENT_TOKEN_ROOM1 AMBIENT_TOKEN_ROOM2 DASHBOARD_TOKEN HOME_USER_TOKEN STUDIO_TOKEN; do
+  for k in AGENT_TOKEN_DESKTOP AGENT_TOKEN_SMARTPHONE AGENT_TOKEN_ROOT \
+           AGENT_TOKEN_ROOM1 AGENT_TOKEN_ROOM2 DASHBOARD_TOKEN HOME_USER_TOKEN STUDIO_TOKEN; do
     [ -n "${!k:-}" ] || export "$k=$(openssl rand -hex 16)"
   done
   PY=${PYTHON:-}
@@ -93,7 +93,7 @@ expect "natural language -> ready room agent" '.status == "ready" and .spec.spac
 draft=$(jq -r .id <<<"$resp") agent=$(jq -r .agent_id <<<"$resp")
 expect "it uses the built-in skill meeting_mode" '.spec.skills | index("meeting_mode")' 201
 expect "it asks to read desktop.meeting_app_active" '.permissions | index("context:desktop.meeting_app_active")' 201
-expect "OpenClaw profile keeps only the Ambient-A2A tools" \
+expect "OpenClaw profile keeps only the Home A2A tools" \
   '(.files["openclaw.json5"] | contains("\"profile\": \"minimal\"") and (contains("\"exec\"") | not))' 201
 expect "Studio warns that room1 owns the devices now" '[.warnings[] | select(contains("room1"))] | length > 0' 201
 call POST "$STUDIO/drafts" "$USER_T" "$(json request '내 방 온도를 관리해 줘')"

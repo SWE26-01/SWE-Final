@@ -9,18 +9,25 @@ const MODE = "input_select.room1_light_mode";
 const HUB = "http://hub";
 const GATEWAY = "http://gateway";
 const quiet = { info() {}, warn() {} };
-const tokens = { desktop: "t-d", orchestrator: "t-o", room1: "t-1" };
-const peers = { desktop: "http://desktop", orchestrator: "http://orch", room1: "http://room1" };
+const tokens = { desktop: "t-d", root: "t-o", room1: "t-1" };
+const peers = { desktop: "http://desktop", root: "http://orch", room1: "http://room1" };
 const base = { peers, tokens, gatewayUrl: GATEWAY, hubUrl: HUB, logFile: undefined };
 
-let hub: { tokens: Record<string, string>; peers: Record<string, string>; acl: Record<string, string[]>; owners: Record<string, string | null> };
+let hub: {
+  tokens: Record<string, string>;
+  peers: Record<string, string>;
+  acl: Record<string, string[]>;
+  owners: Record<string, string | null>;
+  grants: Record<string, string[]>;
+};
 let home: Record<string, string>;
 let gatewayCalls: string[];
 let agents: Record<string, ReturnType<typeof createAgent>>;
 
 beforeEach(() => {
   hub = {
-    tokens: { "hub-meeting": "meeting" },
+    tokens: { "hub-meeting": "meeting", "hub-coffee": "coffee" },
+    grants: { coffee: [`request:${MODE}`] },
     peers: { meeting: "http://meeting" },
     acl: { meeting: ["meeting_app_active"] },
     owners: { [MODE]: "meeting", "input_boolean.room1_light": "room1" },
@@ -29,11 +36,11 @@ beforeEach(() => {
   gatewayCalls = [];
   agents = {
     desktop: createAgent({ ...base, agentId: "desktop", role: "external", publicUrl: peers.desktop, provides: ["meeting_app_active", "pc_state"], fieldAcl: { room1: ["meeting_app_active"] } } as Config, quiet),
-    orchestrator: createAgent({ ...base, agentId: "orchestrator", role: "home", publicUrl: peers.orchestrator, owned: [], requestAcl: { desktop: [MODE] } } as Config, quiet),
-    room1: createAgent({ ...base, agentId: "room1", role: "room", publicUrl: peers.room1, owned: [MODE, "input_boolean.room1_light"], requestAcl: { orchestrator: ["*"] } } as Config, quiet),
+    root: createAgent({ ...base, agentId: "root", role: "home", publicUrl: peers.root, owned: [], requestAcl: { desktop: [MODE] } } as Config, quiet),
+    room1: createAgent({ ...base, agentId: "room1", role: "room", publicUrl: peers.room1, owned: [MODE, "input_boolean.room1_light"], requestAcl: { root: ["*"] } } as Config, quiet),
     // What Studio renders: its own token from the environment, not in `tokens`.
     meeting: createAgent({ ...base, agentId: "meeting", token: "hub-meeting", role: "room", space: "my_room", publicUrl: "http://meeting", owned: [MODE],
-      requestAcl: { orchestrator: ["*"] }, rules: [{ field: "meeting_app_active", equals: true, actions: [{ device: MODE, command: "SET", value: "meeting" }] }] } as Config, quiet),
+      requestAcl: { root: ["*"] }, rules: [{ field: "meeting_app_active", equals: true, actions: [{ device: MODE, command: "SET", value: "meeting" }] }] } as Config, quiet),
   };
   const byUrl: Record<string, string> = { ...Object.fromEntries(Object.entries(peers).map(([id, u]) => [u, id])), "http://meeting": "meeting" };
 
@@ -41,11 +48,11 @@ beforeEach(() => {
     const reply = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status });
     const auth = String((init?.headers as any)?.authorization ?? "").replace("Bearer ", "");
     if (url.startsWith(HUB)) {
-      if (![...Object.values(tokens), "hub-meeting"].includes(auth)) return reply({ detail: "unknown" }, 401);
+      if (![...Object.values(tokens), "hub-meeting", "hub-coffee"].includes(auth)) return reply({ detail: "unknown" }, 401);
       const path = url.slice(HUB.length);
       if (path === "/tokens/verify") {
         const id = hub.tokens[JSON.parse(String(init!.body)).token];
-        return reply({ active: !!id, agent_id: id ?? null });
+        return reply({ active: !!id, agent_id: id ?? null, permissions: hub.grants[id] ?? [] });
       }
       if (path === "/runtime/peers") return reply(hub.peers);
       if (path === "/runtime/acl/desktop") return reply(hub.acl);
@@ -90,13 +97,22 @@ describe("Agent Hub", () => {
   });
 
   it("Home delegates to the agent connected as the owner now", async () => {
-    const r = await agents.desktop.call("orchestrator", { type: "device.control", action: { device: MODE, command: "SET", value: "eco" } });
+    const r = await agents.desktop.call("root", { type: "device.control", action: { device: MODE, command: "SET", value: "eco" } });
     expect(r).toMatchObject({ accepted: true, delegated_to: "meeting" });
     expect(home[MODE]).toBe("eco");
 
     hub.owners[MODE] = null; // the user disconnected it and connected nobody
-    const none = await afterHubTtl(5001, () => agents.desktop.call("orchestrator", { type: "device.control", action: { device: MODE, command: "SET", value: "normal" } }));
+    const none = await afterHubTtl(5001, () => agents.desktop.call("root", { type: "device.control", action: { device: MODE, command: "SET", value: "normal" } }));
     expect(none).toMatchObject({ accepted: false, reason_code: "NOT_OWNER" });
+  });
+
+  it("an agent the user let ask for a device goes through Root to its owner; others are refused", async () => {
+    // Like the Coffee Agent: it owns nothing, the user approved request:<device> when connecting it.
+    const ask = (action: Record<string, unknown>) =>
+      agents.root.inbound("hub-coffee", { type: "device.control", request_id: "r1", action });
+    expect(await ask({ device: MODE, command: "SET", value: "eco" })).toMatchObject({ accepted: true, delegated_to: "meeting" });
+    expect(home[MODE]).toBe("eco");
+    expect((await ask({ device: "input_boolean.room1_light", command: "TURN_ON" })).reason_code).toBe("UNAUTHORIZED");
   });
 
   it("tokens the Hub does not know are refused", async () => {

@@ -10,7 +10,7 @@ const sleep: Policy = {
 };
 
 describe("Agent Card", () => {
-  const card = agentCard({ agentId: "room1", role: "room", space: "my_room", publicUrl: "http://a/plugins/ambient",
+  const card = agentCard({ agentId: "room1", role: "room", space: "my_room", publicUrl: "http://a/plugins/a2a",
     owned: ["input_boolean.room1_light"], provides: [] });
 
   it("uses only standard A2A v1.0 fields: no extensions", () => {
@@ -30,11 +30,11 @@ describe("Agent Card", () => {
 
 describe("core", () => {
   it("requester ACL matches device, command or *", () => {
-    const acl = { desktop: ["input_boolean.living_tv_muted"], smartphone: ["ENERGY_SAVING"], orchestrator: ["*"] };
+    const acl = { desktop: ["input_boolean.living_tv_muted"], smartphone: ["ENERGY_SAVING"], root: ["*"] };
     expect(checkRequester("desktop", { device: "input_boolean.living_tv_muted", command: "TURN_ON" }, acl)).toBeNull();
     expect(checkRequester("desktop", { device: "input_boolean.room2_ac", command: "TURN_OFF" }, acl)?.reason_code).toBe("UNAUTHORIZED");
     expect(checkRequester("smartphone", { command: "ENERGY_SAVING" }, acl)).toBeNull();
-    expect(checkRequester("orchestrator", { device: "x", command: "TURN_ON" }, acl)).toBeNull();
+    expect(checkRequester("root", { device: "x", command: "TURN_ON" }, acl)).toBeNull();
     expect(checkRequester("stranger", { device: "x", command: "TURN_ON" }, acl)?.accepted).toBe(false);
   });
 
@@ -62,16 +62,16 @@ describe("core", () => {
   });
 
   it("publisher filters fields per subscriber and never leaks unprovided fields", () => {
-    const p = new Publisher("desktop", "user1", ["meeting_app_active", "pc_state"], { room1: ["meeting_app_active", "pc_state"], orchestrator: ["meeting_app_active"] });
-    expect(p.subscribe("orchestrator", ["meeting_app_active", "pc_state"])).toMatchObject({ granted: ["meeting_app_active"], denied: ["pc_state"], reason_code: "FIELD_NOT_ALLOWED" });
+    const p = new Publisher("desktop", "user1", ["meeting_app_active", "pc_state"], { room1: ["meeting_app_active", "pc_state"], root: ["meeting_app_active"] });
+    expect(p.subscribe("root", ["meeting_app_active", "pc_state"])).toMatchObject({ granted: ["meeting_app_active"], denied: ["pc_state"], reason_code: "FIELD_NOT_ALLOWED" });
     p.subscribe("room1", ["meeting_app_active", "pc_state"]);
     const out = p.publish({ meeting_app_active: true, pc_state: "ACTIVE" }, 60);
-    expect(out.orchestrator.data).toEqual({ meeting_app_active: true });
+    expect(out.root.data).toEqual({ meeting_app_active: true });
     expect(out.room1.data).toEqual({ meeting_app_active: true, pc_state: "ACTIVE" });
     expect(out.room1.sequence).toBeGreaterThan(Date.now() - 1000);
     expect(p.publish({ pc_state: "IDLE" }, 60, 0).room1.sequence).toBe(out.room1.sequence + 1); // monotonic even if the clock goes back
     expect(() => p.publish({ meeting_title: "secret" }, 60)).toThrow();
-    expect(p.query("orchestrator", ["pc_state"]).values).toEqual({});
+    expect(p.query("root", ["pc_state"]).values).toEqual({});
   });
 
   it("boolean-looking strings from the model become booleans", () => {
@@ -88,8 +88,8 @@ describe("core", () => {
 // In-process network: peer URLs dispatch to agents' inbound(), the Gateway URL hits a fake state map.
 describe("flows", () => {
   const GATEWAY = "http://gateway";
-  const tokens = { desktop: "t-d", orchestrator: "t-o", room1: "t-1", room2: "t-2" };
-  const peers = { desktop: "http://desktop", orchestrator: "http://orch", room1: "http://room1", room2: "http://room2" };
+  const tokens = { desktop: "t-d", root: "t-o", room1: "t-1", room2: "t-2" };
+  const peers = { desktop: "http://desktop", root: "http://orch", room1: "http://room1", room2: "http://room2" };
   const home: Record<string, string> = {
     "input_boolean.living_tv_muted": "off", "input_select.room1_light_mode": "normal",
     "input_boolean.room1_light": "on", "input_boolean.room2_ac": "on", "input_boolean.room2_sleep_mode": "on",
@@ -97,13 +97,13 @@ describe("flows", () => {
   const base = { peers, tokens, gatewayUrl: GATEWAY, logFile: undefined };
   const quiet = { info() {}, warn() {} };
   const agents: Record<string, ReturnType<typeof createAgent>> = {
-    orchestrator: createAgent({ ...base, agentId: "orchestrator", role: "home", publicUrl: peers.orchestrator, owned: ["input_boolean.living_tv_muted"],
+    root: createAgent({ ...base, agentId: "root", role: "home", publicUrl: peers.root, owned: ["input_boolean.living_tv_muted"],
       requestAcl: { desktop: ["input_boolean.living_tv_muted", "input_select.room1_light_mode"], smartphone: ["ENERGY_SAVING"] } } as Config, quiet),
     room1: createAgent({ ...base, agentId: "room1", role: "room", publicUrl: peers.room1, owned: ["input_select.room1_light_mode", "input_boolean.room1_light"],
-      requestAcl: { orchestrator: ["*"] }, energySaving: [{ device: "input_boolean.room1_light", command: "TURN_OFF" }] } as Config, quiet),
+      requestAcl: { root: ["*"] }, energySaving: [{ device: "input_boolean.room1_light", command: "TURN_OFF" }] } as Config, quiet),
     room2: createAgent({ ...base, agentId: "room2", role: "room", publicUrl: peers.room2, owned: ["input_boolean.room2_ac", "input_boolean.room2_sleep_mode"],
-      requestAcl: { orchestrator: ["*"] }, policies: [sleep], energySaving: [{ device: "input_boolean.room2_ac", command: "TURN_OFF" }] } as Config, quiet),
-    desktop: createAgent({ ...base, agentId: "desktop", role: "external", publicUrl: peers.desktop, provides: ["meeting_app_active"], fieldAcl: { orchestrator: ["meeting_app_active"] } } as Config, quiet),
+      requestAcl: { root: ["*"] }, policies: [sleep], energySaving: [{ device: "input_boolean.room2_ac", command: "TURN_OFF" }] } as Config, quiet),
+    desktop: createAgent({ ...base, agentId: "desktop", role: "external", publicUrl: peers.desktop, provides: ["meeting_app_active"], fieldAcl: { root: ["meeting_app_active"] } } as Config, quiet),
   };
   const byUrl = Object.fromEntries(Object.entries(peers).map(([id, u]) => [u, id]));
 
@@ -126,15 +126,15 @@ describe("flows", () => {
   });
 
   it("A: desktop → home (ACL ok) → room1 delegated and executed", async () => {
-    const r = await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_select.room1_light_mode", command: "SET", value: "meeting" } });
+    const r = await agents.desktop.call("root", { type: "device.control", action: { device: "input_select.room1_light_mode", command: "SET", value: "meeting" } });
     expect(r).toMatchObject({ accepted: true, delegated_to: "room1" });
     expect(home["input_select.room1_light_mode"]).toBe("meeting");
-    expect((await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_boolean.living_tv_muted", command: "TURN_ON" } })).accepted).toBe(true);
+    expect((await agents.desktop.call("root", { type: "device.control", action: { device: "input_boolean.living_tv_muted", command: "TURN_ON" } })).accepted).toBe(true);
     expect(home["input_boolean.living_tv_muted"]).toBe("on");
   });
 
   it("A: home rejects unauthorized requester before reaching the room", async () => {
-    const r = await agents.desktop.call("orchestrator", { type: "device.control", action: { device: "input_boolean.room2_ac", command: "TURN_OFF" } });
+    const r = await agents.desktop.call("root", { type: "device.control", action: { device: "input_boolean.room2_ac", command: "TURN_OFF" } });
     expect(r.reason_code).toBe("UNAUTHORIZED");
     expect(home["input_boolean.room2_ac"]).toBe("on");
   });
@@ -144,7 +144,7 @@ describe("flows", () => {
   });
 
   it("energy saving: room1 accepts, room2 rejects by safety policy, home aggregates", async () => {
-    const r: any = await agents.orchestrator.energySavingAll();
+    const r: any = await agents.root.energySavingAll();
     const byRoom = Object.fromEntries(r.results.map((x: any) => [x.room, x]));
     expect(byRoom.room1.accepted).toBe(true);
     expect(byRoom.room2.results[0].reason_code).toBe("SAFETY_POLICY");
@@ -155,7 +155,7 @@ describe("flows", () => {
 
   it("B: home queries desktop and only gets permitted fields", async () => {
     await agents.desktop.publish({ meeting_app_active: true });
-    const r = await agents.orchestrator.call("desktop", { type: "context.query", fields: ["meeting_app_active", "pc_state"] });
+    const r = await agents.root.call("desktop", { type: "context.query", fields: ["meeting_app_active", "pc_state"] });
     expect(r.values).toEqual({ meeting_app_active: true });
     expect(r.denied).toEqual(["pc_state"]);
   });
@@ -164,7 +164,7 @@ describe("flows", () => {
     const deepFreeze = (o: any): any => { if (o && typeof o === "object") { Object.values(o).forEach(deepFreeze); Object.freeze(o); } return o; };
     deepFreeze(await agents.desktop.status());
     deepFreeze(await agents.room1.status());
-    deepFreeze(await agents.orchestrator.status());
+    deepFreeze(await agents.root.status());
     const r = await agents.desktop.publish({ meeting_app_active: false });
     expect(r.sequence).toBeGreaterThan(0);
     expect((await agents.room1.inbound("t-d", { type: "context.update", source: "desktop", subject: "user1", sequence: Date.now() * 2,
@@ -173,6 +173,6 @@ describe("flows", () => {
 
   it("rejects bad tokens and spoofed requesters", async () => {
     expect((await agents.room1.inbound("nope", { type: "context.query" })).reason_code).toBe("UNAUTHORIZED");
-    expect((await agents.room1.inbound("t-d", { type: "device.control", requester: "orchestrator", action: { command: "TURN_ON" } })).reason_code).toBe("UNAUTHORIZED");
+    expect((await agents.room1.inbound("t-d", { type: "device.control", requester: "root", action: { command: "TURN_ON" } })).reason_code).toBe("UNAUTHORIZED");
   });
 });

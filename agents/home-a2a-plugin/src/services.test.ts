@@ -20,7 +20,7 @@ beforeEach(() => {
   peerDown = false;
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
     if (collectorDown && url.startsWith("http://collector")) throw new TypeError("fetch failed");
-    if (peerDown && url.startsWith("http://orchestrator")) throw new TypeError("fetch failed");
+    if (peerDown && url.startsWith("http://root")) throw new TypeError("fetch failed");
     calls.push({ url, auth: String((init?.headers as any)?.authorization), body: init?.body ? JSON.parse(String(init.body)) : undefined });
     return new Response(JSON.stringify(url.includes("/api/states/") ? { state: "off" } : []), { status: 200 });
   });
@@ -55,11 +55,11 @@ describe("optional services", () => {
 
   it("a request that never reached its peer is logged with what it asked for", async () => {
     peerDown = true;
-    const agent = room1({ collectorUrl: "http://collector", peers: { orchestrator: "http://orchestrator" } });
+    const agent = room1({ collectorUrl: "http://collector", peers: { root: "http://root" } });
     const action = { device: "input_boolean.living_tv_muted", command: "TURN_ON" };
-    const r = await agent.call("orchestrator", { type: "device.control", request_id: "r1", action });
+    const r = await agent.call("root", { type: "device.control", request_id: "r1", action });
     expect(r.reason_code).toBe("PEER_UNREACHABLE");
     const failed = calls.find((c) => c.url === "http://collector/events" && c.body.dir === "out-error");
-    expect(failed?.body).toMatchObject({ to: "orchestrator", type: "device.control", request_id: "r1", action });
+    expect(failed?.body).toMatchObject({ to: "root", type: "device.control", request_id: "r1", action });
   });
 });

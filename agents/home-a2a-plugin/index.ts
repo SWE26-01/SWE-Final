@@ -5,7 +5,7 @@ import { createAgent, type Config } from "./src/agent.ts";
 import { readData, rpcError, taskResult } from "./src/a2a.ts";
 import { asBoolean } from "./src/core.ts";
 
-const BASE = "/plugins/ambient";
+const BASE = "/plugins/a2a";
 const MAX_BODY = 1 << 20;
 
 const readBody = (req: IncomingMessage) =>
@@ -35,12 +35,12 @@ const ActionParams = {
 };
 
 export default {
-  id: "ambient-a2a",
-  name: "Ambient A2A",
+  id: "home-a2a",
+  name: "Home A2A",
   description: "Smart-home agents over standard A2A v1.0 (context sharing, subscription, ownership, policy)",
   register(api: any) {
     const cfg = api.pluginConfig as Config;
-    if (!cfg?.agentId) return api.logger.warn("ambient-a2a: plugins.entries.ambient-a2a.config.agentId missing; disabled");
+    if (!cfg?.agentId) return api.logger.warn("home-a2a: plugins.entries.home-a2a.config.agentId missing; disabled");
     const agent = createAgent(cfg, api.logger);
 
     api.registerHttpRoute({
@@ -74,7 +74,7 @@ export default {
 
     let stopSubs = () => {};
     api.registerService({
-      id: "ambient-a2a-subscriptions",
+      id: "home-a2a-subscriptions",
       start: () => void (stopSubs = agent.startSubscriptions()),
       stop: () => stopSubs(),
     });
@@ -82,10 +82,10 @@ export default {
     const tool = (name: string, description: string, parameters: any, run: (p: any) => Promise<unknown>) =>
       api.registerTool({ name, label: name, description, parameters: Type.Object(parameters), execute: async (_id: string, p: any) => text(await run(p)) });
 
-    tool("ambient_status", "Show this agent's devices, received context and subscriptions.", {}, () => agent.status());
+    tool("a2a_status", "Show this agent's devices, received context and subscriptions.", {}, () => agent.status());
 
     tool(
-      "ambient_request",
+      "a2a_request",
       "Ask another agent to control a device (device.control). The target agent decides; the reply says accepted or rejected with reason_code.",
       { target: Type.String({ description: `Agent id: ${Object.keys(cfg.peers).join(", ")}` }), ...ActionParams, reason_code: Type.Optional(Type.String()) },
       ({ target, reason_code, ...action }) => agent.call(target, { type: "device.control", request_id: crypto.randomUUID(), target, action, reason_code }),
@@ -94,7 +94,7 @@ export default {
     if (cfg.role === "external")
       // Flat params (one per provided field): models tend to call {"meeting_app_active": true} directly; a nested {fields:{...}} shape cost a failed call + retry.
       tool(
-        "ambient_publish",
+        "a2a_publish",
         "Publish the user's current state to subscribed agents. Pass only the fields that changed. Never include raw personal data (titles, locations).",
         Object.fromEntries((cfg.provides ?? []).map((f) => [f, Type.Optional(Type.Union([Type.String(), Type.Boolean(), Type.Number()]))])),
         // Models sometimes pass "True"/"false" as strings; rules compare with real booleans.
@@ -103,13 +103,13 @@ export default {
 
     if (cfg.role !== "external") {
       tool(
-        "ambient_control",
+        "a2a_control",
         `Control a device. Owned: ${(cfg.owned ?? []).join(", ")}.${cfg.role === "home" ? " Room devices are delegated to their room agent, which may reject." : " Non-owned devices are rejected."}`,
         ActionParams,
         (action) => agent.control(action),
       );
       tool(
-        "ambient_query",
+        "a2a_query",
         "Ask an external agent (desktop, smartphone) for the user's current context fields (context.query). Only permitted fields are returned.",
         { target: Type.String(), fields: Type.Array(Type.String()) },
         ({ target, fields }) => agent.call(target, { type: "context.query", subject: cfg.subject ?? "user1", fields }),
@@ -117,7 +117,7 @@ export default {
     }
 
     if (cfg.role === "home")
-      tool("ambient_home_energy_saving", "Ask every room agent to save energy and aggregate per-room results. Query external agents first if unsure.", {}, () =>
+      tool("a2a_home_energy_saving", "Ask every room agent to save energy and aggregate per-room results. Query external agents first if unsure.", {}, () =>
         agent.energySavingAll(),
       );
   },

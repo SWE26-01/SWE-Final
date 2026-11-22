@@ -24,8 +24,8 @@ wait_for collector http://127.0.0.1:8200/health collector
 wait_for hub http://127.0.0.1:8400/health hub
 wait_for studio http://127.0.0.1:8500/health studio
 wait_for hub-web http://127.0.0.1:3000/ hub-web
-for a in desktop:18800 smartphone:18920 orchestrator:19040 room1:19160 room2:19280; do
-  wait_for "${a%%:*}" "http://127.0.0.1:${a#*:}/plugins/ambient/.well-known/agent-card.json" agents
+for a in desktop:18800 smartphone:18920 root:19040 room1:19160 room2:19280 kitchen:18680; do
+  wait_for "${a%%:*}" "http://127.0.0.1:${a#*:}/plugins/a2a/.well-known/agent-card.json" agents
 done
 
 cat <<EOF
