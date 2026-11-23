@@ -2,7 +2,7 @@
 runtime turns that spec into its own files and locks them (harness). Drafts, the AgentSpec and the
 Hub do not depend on the runtime, so it can be swapped.
 
-Today there is one runtime: OpenClaw (a profile like ../agents/internel/*). To run generated
+Today there is one runtime: OpenClaw (a profile like ../agents/internal/*). To run generated
 agents on a Python runtime instead, add a class with the same members to RUNTIMES and set
 STUDIO_RUNTIME to its name; nothing else in Studio or the Hub changes.
 """

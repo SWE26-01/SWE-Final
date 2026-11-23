@@ -1,6 +1,6 @@
 # Everything in one go:  docker compose up -d --build   (scripts/run_all.sh does that and waits)
 #
-#   agents     the five OpenClaw agents (Root = root, rooms, desktop, smartphone)
+#   agents     the six OpenClaw agents (Root = root, rooms, desktop, smartphone) + the Studio agent launcher
 #   gateway    Device Gateway: the virtual home's devices; checks who may move which device
 #   collector  Event Collector: every agent's events and request flows
 #   hub        Agent Hub: registry, discovery by Agent Card, connections, ownership (PostgreSQL)

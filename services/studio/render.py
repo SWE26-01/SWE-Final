@@ -1,5 +1,5 @@
 """AgentSpec -> the OpenClaw profile directory (openclaw.json5 + AGENTS.md), in the same shape as
-the platform agents in ../agents/internel/*. Fixed parts come from the template and the harness
+the platform agents in ../agents/internal/*. Fixed parts come from the template and the harness
 constants; the spec only fills ids, devices and the plugin's rules."""
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 # Agents made in Studio
 
 Studio (`services/studio`) writes one folder here for each draft the user approves:
-`<agent id>/openclaw.json5` and `<agent id>/AGENTS.md`, in the same shape as `../internel/room1`.
+`<agent id>/openclaw.json5` and `<agent id>/AGENTS.md`, in the same shape as `../internal/room1`.
 The folders are local to this home and not committed (`.gitignore`).
 
 Run one like a platform agent: `scripts/oc.sh <agent id> gateway`.

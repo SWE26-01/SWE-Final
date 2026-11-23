@@ -2,7 +2,7 @@
 
 The repo-wide rules are in `../CLAUDE.md`. These apply when changing `services/`.
 
-- Agent IDs (`desktop`, `smartphone`, `root`, `room1`, `room2`) and device IDs (Home Assistant
+- Agent IDs (`desktop`, `smartphone`, `root`, `room1`, `room2`, `kitchen`) and device IDs (Home Assistant
   entity id format) follow `../agents`. A device change touches the agents' `owned` lists, their
   `AGENTS.md` tables and `config/devices.yaml` together.
 - Read config only through `homeconfig.load_config()`. Tokens are never written in `config/`; each

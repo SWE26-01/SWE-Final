@@ -101,5 +101,6 @@ DB는 없으면 시작할 때 만들고, 예전 볼륨의 테이블에는 새 �
    컨테이너가 다시 뜨면 실행기는 Hub가 아직 받아 주는 토큰의 에이전트만 다시 띄운다.
 
 이 세 서비스는 `runtime` 서비스 토큰(`RUNTIME_TOKEN`, `config/agents.yaml`)으로 Hub에 묻는다. 이 토큰으로는 에이전트를 등록할 수 없다.
-OpenClaw gateway 하나가 메모리를 약 1GB 쓰므로, Studio 에이전트를 여러 개 띄우려면 Docker Desktop 메모리를 늘려야 한다(기본 5개 + 1개면 약 6.5GB).
+OpenClaw gateway 하나가 메모리를 약 1GB 쓴다. 기본 에이전트 6개에 약 6.4GB가 들고, 기기를 맡는 Studio 에이전트마다 1GB씩 더 든다.
+그래서 Docker Desktop 메모리를 10GB 이상으로 둔다(대화형·루틴 에이전트는 실행기 안에서 돌아서 거의 들지 않는다).
 

@@ -1,6 +1,6 @@
 # Architecture: services
 
-The `services/` part of the architecture. The agents and the Home A2A extension are described in
+The `services/` part of the architecture. The agents and the Home A2A messages are described in
 `spec/home-a2a.md` and `plan.md`; this part covers the four services next to them. Everything runs
 from the root `docker-compose.yml`.
 
@@ -121,7 +121,7 @@ connection that would give a device a second owner.
 - `services/scripts/verify_integration.py` on the running system:
   1. every Agent Card's `owned_devices` equals `config/devices.yaml`;
   2. every agent's command on another agent's device, and `homeassistant.restart`, is refused (403);
-  3. events from all five agents reached the Collector.
+  3. events from every platform agent reached the Collector.
 - `scripts/test_hub_studio.sh`: 26 HTTP checks of Studio and the Hub.
 - Result on 2026-11-20 (everything from `docker compose up`): `scripts/scenario.sh --kill-home`,
   `verify_integration.py` and `test_hub_studio.sh` (with the real LLM) all passed.

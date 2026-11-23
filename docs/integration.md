@@ -58,6 +58,6 @@ python services/scripts/verify_integration.py --env-file .env
 
 ## ID
 
-에이전트 ID(`desktop`, `smartphone`, `root`, `room1`, `room2`)와 기기 ID(HA 엔티티 ID 형식)는 세 곳이 같아야 한다:
+에이전트 ID(`desktop`, `smartphone`, `root`, `room1`, `room2`, `kitchen`)와 기기 ID(HA 엔티티 ID 형식)는 세 곳이 같아야 한다:
 `services/config/devices.yaml`, 각 에이전트의 `owned`(`agents/**/openclaw.json5`), 각 에이전트 `AGENTS.md`의 기기 표.
 어긋나면 `verify_integration.py` 1번이 실패한다.

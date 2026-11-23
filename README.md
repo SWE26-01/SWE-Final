@@ -2,230 +2,213 @@
 
 **한국어** | [English](README.en.md)
 
-**G01 | A2A-Lite** · 고라희, 신윤수, 홍예원 (한양대 CSE406 · LG전자 IC-PBL "Proactive Agentic Home")
+**G01 | A2A-Lite** · 고라희, 신윤수, 홍예원 · 한양대 CSE406 소프트웨어공학 · LG전자 IC-PBL "Proactive Agentic Home"
 
-Today’s smart homes run everything on one hub. We split it into small agents that talk over A2A.
-- Inside the home: each room has its own agent for its own devices.
-- Outside the home: the home connects to agents on your desktop and phone.
-- Agentic Studio: describe an agent in plain words, and it is built for you.
-- Agentic Hub: share, find, and install agents.
+스마트홈을 허브 기기 하나가 아니라 **방마다 있는 AI 에이전트**가 나눠 맡는다. 에이전트끼리는 표준 프로토콜
+**A2A**로 대화하고, 집 밖의 PC·스마트폰 에이전트와도 연결된다. 새 에이전트는 **말로 만들고(Agent Studio)
+우리 집에 설치한다(Agent Hub)**. 실제 기기 대신 가상 집에서 돌아가고, Docker Compose 한 번으로 전부 뜬다.
 
-기획서: [plan.md](plan.md)
+![전체 구조](docs/presentation/overview.png)
 
-### 1. Problem Statement
+> 그림은 발표(기획) 기준이라 지금 레포와 다른 곳이 있다. 예를 들어 Elderly Room·Google Search 에이전트와
+> 에이전트별 SLM은 레포에 없다. 실제 구성은 [지금 레포에 있는 것](#지금-레포에-있는-것)을 본다.
 
-![Problem Statement](docs/presentation/slide-02.png)
+## 왜 만들었나
 
-스마트홈의 두 가지 문제를 정의한다.
-- **Centralized workload:** Amazon Alexa 같은 플랫폼은 AI 추론, IoT 제어, API 호출, 에이전트 워크플로를 모두 허브 기기 하나에서 처리한다. 집이 커지거나 더 높은 성능이 필요하면 하드웨어가 더 필요하고, 허브가 비싸지며 병목이 된다(왼쪽 그림 One Hub Does Everything). → **분산이 필요하다.**
-- **Lack of External Connection:** OpenClaw, Codex 같은 AI 에이전트 도구는 Skill·MCP·API로 연결을 계속 넓히는데, 스마트홈 에이전트는 집 안 기기에만 집중한다. 데스크톱(회의), 휴대폰(재실/외출), 캘린더·Slack·메일, 다른 AI 에이전트와 연결되지 않는다(오른쪽 그림 Closed to the Outside). → **집 밖과의 연결이 필요하다.**
+- **허브 하나에 일이 몰린다.** Alexa 같은 플랫폼은 AI 추론, 기기 제어, API 호출을 허브 기기 하나가 모두 처리한다.
+  집이 커지면 허브가 비싸지고 병목이 된다.
+  → 방마다 에이전트를 두고 각자 자기 기기만 맡긴다. 집이 커지면 허브를 키우는 대신 에이전트를 더한다.
+- **집 밖과 끊겨 있다.** 스마트홈 에이전트는 집 안 기기만 본다. 내가 PC로 회의 중인지, 휴대폰을 들고 나갔는지 모른다.
+  → 집 밖 에이전트와 A2A로 연결하고, 필요한 에이전트는 말로 만들어 설치한다.
 
-### 2. Background: A2A Protocol
+## 예시로 보기
 
-![A2A Protocol](docs/presentation/slide-04.png)
+### 1. "나 회의 시작할게"
 
-A2A(Agent2Agent)는 Google이 공개한 개방형 프로토콜로, AI 에이전트끼리 대화하고 협업하게 한다. 다른 회사나 프레임워크로 만든 에이전트도 같은 방식으로 작업을 주고받고, 각 에이전트는 **Agent Card**로 서로를 찾는다. 왼쪽 그림(Google A2A 문서)은 Travel 에이전트가 Flight·Hotel·Activity·Guide 에이전트에게 일을 나눠 맡기는 예다.
+```mermaid
+flowchart LR
+  pc["PC 에이전트"] -->|"회의 중이라는 사실만"| root["Root 에이전트"]
+  root -->|"거실 TV 음소거 (자기 기기)"| gw["Device Gateway (가상 집)"]
+  root -->|"내 방 조명은 주인에게 부탁"| room1["내 방 에이전트"]
+  room1 -->|"조명을 회의 모드로"| gw
+```
 
-![A2A interoperability](docs/presentation/slide-05.png)
+1. 사람이 PC 에이전트(`desktop`)에게 회의를 시작한다고 말한다. PC 에이전트는 회의 중인지(`meeting_app_active`)만
+   알린다. 일정 제목 같은 원본 개인정보는 보내지 않는다.
+2. Root 에이전트는 자기 기기인 거실 TV를 음소거하고, 내 방 조명은 그 조명의 주인인 내 방 에이전트(`room1`)에게 부탁한다.
+3. 내 방 에이전트가 자기 규칙으로 판단해 조명을 회의 모드로 바꾼다. Device Gateway는 명령을 보낸 에이전트가
+   정말 그 조명의 주인인지 한 번 더 확인한다.
 
-오른쪽 그림을 강조했다. Vertex AI 위의 Claude, Google ADK, LangGraph처럼 **서로 다른 프레임워크로 만든 에이전트**도 A2A Server로 열려 있으면 하나의 Client가 같은 방식으로 소통한다. 스마트홈 에이전트와 집 밖 에이전트를 잇는 데 A2A를 쓰는 이유다.
+### 2. 아침 커피: Studio로 만든 에이전트
 
-### 3. Background: 에이전트가 협업하는 방식
+```mermaid
+flowchart LR
+  coffee["Coffee Agent (Studio로 만든 루틴)"] -->|"7:30 커피 부탁"| root["Root 에이전트"]
+  root -->|"커피머신 주인에게 전달"| kitchen["주방 에이전트 (원두 부족이면 거절)"]
+  kitchen -->|"커피머신 켜기"| gw["Device Gateway: LG DUOBO 커피머신"]
+```
 
-![How agents collaborate](docs/presentation/slide-06.png)
+1. Agent Cloud 화면의 Studio 탭에 "매일 아침 7시 반에 커피 내려 줘"라고 쓴다. Studio가 Coffee Agent를 만들고,
+   사람이 내용을 확인해 승인하면 Hub에 등록된다.
+2. Hub에서 Coffee Agent를 우리 집에 연결(설치)한다. 이때 사람이 "커피머신 제어 요청" 권한을 승인하고, 연결하면 바로 실행된다.
+3. 7:30에 Coffee Agent가 Root에게 부탁하고, Root는 커피머신의 주인인 주방 에이전트(`kitchen`)에게 넘긴다.
+4. 원두 부족 센서가 켜져 있으면 주방 에이전트가 자기 정책으로 거절한다(`SAFETY_POLICY`).
 
-- **Agent Card:** 에이전트의 "명함". 이름, 설명, URL, capabilities, skills를 담는다(오른쪽 코드).
-- Client 에이전트는 Agent Card를 읽고 알맞은 Remote 에이전트를 골라 작업(Task)을 보낸다.
-- 에이전트들은 JSON-RPC로 상태 업데이트와 결과(Artifact)를 주고받는다. 오래 걸리는 작업은 Task를 조회해 진행 상황을 받는다.
+화면의 **시나리오** 탭에서 이 흐름을 버튼 하나로 돌려 보고, 요청이 지나간 경로를 실제 기록으로 확인할 수 있다.
 
-### 4. Problem Statement (다시)
+## 핵심 규칙
 
-![Problem Statement recap](docs/presentation/slide-07.png)
+- **기기마다 주인 에이전트는 하나다.** 남의 기기는 주인에게 부탁한다. Root도 방 기기는 주인에게 넘기기만 한다.
+- **방 정책은 누가 요청하든 적용된다.** 보호 방은 수면 중 에어컨 끄기를 거절하고, 주방은 원두가 없으면 커피를 내리지 않는다.
+- **집 밖 에이전트와는 허용된 정보만 주고받는다.** 일정 제목, GPS 좌표 같은 원본은 에이전트 밖으로 나가지 않는다.
+- **LLM은 말을 해석할 뿐이다.** 권한·소유권·정책은 플러그인 코드가 판단하고, Device Gateway가 주인을 다시 확인한다.
+  Studio에서도 기기 규칙·기기 id·도구는 코드가 만들고(LLM은 정해진 양식의 빈칸만 채운다), 사람이 승인해야 등록된다.
 
-해결책으로 넘어가기 전에 두 문제를 다시 짚는다. 이어지는 Solution 슬라이드는 각각 **분산(Internal extension)**과 **집 밖 연결(External extension)**에 대한 답이다.
+## 용어
 
-### 5. Solution: Internal extension
-
-![Internal extension](docs/presentation/slide-08.png)
-
-**분산에 대한 답.** Kitchen Agent(냉장고·오븐·후드), Elderly Room Agent(낙상 감지·수면 모니터링), Living Room Agent(TV·조명·에어컨)처럼 방마다 에이전트를 둔다. **각 방 에이전트는 자기 기기만 제어하고, 에이전트끼리는 A2A로 직접 대화한다.** 사용자의 입구인 Root Agent는 요청을 기기 주인에게 넘길 뿐이고, 새 방이나 다른 Root Agent도 Agent Card만 있으면 합류한다. 집이 커지면 더 큰 허브가 아니라 에이전트를 더한다.
-
-레포에서는 `agents/`의 root(Root)와 room1·room2·kitchen(방), [spec/home-a2a.md](spec/home-a2a.md)의 소유권·정책 규칙, 그리고 기기 주인을 한 번 더 확인하는 Device Gateway(`services/gateway`)가 이 부분이다.
-
-### 6. Solution: External extension — 기존 에이전트
-
-![External extension: existing agents](docs/presentation/slide-09.png)
-
-**집 밖 연결에 대한 답(1).** Root Agent는 표준 A2A로 집 밖 에이전트와 연결된다. 이미 있는 에이전트가 그대로 붙는다: 캘린더·Slack·메일을 보는 Desktop Agent, Google Search Agent. 예를 들어 Desktop Agent가 "회의 중"이라는 상태를 알려 주면 집이 조용한 모드로 바뀐다. 외부 에이전트에는 허용된 정보만 공개하고, 캘린더 제목이나 GPS 같은 원본 개인정보는 보내지 않는다.
-
-레포에서는 `agents/externel/`의 desktop·smartphone 에이전트가 이 부분이다.
-
-### 7. Solution: External extension — 사용자가 만든 에이전트
-
-![External extension: custom agents](docs/presentation/slide-10.png)
-
-**집 밖 연결에 대한 답(2).** 사용자는 자기만의 Custom Agent를 만들어 **Agentic Hub**에 올린다(publish). GitHub의 MCP 서버처럼, 다른 사용자가 이 에이전트를 찾아 설치할 수 있다. 집 안(Internal)과 집 밖(External)이 함께 연결되면 사용자가 말하기 전에 집이 먼저 움직이는 선제적 실행(proactive execution)이 가능해진다.
-
-### 8. Agentic Studio: 에이전트를 만드는 방법
-
-![Agentic Studio](docs/presentation/slide-11.png)
-
-사용자는 웹의 **Agentic Studio**에서 자연어로 에이전트를 만들고, 고치고, 지운다. 예를 들어 *"Brew my coffee at 7:30 and reorder beans when low"*라고 입력하면 Studio가 요청을 Agentic Hub의 API로 보낸다.
-
-레포에서는 [services/studio](services/studio)가 이 부분이다. LLM(LangChain + OpenRouter)은 정해진 슬롯 폼만 채우고, 규칙은 플랫폼 기본 Skill에서 만든다. 권한 잠금 검사와 사용자 승인을 통과해야만 Hub에 등록된다.
-
-### 9. Agentic Studio: 만들어진 에이전트의 Agent Card
-
-![Coffee agent card](docs/presentation/slide-12.png)
-
-Studio가 만든 Coffee Agent도 표준 A2A Agent Card를 갖는다. 이름, 설명("정해진 시간에 커피를 내리고, 원두가 떨어지면 채운다"), Hub 안의 URL, capabilities, skills가 들어 있어서 다른 에이전트가 이 카드만 보고 찾아와 작업을 보낼 수 있다.
-
-### 10. Agentic Hub: 에이전트를 실행하는 방법
-
-![Agentic Hub](docs/presentation/slide-13.png)
-
-**Agentic Hub(Cloud)**는 Studio의 요청을 API로 받아 Agent Information Registry(RDS)에 저장하고, 에이전트를 배포해 실행한다(Coffee, Training, Sleep …, 각자 자기 SLM 사용). 다른 사용자는 **Share & Install**로 에이전트를 공개·검색·설치한다. Hub의 에이전트는 집(My Home)의 Root Agent에 A2A로 작업을 보내고, Root Agent는 커피 머신의 주인인 Kitchen Agent에게 넘긴다. Kitchen Agent가 자기 정책을 확인한 뒤 LG DUOBO 커피 머신을 작동한다. **각 방 에이전트는 자기 정책으로 결정한다.**
-
-레포에서는 [services/agenthub](services/agenthub)(Registry는 Docker의 PostgreSQL, Agent Card로 등록·검색·연결, 기기 주인 한 명 규칙)와 [web/](web/)(Agent Cloud 화면과 스마트홈 앱)가 이 부분이다. 생성된 에이전트는 지금 OpenClaw로 실행하고, `STUDIO_RUNTIME`으로 Python 실행기로 바꿀 수 있다. 다른 사용자와의 공유·설치, 클라우드 배포, 에이전트별 SLM은 아직 계획 단계다([plan.md](plan.md#5-구현-범위)).
-
-### 11. Conclusion
-
-![Conclusion](docs/presentation/slide-14.png)
-
-문제와 해결, 결과를 한 장으로 묶는다.
-
-| 문제 | A2A 위의 해결 | 결과 |
+| 용어 | 뜻 | 레포 위치 |
 |---|---|---|
-| Single-Hub Bottleneck | **Internal Agents**: 방 에이전트가 A2A로 대등하게 일한다. 더 큰 허브가 아니라 에이전트를 더해 확장 | 허브 하나의 병목이 없다 |
-| Lack of External Connectivity | **External Agents**: Desktop, Google Search 등을 A2A로 연결해 집 밖 맥락을 쓴다 | 집 밖과 연결된다 |
-| Lack of External Connectivity | **Agentic Studio & Hub**: 코드 없이 자연어로 에이전트를 만들고, MCP 서버처럼 공유·설치한다 | 누구나 새 에이전트를 더할 수 있다 |
+| A2A | Google이 공개한 에이전트 간 통신 프로토콜. 이 레포는 v1.0만 쓴다 | — |
+| Agent Card | 에이전트의 명함(JSON). 이름, 주소, 할 수 있는 일을 담는다. 맡은 공간·기기·공유 정보는 `skills[].tags`로 알린다 | 각 에이전트의 `/.well-known/agent-card.json` |
+| Root 에이전트 | 집의 입구. 사람과 집 밖 에이전트의 요청을 받아 기기 주인에게 넘긴다. 거실 기기는 직접 맡는다 | `agents/internal/root` |
+| 방 에이전트 | 한 공간의 기기를 맡는 에이전트 | `agents/internal/room1`, `room2`, `kitchen` |
+| 외부 에이전트 | 집 밖 기기의 에이전트. 허용된 정보만 알려 준다 | `agents/external/desktop`, `smartphone` |
+| Home A2A 메시지 | A2A 메시지에 담는 스마트홈용 데이터 형식(`device.control`, `context.query` 등) | [spec/home-a2a.md](spec/home-a2a.md) |
+| Agent Studio | 말로 에이전트를 만드는 서비스. 발표의 "Agentic Studio" | `services/studio` |
+| Agent Hub | 계정, 에이전트 등록·검색·공유·연결(설치), 기기 주인을 관리하는 서비스. 발표의 "Agentic Hub" | `services/agenthub` |
+| Agent Cloud | Hub와 Studio를 쓰는 웹 화면 | `web/apps/cloud` |
+| 스마트홈 앱 | 공간·기기·연결된 에이전트를 보는 화면. 기기를 직접 켜고 끄지는 않는다 | `web/apps/home` |
+| Device Gateway | 가상 집. 기기 상태를 들고 있고, 그 기기의 주인 에이전트가 보낸 명령만 받는다 | `services/gateway` |
+| Event Collector | 에이전트들이 주고받은 요청을 모아, 요청 하나가 지나간 경로로 보여 준다 | `services/collector` |
+| OpenClaw | 에이전트를 돌리는 오픈소스 런타임(LLM + 도구). 우리 규칙은 `home-a2a` 플러그인에 있다 | `agents/home-a2a-plugin` |
 
-그리고 어떤 에이전트가 요청하든 **방 정책이 제어권을 지킨다.** 그 결과가 확장 가능하고 선제적인 스마트홈(Extensible & Proactive Smart Home)이다.
+## 지금 레포에 있는 것
 
-## 기술 스택
+### 기본 에이전트 6개
 
-| 영역 | 기술 |
+| 에이전트 | 화면 이름 | 하는 일 | 포트 |
+|---|---|---|---|
+| `root` | Root 에이전트 | 집의 입구. 거실 조명·TV·TV 음소거를 맡고, 나머지는 주인에게 넘긴다 | 19040 |
+| `room1` | 내 방 에이전트 | 내 방 조명·조명 모드·에어컨·재실. 회의가 시작되면 조명을 회의 모드로 바꾼다 | 19160 |
+| `room2` | 보호 방 에이전트 | 보호 방 조명·에어컨·수면 모드. 수면 중에는 에어컨 끄기와 조명 켜기를 거절한다 | 19280 |
+| `kitchen` | 주방 에이전트 | LG DUOBO 커피머신·원두 부족 센서·주방 조명. 원두가 없으면 커피를 거절한다 | 18680 |
+| `desktop` | PC | 회의 중인지(`meeting_app_active`)와 PC 상태(`pc_state`)를 알린다 | 18800 |
+| `smartphone` | 스마트폰 | 집에 있는지(`presence`)를 알린다 | 18920 |
+
+Studio가 만드는 에이전트는 세 종류다. Hub에서 연결하면 같은 컨테이너에서 추가로 뜬다.
+- **방 에이전트**: 기기를 맡고, 기본 스킬(회의 모드, 수면 모드, 절전 등)로 규칙을 만든다.
+- **루틴 에이전트**: 기기 없이 정한 시각에 Root에게 기기 제어를 부탁한다. 예: Coffee Agent.
+- **대화형 에이전트**: 기기 없이 대화만 한다. 예: 운동 코치.
+
+### 기획과 비교
+
+| 기획(발표) | 지금 |
 |---|---|
-| 에이전트 통신 | A2A v1.0, Home A2A 확장 ([spec/home-a2a.md](spec/home-a2a.md)) |
-| 에이전트 | OpenClaw + TypeScript 플러그인 (`STUDIO_RUNTIME`으로 Python 실행기로 교체 가능) |
-| 백엔드 | Python, FastAPI, Pydantic v2 |
-| 에이전트 생성 (Studio) | LangChain structured output, OpenRouter |
-| 저장소 | PostgreSQL (Hub·Studio·Collector, Docker / RDS), SQLite (테스트) |
-| 화면 | Next.js (Agent Hub) |
-| 실행·배포 | Docker Compose (로컬), AWS ECS Fargate (계획), GitHub Actions |
-| 테스트 | pytest, vitest, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
+| 방마다 에이전트, 기기마다 주인 하나 | 됨. 거실(Root)·내 방·보호 방·주방 |
+| 집 밖 에이전트 연결 | 됨. PC·스마트폰. 실제 캘린더·Slack·메일 연동은 없고, 회의 여부는 PC 에이전트에게 말해서 정한다. Google Search 같은 범용 에이전트는 Agent Card 주소로 등록만 할 수 있고 예시는 없다 |
+| Kitchen·Elderly Room·Living Room 에이전트 | 주방 에이전트는 있다. 거실은 Root가 직접 맡는다. Elderly Room은 없고, 수면 중 보호 정책이 있는 보호 방(`room2`)이 있다 |
+| Studio로 만들기·고치기·지우기 | 만들기는 됨. 지우기는 Hub에서 한다. 고치기는 없다(새로 만들고 이전 것을 지운다) |
+| Hub 공유·검색·설치 | 됨. 계정, 카탈로그, 별, 설치 수. 집은 하나라 모든 계정이 같은 가상 집을 쓴다 |
+| 아침 커피 시나리오 | 됨. 원두 재주문(외부 구매)은 안내 문구만 보여 준다 |
+| 에이전트별 SLM | 안 한다. Claude Haiku(OpenRouter) 호출로 대신한다. EXAONE 학습 실험은 [기록](docs/dpo-experiment.md)으로만 남겼다 |
+| 클라우드 배포(AWS) | 계획만 있다([배포 계획](docs/presentation/README.md#배포-계획)). 지금은 로컬 Docker Compose로 돈다 |
+| 실제 기기 | 없다. Device Gateway의 가상 기기 13개([devices.yaml](services/config/devices.yaml)) |
 
-### 배포 구조
+화면·API별로 되는 기능의 전체 목록은 [docs/FEATURES.md](docs/FEATURES.md)에 있다.
 
-![Deployment structure](docs/presentation/structure.png)
+## 실행
 
-Agentic Hub를 AWS에 올리는 배포 계획이다. 지금 레포는 같은 서비스를 로컬 Docker Compose로 실행한다.
-- **화면과 API 입구:** 사용자는 Route 53 → CloudFront(+WAF)로 들어온다. 정적 화면(`/`)은 S3의 Agent Hub 화면(Next.js static export)에서, API 요청(`/api/*`)은 ALB를 거쳐 서비스로 간다.
-- **서비스 (ECS Fargate, private subnet):** Hub API, Studio API, Agent Runtime(생성된 에이전트의 A2A 서버, 에이전트별 SLM), Event Collector. `docker-compose.yml`의 서비스를 그대로 컨테이너로 실행한다.
-- **데이터:** Agent Information Registry는 DB 전용 private subnet의 RDS PostgreSQL. API 키와 토큰은 Secrets Manager, 로그는 CloudWatch, 이미지는 ECR에 둔다.
-- **밖으로 나가는 호출:** LLM·SLM 호출(OpenRouter)은 NAT Gateway를 거친다.
-- **집(My Home, 로컬 Docker):** Root Agent, 방 에이전트, Device Gateway(가상 기기, 방별 정책)는 집에 남는다. 집에서 클라우드로 A2A 연결을 열고, 작업을 받아(task ↓) 결과를 돌려준다(result ↑).
-- **CI/CD (GitHub Actions):** 화면은 S3 업로드 후 CloudFront 캐시를 무효화하고, 백엔드는 이미지를 ECR에 올려 ECS에 배포한다.
+Docker Desktop(메모리 10GB 이상: OpenClaw 에이전트 하나가 약 1GB)과 [OpenRouter](https://openrouter.ai) API 키가 필요하다.
+나머지 도구는 [docs/RUN.md](docs/RUN.md#1-필요한-것)에 있다.
+
+```bash
+scripts/setup.sh     # 처음 한 번: .env를 만들고 토큰을 채운다. 그다음 .env에 OPENROUTER_API_KEY를 넣는다
+scripts/run_all.sh   # docker compose up -d --build 후 전부 뜰 때까지 기다리고 주소를 출력한다
+```
+
+http://127.0.0.1:3000 에서 회원가입한 뒤 **시나리오** 탭의 아침 커피를 따라가면, 에이전트를 만드는 것부터 기기가
+움직이는 것까지 한 번에 보인다. 처음이면 화면 안내대로 Studio에서 Coffee Agent부터 만든다.
+
+| 이름 | 주소 |
+|---|---|
+| Agent Cloud (Hub·Studio·시나리오) | http://127.0.0.1:3000 |
+| 스마트홈 앱 | http://127.0.0.1:3001 |
+| Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
+| Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN` 필요) |
+
+```bash
+scripts/say.sh desktop "나 회의 시작할게"   # 에이전트에게 말하기 (OpenRouter 과금)
+scripts/logs.sh                           # 에이전트끼리 주고받는 메시지 보기
+scripts/scenario.sh                       # LLM 없이 규칙 검증 (scripts/setup.sh --local 필요)
+scripts/test_hub_studio.sh                # Hub·Studio 26단계 확인
+docker compose down                       # 끄기
+```
+
+데모 순서, 검증 시나리오, 문제 해결은 [docs/RUN.md](docs/RUN.md)에 있다.
 
 ## 레포 구조
 
 ```
 SWE-Final/
-├── docker-compose.yml        # 전체 실행: docker compose up -d --build
-├── plan.md                   # 기획서 (발표 자료 기준)
-├── agents/                   # OpenClaw 에이전트 5개 + Home A2A 플러그인 (TypeScript)
-│   ├── home-a2a-plugin/   #   ACL·소유권·정책(core.ts), 수신·위임·규칙(agent.ts), Gateway 클라이언트(devices.ts)
-│   ├── externel/             #   desktop, smartphone (집 밖 에이전트)
-│   ├── internel/             #   root(Root), room1, room2, kitchen (집 안 에이전트)
-│   ├── generated/            #   Studio가 만든 에이전트 (git에 올리지 않음)
-│   └── Dockerfile            #   다섯 에이전트 + Studio 에이전트 실행기(scripts/launcher.mjs)를 한 컨테이너에서 실행
-├── services/                 # Python (FastAPI)
-│   ├── gateway/              #   Device Gateway: 가상 집의 기기 상태 + 주인 확인
-│   ├── collector/            #   Event Collector: 모든 에이전트의 통신·실행 기록, 요청 흐름
-│   ├── agenthub/             #   Agent Hub: 등록·검색·연결·토큰·기기 주인 (PostgreSQL)
-│   ├── studio/               #   Agent Studio: 자연어 → 에이전트 (LangChain + OpenRouter), 하네스, 실행기 교체(runtime.py)
-│   ├── config/               #   agents.yaml(호출자), devices.yaml(가상 기기), skills.yaml(기본 스킬)
-│   └── contracts/            #   화면이 받는 메시지 형식 (JSON Schema)
-├── web/                      # 화면 (shadcn/ui 모노레포): apps/cloud = Agent Cloud(:3000), apps/home = 스마트홈 앱(:3001), packages/ui·core. 토큰은 서버 쪽 프록시에만
-├── spec/                     # Home A2A 확장 명세
-├── scripts/                  # setup.sh, run_all.sh, scenario.sh, say.sh, logs.sh, test_hub_studio.sh, oc.sh, launcher.mjs
-├── training/                 # EXAONE SFT/DPO 실험 (에이전트별 SLM의 근거)
-└── docs/                     # 발표 자료, 실행 가이드, 인수인계, 아키텍처, 검증·성능 기록
+├── agents/                 에이전트 (OpenClaw + TypeScript 플러그인)
+│   ├── home-a2a-plugin/    A2A 서버, 권한·소유권·정책 규칙 (core.ts, agent.ts, devices.ts)
+│   ├── internal/           집 안: root, room1, room2, kitchen
+│   ├── external/           집 밖: desktop, smartphone
+│   └── generated/          Studio가 만든 에이전트 (git에 올리지 않음)
+├── services/               Python 서비스 (FastAPI)
+│   ├── gateway/            Device Gateway: 가상 집, 기기 주인 확인
+│   ├── collector/          Event Collector: 요청 기록과 흐름
+│   ├── agenthub/           Agent Hub: 계정, 등록·검색·공유·연결, 기기 주인 (PostgreSQL)
+│   ├── studio/             Agent Studio: 말 → 에이전트 (LangChain + OpenRouter), 안전 검사
+│   └── config/             devices.yaml(가상 기기), agents.yaml(호출자), skills.yaml(기본 스킬)
+├── web/                    화면 (Next.js + shadcn/ui): apps/cloud = Agent Cloud, apps/home = 스마트홈 앱
+├── spec/home-a2a.md        에이전트끼리 주고받는 메시지 형식
+├── scripts/                설치·실행·검증 스크립트
+├── training/               EXAONE 학습 실험 (기록)
+├── docs/                   문서와 발표 자료
+├── docker-compose.yml      전체 실행
+└── plan.md                 기획서
 ```
+
+## 더 읽을 문서
 
 | 문서 | 내용 |
 |---|---|
-| [docs/RUN.md](docs/RUN.md) | 설치부터 데모까지 |
-| [docs/HANDOFF.md](docs/HANDOFF.md) | 프로젝트 맥락과 결정 |
+| [docs/presentation/](docs/presentation/README.md) | 발표 자료(PDF), 슬라이드별 설명, 배포 계획 그림 |
+| [plan.md](plan.md) | 기획서: 문제, 해결, 시나리오, 구현 범위 |
+| [docs/FEATURES.md](docs/FEATURES.md) | 화면·API별로 지금 되는 기능 |
+| [docs/RUN.md](docs/RUN.md) | 설치, 실행, 데모 순서, 문제 해결 |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | 팀 인수인계: 정한 것과 그 이유 |
+| [spec/home-a2a.md](spec/home-a2a.md) | 에이전트 메시지 명세 |
+| [services/README.md](services/README.md), [docs/architecture-services.md](docs/architecture-services.md) | 서비스 API와 구조 |
 | [docs/integration.md](docs/integration.md) | 에이전트와 Gateway·Collector 연동 |
-| [docs/architecture-services.md](docs/architecture-services.md) | services 아키텍처 (영문) |
-| [services/README.md](services/README.md) | Hub·Studio API와 하네스 |
-| [docs/verification-report.md](docs/verification-report.md), [docs/performance.md](docs/performance.md), [docs/dpo-experiment.md](docs/dpo-experiment.md) | 검증 결과, 응답 속도, EXAONE 학습 실험 (기록) |
+| [docs/verification-report.md](docs/verification-report.md), [docs/performance.md](docs/performance.md), [docs/dpo-experiment.md](docs/dpo-experiment.md) | 지난 기록: 검증 결과(2026-10-18, Home Assistant를 쓰던 때), 응답 속도, EXAONE 학습 실험 |
 
-SWE26-01의 A2A-agents(루트), a2a-agentic-home(`services/`)를 커밋 기록째 합친 레포다. 2026-11-20에 Home Assistant, 예전 시뮬레이터 화면, Live Simulation Runner를 지우고 Docker Compose 하나로 실행하도록 정리했다.
+## 기술 스택
 
-## 에이전트
-
-OpenClaw 에이전트 5개가 A2A v1.0에 **Home A2A 확장**([spec/home-a2a.md](spec/home-a2a.md))을 얹어 서로 소통한다. 확장은 상태 공유·구독, 공간별 소유권, 정책 기반 협업을 정의한다.
-
-| Agent | 발표의 역할 | 포트 | 공개 정보 / 소유 기기 |
-|---|---|---|---|
-| `externel/desktop` | External: Desktop Agent | 18800 | `meeting_app_active`, `pc_state` |
-| `externel/smartphone` | External: 휴대폰 | 18920 | `presence` |
-| `internel/root` | Root Agent (사용자 입구) | 19040 | 거실 조명, TV, TV 음소거 |
-| `internel/room1` | Internal: 방 에이전트 (My Room) | 19160 | 내 방 조명, 조명 모드, 에어컨, 재실 |
-| `internel/room2` | Internal: 방 에이전트 (수면 정책 방) | 19280 | 보호 방 조명, 에어컨, 수면 모드 |
-
-```
-desktop ──"회의 시작"──▶ root ──(요청자 ACL 확인)──▶ room1 (자기 규칙으로 승인/거절) ──▶ Device Gateway (주인 재확인)
-   ▲                         │
-   └──── context.query ──────┘   (Root가 external 정보를 조회. 허용된 필드만 반환)
-```
-
-LLM(OpenClaw)은 사용자 의도를 해석해 `a2a_*` tool을 호출하는 역할만 한다. 정책, 소유권, 만료 판단은 플러그인 코드가 결정적으로 처리하고, 기기는 Device Gateway가 주인을 한 번 더 확인한 뒤에만 움직인다. 실제 기기는 없고 Gateway가 가상 집(`services/config/devices.yaml`)을 들고 있다.
-
-## 실행
-
-```bash
-scripts/setup.sh            # 최초 1회: .env를 만들고 토큰을 채운다. 그다음 .env에 OPENROUTER_API_KEY만 넣는다
-docker compose up -d --build   # 또는 scripts/run_all.sh (다 뜰 때까지 기다리고 주소 출력)
-```
-
-| 이름 | 주소 |
+| 영역 | 기술 |
 |---|---|
-| Agent Cloud 화면 | http://127.0.0.1:3000 |
-| 스마트홈 앱 (공간·기기·외부 연결) | http://127.0.0.1:3001 |
-| Agent Hub API · Studio API | http://127.0.0.1:8400/docs · http://127.0.0.1:8500/docs |
-| Device Gateway · Event Collector | http://127.0.0.1:8100 · http://127.0.0.1:8200 (`DASHBOARD_TOKEN`) |
-| 에이전트 | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 |
-
-```bash
-scripts/logs.sh                                  # A2A 이벤트 로그
-scripts/say.sh desktop "나 회의 시작할게"           # 에이전트에 자연어 한 턴
-scripts/scenario.sh [--llm] [--kill-home]        # 결정적 검증 (scripts/setup.sh --local 필요)
-scripts/test_hub_studio.sh                       # Hub·Studio 26단계 확인
-docker compose down                              # 종료
-```
-
-자세한 순서와 문제 해결은 [docs/RUN.md](docs/RUN.md).
-
-## 검증 항목 (plan.md 5.3)
-| 항목 | 시나리오 |
-|---|---|
-| 외부 상태 전달 | 구독 → `context.update` → room1 조명 회의 모드 |
-| 허용되지 않은 조회 차단 | Root의 `pc_state` 조회 → `FIELD_NOT_ALLOWED`, 잘못된 토큰 → `UNAUTHORIZED` |
-| 만료·역순 데이터 무시 | sequence 역행 또는 만료 → `STALE` |
-| 자기 기기만 직접 제어 | room1이 거실 TV 제어 → `NOT_OWNER`, Root는 room 기기를 위임(`delegated_to`), Gateway도 남의 기기 명령을 403으로 막음 |
-| 안전 정책 거절 | room2 수면 중 에어컨 끄기 → `SAFETY_POLICY` |
-| Root 중단 시 독립 동작 | `--kill-home` |
-| 집 전체 협업 | 전체 절전 → room1 실행, room2 일부 거절 → Root가 `PARTIAL`로 취합 |
-| 신규 Agent 연결 | Hub는 기기 주인 중복 연결을 거절하고, 연결한 Studio 에이전트를 바로 실행. Root와 Gateway는 Hub의 지금 주인을 따른다 |
-| 자연어 에이전트 생성 | Studio가 만든 에이전트는 권한 잠금 검사와 사용자 승인을 통과해야 Hub에 등록 |
+| 에이전트 통신 | A2A v1.0 (JSON-RPC), Home A2A 메시지 |
+| 에이전트 | OpenClaw, TypeScript 플러그인 |
+| LLM | Claude Haiku (OpenRouter). 에이전트는 `AGENT_MODEL`, Studio는 `STUDIO_MODEL`로 바꾼다 |
+| 서비스 | Python, FastAPI, Pydantic v2, LangChain (Studio) |
+| 저장소 | PostgreSQL (Hub·Studio·Collector), 테스트는 SQLite |
+| 화면 | Next.js 16, shadcn/ui, Tailwind 4 (Turborepo) |
+| 실행·CI | Docker Compose, GitHub Actions |
+| 테스트 | pytest, vitest, `node --test`, `scripts/scenario.sh`, `scripts/test_hub_studio.sh` |
 
 ## 알려진 한계
-- 토큰은 에이전트당 하나이고 피어끼리 공유한다. 상호 신뢰하지 않는 환경이라면 쌍별 토큰이나 mTLS로 바꿔야 한다.
-- 가상 집의 기기 상태는 Gateway 메모리에 있어서 Gateway를 다시 시작하면 처음 상태로 돌아간다.
-- 구독 정보는 publisher 메모리에만 있다. external을 재시작하면 구독하던 쪽도 재시작해야 한다.
-- OpenClaw gateway 하나가 메모리를 약 1GB 쓴다(LLM은 OpenRouter라 상관없다). 기본 에이전트 6개를 띄우려면 Docker Desktop 메모리를 10GB 이상으로 둔다. 대화형·루틴 에이전트는 OpenClaw 없이 실행기 안에서 돈다.
-- 기본 에이전트 5개의 토큰과 주소는 여전히 `.env`·`agents/shared.json5`에 있다. Hub는 그 위에서 연결·주인을 정한다.
-- 계정은 여럿이지만 집은 하나다. 다른 계정이 설치(연결)한 에이전트도 같은 가상 집의 기기를 움직인다. 회원가입은 약관·이메일 확인이 없는 데모 수준이다.
+
+- 집은 하나다. 계정은 여럿이지만 모든 계정이 같은 가상 집을 쓰고, 다른 계정이 설치한 에이전트도 같은 기기를 움직인다.
+  회원가입은 약관·이메일 확인이 없는 데모 수준이다.
+- 가상 기기 상태와 구독 정보는 메모리에만 있다. Gateway를 다시 시작하면 기기가 처음 상태로 돌아가고,
+  외부 에이전트를 다시 시작하면 구독하던 에이전트도 다시 시작해야 한다.
+- 기본 에이전트 6개의 토큰과 주소는 `.env`와 `agents/shared.json5`에 고정되어 있고, 토큰을 피어끼리 공유한다
+  (Studio 에이전트의 토큰은 Hub가 발급한다). 서로 믿지 않는 에이전트끼리라면 쌍별 토큰이나 mTLS가 필요하다.
+- 기본 에이전트와 Studio 방 에이전트는 각각 OpenClaw 프로세스 하나(약 1GB)로 돈다. 그래서 Docker 메모리가
+  10GB 이상 필요하고, Studio 방 에이전트를 연결할 때마다 1GB씩 더 든다(루틴·대화형 에이전트는 거의 들지 않는다).
+
+## 레포 이력
+
+SWE26-01의 A2A-agents(루트)와 a2a-agentic-home(`services/`)을 커밋 기록째 합친 레포다(2026-10-18).
+2026-11-20에 Home Assistant와 예전 시뮬레이터를 지우고 Docker Compose 하나로 실행하도록 정리했다.

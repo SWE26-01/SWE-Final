@@ -8,7 +8,7 @@
 집 밖 에이전트와 A2A로 연결하며, Agentic Studio·Hub로 에이전트를 만들고 등록·연결한다.
 한양대 CSE406 소프트웨어공학 Phase 2 텀 프로젝트이고, 주제는 LG전자 IC-PBL "Proactive Agentic Home"이다. 학기 말에 LG 데모를 한다.
 
-- 기획서: 루트 `plan.md` (발표 자료 `docs/presentation/presentation.pdf` 기준, 2026-11-18). 슬라이드별 설명은 README.
+- 기획서: 루트 `plan.md` (발표 자료 `docs/presentation/presentation.pdf` 기준, 2026-11-18). 슬라이드별 설명과 슬라이드·레포가 다른 점은 `docs/presentation/README.md`.
 - **주제 확장(2026-11-13)**: "Extension of Smart Home: Internal & External Connectivity via A2A". Main 1은 위의 A2A 스마트홈
   (내부 방 에이전트 + 외부 Desktop·Mobile 에이전트, 분산 제어) 그대로이고, Main 2로 **Agent Studio**(자연어 → 템플릿 기반 에이전트),
   **Agent Hub**(등록·검색·연결·권한)를 더한다. Skill Marketplace는 빼기로 했다(2026-11-16): 스킬은 `config/skills.yaml`의
@@ -28,7 +28,7 @@
 
 | 폴더 | 원래 레포 | 담당 | 내용 |
 | --- | --- | --- | --- |
-| 루트 (`agents/`, `spec/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 5개를 OpenClaw로: desktop, smartphone, root(=Root/Home), room1(=My Room), room2(수면 정책 방). TS 플러그인 `home-a2a`에 확장 규칙이 들어 있다 |
+| 루트 (`agents/`, `spec/`, `scripts/`, `plan.md`) | A2A-agents (개발 중단, 이제 여기서 작업) | nsu102 | 에이전트 6개를 OpenClaw로: desktop, smartphone, root(=Root/Home), room1(=내 방), room2(=보호 방, 수면 정책), kitchen(=주방). TS 플러그인 `home-a2a`에 메시지 규칙이 들어 있다 |
 | `services/` | a2a-agentic-home | jwsong05, sjounng, jenny | Device Gateway(가상 집, 주인 확인), Event Collector(통신 기록 모음), Agent Hub, Agent Studio |
 | `web/` | — | lahee3423 | 화면: shadcn/ui 모노레포 (Agent Cloud `apps/cloud`, 스마트홈 앱 `apps/home`) |
 
@@ -45,7 +45,7 @@
   Collector는 정해진 필드만 저장한다.
 - **기기는 Device Gateway의 가상 집에만 있다(2026-11-20, Home Assistant 제거).** 에이전트는 자기 토큰으로 Gateway를 부르고
   (HA REST와 같은 모양), 기록을 Collector로 보낸다. 상태는 Gateway 메모리에 있고 다시 시작하면 처음 상태로 돌아간다.
-- **실행은 루트 `docker compose up -d --build` 하나로 한다.** 에이전트 5개는 한 컨테이너(`agents`)에서 돌아 서로 127.0.0.1로 부른다.
+- **실행은 루트 `docker compose up -d --build` 하나로 한다.** 에이전트 6개는 한 컨테이너(`agents`)에서 돌아 서로 127.0.0.1로 부른다.
 - **요청 하나는 `request_id` 하나로 끝까지 추적한다**(위임 = 같은 id, 절전 = `<id>/<room>`, 규칙 = 새 id, A2A-agents#3). Collector `GET /flows`가 이걸로 묶는다.
 - **화면은 `web/`(shadcn/ui 모노레포, Turborepo + npm workspaces)이다(2026-11-22, 처음은 lahee3423/swe_AgentHub의 `agent_hub_FE`).**
   Agent Cloud는 `apps/cloud`(:3000), 스마트홈 앱은 `apps/home`(:3001)이고, 둘이 `packages/ui`(shadcn 컴포넌트)와 `packages/core`
@@ -83,7 +83,7 @@
 
 ## 현재 상태
 
-- 에이전트 5개, Home A2A 확장 1~4, 가상 집(Gateway), 검증 시나리오: 동작한다(`scripts/scenario.sh`).
+- 에이전트 6개, Home A2A 메시지 규칙 1~4, 가상 집(Gateway), 검증 시나리오: 동작한다(`scripts/scenario.sh`).
 - services: Gateway·Collector(요청 단위 흐름 `GET /flows` 포함)·연동 확인 스크립트, 아키텍처 문서 `docs/architecture-services.md`(영문),
   검증 결과 보고서 `docs/verification-report.md`(2026-10-18 HA 시절 기록).
 - 응답 속도: 사람이 에이전트에게 말한 한 턴이 약 11초에서 6초로 줄었다. 측정과 바꾼 설정은 `docs/performance.md`.

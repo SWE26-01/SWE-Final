@@ -46,7 +46,7 @@ agents)
   "$ROOT/scripts/oc.sh" desktop --version >/dev/null   # sync agents/ into the ASCII mirror
   app=$HOMEDIR/app/agents
   cp "$ROOT/training/lab-models.json5" "$app/lab-models.json5"
-  for f in "$app"/externel/*/openclaw.json5 "$app"/internel/*/openclaw.json5; do
+  for f in "$app"/external/*/openclaw.json5 "$app"/internal/*/openclaw.json5; do
     grep -q lab-models "$f" || sed -i '' 's|^  tools: { profile|  models: { $include: "../../lab-models.json5" },\n  tools: { profile|' "$f"
   done
   mkdir -p "$ROOT/logs"

@@ -34,7 +34,7 @@ scripts/run_all.sh          # docker compose up -d --build 후 전부 뜰 때까
 | studio | http://127.0.0.1:8500/docs | Agent Studio API |
 | gateway | http://127.0.0.1:8100/devices | 가상 집의 기기 상태 (`Authorization: Bearer $DASHBOARD_TOKEN`) |
 | collector | http://127.0.0.1:8200/flows | 에이전트 통신 기록 (같은 토큰) |
-| agents | 127.0.0.1:18800 / 18920 / 19040 / 19160 / 19280 | desktop / smartphone / root(Root) / room1 / room2 |
+| agents | 127.0.0.1:18680 / 18800 / 18920 / 19040 / 19160 / 19280 | kitchen / desktop / smartphone / root(Root) / room1 / room2 |
 
 모든 포트는 127.0.0.1에만 열린다. 이벤트 로그는 `scripts/logs.sh`(다른 터미널), 에이전트 출력은 `docker compose logs -f agents`, 에이전트별 로그는 `logs/<id>.log`.
 
@@ -70,7 +70,7 @@ python services/scripts/verify_integration.py --env-file .env    # services 패�
 ```
 1. Agent Card의 기기 주인이 `services/config/devices.yaml`과 같은지
 2. Gateway가 남의 기기에 대한 명령을 막는지
-3. Collector에 다섯 에이전트의 이벤트가 모두 있는지
+3. Collector에 기본 에이전트 6개의 이벤트가 모두 있는지
 
 Hub·Studio 확인: `scripts/test_hub_studio.sh` (26단계).
 

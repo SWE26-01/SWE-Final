@@ -1,4 +1,4 @@
-# The five OpenClaw agents in one container (scripts/run_agents.sh), so their peer URLs
+# The six OpenClaw agents in one container (scripts/run_agents.sh), so their peer URLs
 # (127.0.0.1:<port>, agents/shared.json5) keep working. Built from the repo root (docker-compose.yml).
 FROM node:24-slim
 RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates \
