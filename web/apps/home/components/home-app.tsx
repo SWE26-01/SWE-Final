@@ -434,7 +434,7 @@ export function HomeApp() {
           <SpaceView home={home} spaceId={spaceId} open={open} onBack={() => setSpaceId(null)} />
         ) : (
           <div className="grid gap-4">
-            <header className="flex items-center gap-2.5 pt-3 text-white">
+            <header className="flex items-center gap-2.5 pt-[27px] text-white">
               <Home className="size-7 drop-shadow" />
               <h1 className="flex-1 text-2xl font-bold drop-shadow">스마트홈</h1>
               <Button variant="ghost" size="icon" className="relative text-white hover:bg-white/15 hover:text-white" onClick={openActivity} aria-label={unseen ? "새 활동 있음" : "활동"}>
