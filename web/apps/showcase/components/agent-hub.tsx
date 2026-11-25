@@ -31,7 +31,6 @@ function DiagramIcon({ name }: { name: IconName }) {
 
 export function AgentHub() {
   const [selectedAgent, setSelectedAgent] = useState(0)
-  const [selectedTool, setSelectedTool] = useState<(typeof tools)[number]>("layers")
   const move = (direction: number) => setSelectedAgent((current) => (current + direction + agents.length) % agents.length)
 
   return (
@@ -56,15 +55,7 @@ export function AgentHub() {
       <div className="hub-connector hub-connector--top" aria-hidden="true" />
       <div className="hub-core">
         <div className="hub-panel">
-          <button className="hub-title" type="button" onClick={() => setSelectedTool("layers")}><DiagramIcon name="home" /><strong>Cloud</strong></button>
-          <span className="hub-divider" aria-hidden="true" />
-          <div className="hub-tools">
-            {tools.map((tool) => (
-              <button key={tool} type="button" className={selectedTool === tool ? "is-active" : ""} onClick={() => setSelectedTool(tool)} aria-label={`${tool} 기능`} aria-pressed={selectedTool === tool}>
-                <DiagramIcon name={tool} />
-              </button>
-            ))}
-          </div>
+          <div className="hub-title"><strong>Cloud</strong></div>
         </div>
         <div className="hub-connector hub-connector--bottom" aria-hidden="true" />
       </div>

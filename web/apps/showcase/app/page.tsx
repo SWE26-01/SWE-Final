@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { Showcase } from "@/components/showcase"
 
 export default function ShowcasePage() {
-  redirect("/step/1")
+  return <Showcase />
 }
